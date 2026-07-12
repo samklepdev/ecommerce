@@ -52,11 +52,16 @@ import { GetCurrentUser } from '@/modules/identity/application/use-cases/get-cur
 
 import { DrizzleSupplierRepository } from '@/modules/sourcing/infrastructure/drizzle-supplier-repository';
 import { DrizzleSupplierOfferRepository } from '@/modules/sourcing/infrastructure/drizzle-supplier-offer-repository';
+import { WooCommerceSupplierPageFetcher } from '@/modules/sourcing/infrastructure/woocommerce-supplier-page-fetcher';
 import { ListSuppliers } from '@/modules/sourcing/application/use-cases/list-suppliers';
 import { CreateSupplier } from '@/modules/sourcing/application/use-cases/create-supplier';
 import { CreateSupplierOffer } from '@/modules/sourcing/application/use-cases/create-supplier-offer';
 import { SetPreferredSupplierOffer } from '@/modules/sourcing/application/use-cases/set-preferred-supplier-offer';
 import { GetPreferredOfferForVariant } from '@/modules/sourcing/application/use-cases/get-preferred-offer-for-variant';
+import { ListSupplierOffersForVariant } from '@/modules/sourcing/application/use-cases/list-supplier-offers-for-variant';
+import { SetSupplierOfferAutoSync } from '@/modules/sourcing/application/use-cases/set-supplier-offer-auto-sync';
+import { SyncSupplierOffer } from '@/modules/sourcing/application/use-cases/sync-supplier-offer';
+import { SyncAllDueSupplierOffers } from '@/modules/sourcing/application/use-cases/sync-all-due-supplier-offers';
 
 /**
  * The single DI root. Nothing else `new`s an adapter. Routes, actions, and the
@@ -87,6 +92,10 @@ export interface Container {
   createSupplierOffer: CreateSupplierOffer;
   setPreferredSupplierOffer: SetPreferredSupplierOffer;
   getPreferredOfferForVariant: GetPreferredOfferForVariant;
+  listSupplierOffersForVariant: ListSupplierOffersForVariant;
+  setSupplierOfferAutoSync: SetSupplierOfferAutoSync;
+  syncSupplierOffer: SyncSupplierOffer;
+  syncAllDueSupplierOffers: SyncAllDueSupplierOffers;
 
   placeOrder: PlaceOrder;
   startCheckout: StartCheckout;
@@ -155,6 +164,15 @@ function build(): Container {
   const createSupplierOffer = new CreateSupplierOffer(supplierOffers);
   const setPreferredSupplierOffer = new SetPreferredSupplierOffer(supplierOffers);
   const getPreferredOfferForVariant = new GetPreferredOfferForVariant(supplierOffers);
+  const listSupplierOffersForVariant = new ListSupplierOffersForVariant(supplierOffers);
+  const setSupplierOfferAutoSync = new SetSupplierOfferAutoSync(supplierOffers);
+  const supplierPageFetcher = new WooCommerceSupplierPageFetcher();
+  const syncSupplierOffer = new SyncSupplierOffer(supplierOffers, supplierPageFetcher, products);
+  const syncAllDueSupplierOffers = new SyncAllDueSupplierOffers(
+    supplierOffers,
+    syncSupplierOffer,
+    env.SUPPLIER_SYNC_INTERVAL_HOURS,
+  );
 
   // --- orders / checkout / confirmation / fulfillment ---
   const orders = new DrizzleOrderRepository(db);
@@ -208,6 +226,10 @@ function build(): Container {
     createSupplierOffer,
     setPreferredSupplierOffer,
     getPreferredOfferForVariant,
+    listSupplierOffersForVariant,
+    setSupplierOfferAutoSync,
+    syncSupplierOffer,
+    syncAllDueSupplierOffers,
     placeOrder,
     startCheckout,
     expireStaleCheckouts,

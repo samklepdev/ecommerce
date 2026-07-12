@@ -23,13 +23,64 @@
   font-size: 0.875rem;
 }
 
-.variantList {
+.variantBlock {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-3);
+}
+
+.variantHeading {
+  font-weight: 500;
+  margin-bottom: var(--space-2);
+}
+
+.offerList {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-3);
+}
+
+.offerRow {
+  background: var(--background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+}
+
+.offerInfo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
   font-size: 0.875rem;
+}
+
+.offerCost {
   color: var(--color-muted);
+}
+
+.syncedAt {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+
+.scrapedTitle {
+  margin-top: var(--space-2);
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.syncError {
+  margin-top: var(--space-2);
+  font-size: 0.8125rem;
+  color: var(--color-danger);
+}
+
+.offerActions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
 }
 
 .row {

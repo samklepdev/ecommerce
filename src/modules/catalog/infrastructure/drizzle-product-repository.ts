@@ -27,6 +27,7 @@ function toProduct(row: ProductRow, variants: ProductVariant[]): Product {
     slug: Slug.create(row.slug),
     name: row.name,
     description: row.description,
+    imageUrl: row.imageUrl,
     status: row.status as ProductStatus,
     variants,
   });
@@ -84,6 +85,13 @@ export class DrizzleProductRepository implements ProductRepository {
       unitAmountMinor: variant.price.amountMinor,
       currency: variant.price.currency,
     });
+  }
+
+  async updateImageUrl(productId: string, imageUrl: string): Promise<void> {
+    await this.db
+      .update(products)
+      .set({ imageUrl, updatedAt: new Date() })
+      .where(eq(products.id, productId));
   }
 
   private async variantsFor(productIds: string[]): Promise<Map<string, ProductVariant[]>> {

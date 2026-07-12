@@ -1,6 +1,12 @@
 import { getContainer } from '@/composition/container';
 import { requireAdmin } from '@/app/lib/session';
-import { createProductWithOfferAction, createSupplierAction } from '@/app/actions/admin/catalog';
+import { supplierOfferSyncStatusTone } from '@/app/lib/status-tone';
+import {
+  createProductWithOfferAction,
+  createSupplierAction,
+  setAutoSyncEnabledAction,
+  syncSupplierOfferAction,
+} from '@/app/actions/admin/catalog';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
 import { Card } from '@/components/ui/Card';
@@ -8,6 +14,7 @@ import { Field } from '@/components/ui/Field';
 import { Input, Select } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import type { SupplierOffer } from '@/modules/sourcing/domain/supplier-offer';
 import styles from './page.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -15,11 +22,24 @@ export const dynamic = 'force-dynamic';
 export default async function AdminProductsPage() {
   await requireAdmin();
 
-  const { listAllProductsForAdmin, listSuppliers } = getContainer();
+  const { listAllProductsForAdmin, listSuppliers, listSupplierOffersForVariant } =
+    getContainer();
   const [products, suppliers] = await Promise.all([
     listAllProductsForAdmin.execute(),
     listSuppliers.execute(),
   ]);
+  const supplierNameById = new Map(suppliers.map((s) => [s.id, s.name] as const));
+
+  const offersByVariant = new Map<string, SupplierOffer[]>(
+    await Promise.all(
+      products
+        .flatMap((p) => p.variants)
+        .map(
+          async (v) =>
+            [v.id, await listSupplierOffersForVariant.execute({ variantId: v.id })] as const,
+        ),
+    ),
+  );
 
   return (
     <PageContainer>
@@ -37,13 +57,75 @@ export default async function AdminProductsPage() {
                   <span className={styles.slug}>{p.slug.value}</span>
                   <Badge tone={p.status === 'active' ? 'success' : 'neutral'}>{p.status}</Badge>
                 </div>
-                <ul className={styles.variantList}>
+
+                <Stack gap={3}>
                   {p.variants.map((v) => (
-                    <li key={v.id}>
-                      {v.sku}: {v.price.toString()}
-                    </li>
+                    <div key={v.id} className={styles.variantBlock}>
+                      <p className={styles.variantHeading}>
+                        {v.sku}: {v.price.toString()}
+                      </p>
+
+                      <ul className={styles.offerList}>
+                        {(offersByVariant.get(v.id) ?? []).map((offer) => (
+                          <li key={offer.id} className={styles.offerRow}>
+                            <div className={styles.offerInfo}>
+                              <span>
+                                {supplierNameById.get(offer.supplierId) ?? offer.supplierId}
+                                {offer.isPreferred && (
+                                  <Badge tone="accent">preferred</Badge>
+                                )}
+                              </span>
+                              <span className={styles.offerCost}>
+                                cost {offer.cost.toString()}
+                              </span>
+                              <Badge tone={supplierOfferSyncStatusTone(offer.lastSyncStatus)}>
+                                {offer.lastSyncStatus}
+                              </Badge>
+                              {offer.lastSyncedAt && (
+                                <span className={styles.syncedAt}>
+                                  {new Date(offer.lastSyncedAt).toLocaleString()}
+                                </span>
+                              )}
+                            </div>
+                            {offer.scrapedTitle && (
+                              <p className={styles.scrapedTitle}>
+                                Scraped title: &ldquo;{offer.scrapedTitle}&rdquo;
+                              </p>
+                            )}
+                            {offer.lastSyncError && (
+                              <p className={styles.syncError}>{offer.lastSyncError}</p>
+                            )}
+                            <div className={styles.offerActions}>
+                              <form action={syncSupplierOfferAction}>
+                                <input
+                                  type="hidden"
+                                  name="supplierOfferId"
+                                  value={offer.id}
+                                />
+                                <Button type="submit" variant="secondary">
+                                  Sync now
+                                </Button>
+                              </form>
+                              <form action={setAutoSyncEnabledAction}>
+                                <input type="hidden" name="offerId" value={offer.id} />
+                                <input
+                                  type="hidden"
+                                  name="enabled"
+                                  value={String(!offer.autoSyncEnabled)}
+                                />
+                                <Button type="submit" variant="ghost">
+                                  {offer.autoSyncEnabled
+                                    ? 'Disable auto-sync'
+                                    : 'Enable auto-sync'}
+                                </Button>
+                              </form>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   ))}
-                </ul>
+                </Stack>
               </Card>
             ))}
           </Stack>

@@ -84,3 +84,38 @@ export async function createProductWithOfferAction(formData: FormData): Promise<
   revalidatePath('/admin/products');
   revalidatePath('/products');
 }
+
+const SyncSupplierOfferSchema = z.object({
+  supplierOfferId: z.string().min(1),
+});
+
+export async function syncSupplierOfferAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const parsed = SyncSupplierOfferSchema.safeParse({
+    supplierOfferId: formData.get('supplierOfferId'),
+  });
+  if (!parsed.success) return;
+
+  const { syncSupplierOffer } = getContainer();
+  await syncSupplierOffer.execute(parsed.data);
+  revalidatePath('/admin/products');
+  revalidatePath('/products');
+}
+
+const SetAutoSyncSchema = z.object({
+  offerId: z.string().min(1),
+  enabled: z.enum(['true', 'false']).transform((v) => v === 'true'),
+});
+
+export async function setAutoSyncEnabledAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const parsed = SetAutoSyncSchema.safeParse({
+    offerId: formData.get('offerId'),
+    enabled: formData.get('enabled'),
+  });
+  if (!parsed.success) return;
+
+  const { setSupplierOfferAutoSync } = getContainer();
+  await setSupplierOfferAutoSync.execute(parsed.data);
+  revalidatePath('/admin/products');
+}

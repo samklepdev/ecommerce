@@ -9,6 +9,7 @@ export interface ProductProps {
   slug: Slug;
   name: string;
   description: string | null;
+  imageUrl?: string | null;
   status: ProductStatus;
   variants: ProductVariant[];
 }
@@ -17,6 +18,7 @@ export class Product extends AggregateRoot<string> {
   readonly slug: Slug;
   readonly name: string;
   readonly description: string | null;
+  readonly imageUrl: string | null;
   readonly status: ProductStatus;
   readonly variants: ProductVariant[];
 
@@ -25,6 +27,7 @@ export class Product extends AggregateRoot<string> {
     this.slug = props.slug;
     this.name = props.name;
     this.description = props.description;
+    this.imageUrl = props.imageUrl ?? null;
     this.status = props.status;
     this.variants = props.variants;
   }
