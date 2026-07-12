@@ -1,0 +1,24 @@
+.alert {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  border: 1px solid transparent;
+}
+
+.danger {
+  background: color-mix(in srgb, var(--color-danger) 12%, var(--background));
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.success {
+  background: color-mix(in srgb, var(--color-success) 12%, var(--background));
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.neutral {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--foreground);
+}

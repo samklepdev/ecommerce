@@ -3,6 +3,11 @@ import { notFound } from 'next/navigation';
 
 import { getContainer } from '@/composition/container';
 import { addToCartAction } from '@/app/actions/cart';
+import { PageContainer } from '@/components/ui/PageContainer';
+import { Stack } from '@/components/ui/Stack';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import styles from './page.module.css';
 
 export const revalidate = 3600;
 
@@ -25,22 +30,29 @@ export default async function ProductPage({ params }: ProductPageProps) {
   if (!product) notFound();
 
   return (
-    <main>
-      <h1>{product.name}</h1>
-      {product.description && <p>{product.description}</p>}
+    <PageContainer>
+      <Stack gap={5}>
+        <div>
+          <h1>{product.name}</h1>
+          {product.description && <p className={styles.description}>{product.description}</p>}
+        </div>
 
-      <ul>
-        {product.variants.map((variant) => (
-          <li key={variant.id}>
-            {variant.name} — {variant.price.toString()}
-            <form action={addToCartAction}>
-              <input type="hidden" name="variantId" value={variant.id} />
-              <input type="hidden" name="quantity" value="1" />
-              <button type="submit">Add to cart</button>
-            </form>
-          </li>
-        ))}
-      </ul>
-    </main>
+        <Stack gap={3}>
+          {product.variants.map((variant) => (
+            <Card key={variant.id} className={styles.variantCard}>
+              <div>
+                <p className={styles.variantName}>{variant.name}</p>
+                <p className={styles.price}>{variant.price.toString()}</p>
+              </div>
+              <form action={addToCartAction}>
+                <input type="hidden" name="variantId" value={variant.id} />
+                <input type="hidden" name="quantity" value="1" />
+                <Button type="submit">Add to cart</Button>
+              </form>
+            </Card>
+          ))}
+        </Stack>
+      </Stack>
+    </PageContainer>
   );
 }

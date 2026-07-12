@@ -1,9 +1,18 @@
 import { getContainer } from '@/composition/container';
 import { requireAdmin } from '@/app/lib/session';
+import { supplierOrderStatusTone } from '@/app/lib/status-tone';
 import {
   markSupplierOrderOrderedAction,
   markSupplierOrderShippedAction,
 } from '@/app/actions/admin/fulfillment';
+import { PageContainer } from '@/components/ui/PageContainer';
+import { Stack } from '@/components/ui/Stack';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Field } from '@/components/ui/Field';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
+import styles from './page.module.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,68 +36,100 @@ export default async function AdminFulfillmentPage() {
   );
 
   return (
-    <main>
-      <h1>Fulfillment</h1>
-      {supplierOrders.length === 0 && <p>Nothing needs action.</p>}
-      <ul>
-        {supplierOrders.map((so) => {
-          const order = orderSummaries.get(so.orderId);
-          const address = order?.shippingAddress;
-          return (
-            <li key={so.id}>
-              <h2>
-                {supplierNameById.get(so.supplierId) ?? so.supplierId} — {so.status}
-              </h2>
-              <p>Ship to: {order?.customerEmail}</p>
-              {address && (
-                <address>
-                  {address.name}
-                  <br />
-                  {address.line1}
-                  {address.line2 ? <>, {address.line2}</> : null}
-                  <br />
-                  {address.city}, {address.region} {address.postalCode}
-                  <br />
-                  {address.country}
-                </address>
-              )}
-              <ul>
-                {so.lines.map((line, i) => (
-                  <li key={i}>
-                    {line.sku} × {line.quantity} — cost {line.unitCostMinor / 100} {so.costCurrency}
-                  </li>
-                ))}
-              </ul>
-              <p>
-                Total cost: {so.costTotalMinor / 100} {so.costCurrency}
-              </p>
+    <PageContainer>
+      <Stack gap={5}>
+        <h1>Fulfillment</h1>
 
-              {so.status === 'needs_ordering' && (
-                <form action={markSupplierOrderOrderedAction}>
-                  <input type="hidden" name="supplierOrderId" value={so.id} />
-                  <label>
-                    Supplier order reference
-                    <input type="text" name="reference" required />
-                  </label>
-                  <button type="submit">Mark ordered</button>
-                </form>
-              )}
+        {supplierOrders.length === 0 && <p className={styles.empty}>Nothing needs action.</p>}
 
-              {so.status === 'ordered' && (
-                <form action={markSupplierOrderShippedAction}>
-                  <input type="hidden" name="supplierOrderId" value={so.id} />
-                  <input type="hidden" name="orderId" value={so.orderId} />
-                  <label>
-                    Tracking number
-                    <input type="text" name="trackingNumber" required />
-                  </label>
-                  <button type="submit">Mark shipped</button>
-                </form>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </main>
+        <Stack gap={4}>
+          {supplierOrders.map((so) => {
+            const order = orderSummaries.get(so.orderId);
+            const address = order?.shippingAddress;
+
+            return (
+              <Card key={so.id}>
+                <div className={styles.cardHeader}>
+                  <h2 className={styles.supplierName}>
+                    {supplierNameById.get(so.supplierId) ?? so.supplierId}
+                  </h2>
+                  <Badge tone={supplierOrderStatusTone(so.status)}>{so.status}</Badge>
+                </div>
+
+                <div className={styles.grid}>
+                  <div>
+                    <h3 className={styles.sectionLabel}>Ship to</h3>
+                    <p>{order?.customerEmail}</p>
+                    {address && (
+                      <address className={styles.address}>
+                        {address.name}
+                        <br />
+                        {address.line1}
+                        {address.line2 ? <>, {address.line2}</> : null}
+                        <br />
+                        {address.city}, {address.region} {address.postalCode}
+                        <br />
+                        {address.country}
+                      </address>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className={styles.sectionLabel}>Items to buy</h3>
+                    <ul className={styles.lineList}>
+                      {so.lines.map((line, i) => (
+                        <li key={i} className={styles.lineItem}>
+                          <span>
+                            {line.sku} × {line.quantity}
+                          </span>
+                          <span>{((line.unitCostMinor * line.quantity) / 100).toFixed(2)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className={styles.total}>
+                      Total cost: {(so.costTotalMinor / 100).toFixed(2)} {so.costCurrency}
+                    </p>
+                  </div>
+                </div>
+
+                {so.status === 'needs_ordering' && (
+                  <form action={markSupplierOrderOrderedAction} className={styles.actionForm}>
+                    <input type="hidden" name="supplierOrderId" value={so.id} />
+                    <Field
+                      label="Supplier order reference"
+                      htmlFor={`reference-${so.id}`}
+                      className={styles.actionField}
+                    >
+                      <Input type="text" id={`reference-${so.id}`} name="reference" required />
+                    </Field>
+                    <Button type="submit">Mark ordered</Button>
+                  </form>
+                )}
+
+                {so.status === 'ordered' && (
+                  <form action={markSupplierOrderShippedAction} className={styles.actionForm}>
+                    <input type="hidden" name="supplierOrderId" value={so.id} />
+                    <input type="hidden" name="orderId" value={so.orderId} />
+                    <Field
+                      label="Tracking number"
+                      htmlFor={`tracking-${so.id}`}
+                      className={styles.actionField}
+                    >
+                      <Input
+                        type="text"
+                        id={`tracking-${so.id}`}
+                        name="trackingNumber"
+                        required
+                      />
+                    </Field>
+                    <Button type="submit">Mark shipped</Button>
+                  </form>
+                )}
+              </Card>
+            );
+          })}
+        </Stack>
+      </Stack>
+    </PageContainer>
   );
 }

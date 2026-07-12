@@ -1,0 +1,25 @@
+.lineCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sku {
+  font-weight: 500;
+}
+
+.qty {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.subtotal {
+  font-weight: 600;
+  font-size: 1.0625rem;
+}

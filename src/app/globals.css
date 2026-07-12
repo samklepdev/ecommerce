@@ -1,12 +1,56 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  --color-muted: #6b7280;
+  --color-border: #e5e7eb;
+  --color-surface: #f9fafb;
+
+  --color-accent: #2563eb;
+  --color-accent-foreground: #ffffff;
+
+  --color-success: #16a34a;
+  --color-success-foreground: #ffffff;
+  --color-warning: #d97706;
+  --color-warning-foreground: #ffffff;
+  --color-danger: #dc2626;
+  --color-danger-foreground: #ffffff;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2.5rem;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.08);
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+
+    --color-muted: #9ca3af;
+    --color-border: #27272a;
+    --color-surface: #17171a;
+
+    --color-accent: #3b82f6;
+    --color-accent-foreground: #0a0a0a;
+
+    --color-success: #22c55e;
+    --color-success-foreground: #0a0a0a;
+    --color-warning: #f59e0b;
+    --color-warning-foreground: #0a0a0a;
+    --color-danger: #ef4444;
+    --color-danger-foreground: #0a0a0a;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.5);
   }
 }
 
@@ -26,7 +70,7 @@ body {
   flex-direction: column;
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

@@ -1,0 +1,18 @@
+.empty {
+  color: var(--color-muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+.productCard {
+  font-weight: 500;
+  transition: border-color 0.15s ease;
+}
+
+.productCard:hover {
+  border-color: var(--color-accent);
+}

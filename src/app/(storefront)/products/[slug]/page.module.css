@@ -1,0 +1,19 @@
+.description {
+  color: var(--color-muted);
+  margin-top: var(--space-2);
+}
+
+.variantCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.variantName {
+  font-weight: 500;
+}
+
+.price {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
