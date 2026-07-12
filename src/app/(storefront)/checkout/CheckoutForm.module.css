@@ -1,0 +1,38 @@
+.card {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.fieldset {
+  border: none;
+  margin: var(--space-4) 0;
+  padding: 0;
+}
+
+.legend {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: var(--space-3);
+  padding: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.rowField {
+  margin-bottom: var(--space-4);
+}
+
+.submit {
+  width: 100%;
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 480px) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+}

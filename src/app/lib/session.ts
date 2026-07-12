@@ -7,7 +7,7 @@ import type { User } from '@/modules/identity/domain/user';
 export const GUEST_SESSION_COOKIE = 'guest_session_id';
 export const SESSION_COOKIE = 'session_id';
 
-async function getSessionUser(): Promise<User | null> {
+export async function getSessionUser(): Promise<User | null> {
   const cookieStore = await cookies();
   const sessionId = cookieStore.get(SESSION_COOKIE)?.value ?? null;
   const { getCurrentUser } = getContainer();

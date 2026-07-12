@@ -1,6 +1,10 @@
 import Link from 'next/link';
 
 import { getContainer } from '@/composition/container';
+import { PageContainer } from '@/components/ui/PageContainer';
+import { Stack } from '@/components/ui/Stack';
+import { Card } from '@/components/ui/Card';
+import styles from './page.module.css';
 
 export const revalidate = 3600;
 
@@ -9,19 +13,21 @@ export default async function ProductsPage() {
   const products = await listProducts.execute({});
 
   return (
-    <main>
-      <h1>Products</h1>
-      {products.length === 0 ? (
-        <p>No products yet.</p>
-      ) : (
-        <ul>
-          {products.map((product) => (
-            <li key={product.id}>
-              <Link href={`/products/${product.slug.value}`}>{product.name}</Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </main>
+    <PageContainer>
+      <Stack gap={5}>
+        <h1>Products</h1>
+        {products.length === 0 ? (
+          <p className={styles.empty}>No products yet.</p>
+        ) : (
+          <div className={styles.grid}>
+            {products.map((product) => (
+              <Link key={product.id} href={`/products/${product.slug.value}`}>
+                <Card className={styles.productCard}>{product.name}</Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </Stack>
+    </PageContainer>
   );
 }

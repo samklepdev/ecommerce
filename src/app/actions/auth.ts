@@ -14,6 +14,17 @@ const CredentialsSchema = z.object({
   password: z.string().min(8),
 });
 
+const SignUpSchema = z
+  .object({
+    email: z.string().email(),
+    password: z.string().min(8),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match.',
+    path: ['confirmPassword'],
+  });
+
 export interface AuthActionResult {
   error?: string;
 }
@@ -49,12 +60,18 @@ export async function signUpAction(
   _prevState: AuthActionResult | undefined,
   formData: FormData,
 ): Promise<AuthActionResult> {
-  const parsed = CredentialsSchema.safeParse({
+  const parsed = SignUpSchema.safeParse({
     email: formData.get('email'),
     password: formData.get('password'),
+    confirmPassword: formData.get('confirmPassword'),
   });
   if (!parsed.success) {
-    return { error: 'Enter a valid email and a password of at least 8 characters.' };
+    const mismatch = parsed.error.issues.some((issue) => issue.path.includes('confirmPassword'));
+    return {
+      error: mismatch
+        ? 'Passwords do not match.'
+        : 'Enter a valid email and a password of at least 8 characters.',
+    };
   }
 
   const { signUp } = getContainer();
