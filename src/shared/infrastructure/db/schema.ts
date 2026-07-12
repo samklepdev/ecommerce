@@ -51,6 +51,7 @@ export const products = pgTable(
     slug: text('slug').notNull(),
     name: text('name').notNull(),
     description: text('description'),
+    imageUrl: text('image_url'),
     status: text('status').notNull().default('draft'), // draft | active | archived
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -109,6 +110,12 @@ export const supplierOffers = pgTable(
     costCurrency: text('cost_currency').notNull(),
     isAvailable: boolean('is_available').notNull().default(true),
     isPreferred: boolean('is_preferred').notNull().default(false),
+    // Sync bookkeeping — see WooCommerceSupplierPageFetcher / SyncSupplierOffer.
+    lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+    lastSyncStatus: text('last_sync_status').notNull().default('never'), // never | ok | blocked | error
+    lastSyncError: text('last_sync_error'),
+    autoSyncEnabled: boolean('auto_sync_enabled').notNull().default(true),
+    scrapedTitle: text('scraped_title'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

@@ -177,6 +177,15 @@ npm run db:studio        # drizzle studio
 npm run queue:dev        # run BullMQ workers (incl. BTC watcher) locally
 ```
 
+## Git workflow
+
+- Repository: `https://github.com/samklepdev/ecommerce` (remote name `origin`).
+- Default branch: `main`. Feature work happens on branches named `feat/<short-name>`
+  (e.g. `feat/arch-init`, `feat/design-init`) and merges back to `main` via a GitHub
+  pull request — don't commit directly to `main`.
+- Push with a normal `git push -u origin <branch>` on first push. Never force-push
+  `main`.
+
 ## Dependencies to install
 
 ```bash

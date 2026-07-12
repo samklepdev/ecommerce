@@ -9,4 +9,5 @@ export interface ProductRepository {
   listAllForAdmin(): Promise<Product[]>;
   createProduct(product: Product): Promise<void>;
   createVariant(variant: ProductVariant): Promise<void>;
+  updateImageUrl(productId: string, imageUrl: string): Promise<void>;
 }

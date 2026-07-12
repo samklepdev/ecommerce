@@ -22,7 +22,16 @@ export default async function ProductsPage() {
           <div className={styles.grid}>
             {products.map((product) => (
               <Link key={product.id} href={`/products/${product.slug.value}`}>
-                <Card className={styles.productCard}>{product.name}</Card>
+                <Card className={styles.productCard}>
+                  {product.imageUrl ? (
+                    // Supplier image hosts are dynamic/admin-added, not known at build time.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={product.imageUrl} alt={product.name} className={styles.image} />
+                  ) : (
+                    <div className={styles.imagePlaceholder} aria-hidden />
+                  )}
+                  <span>{product.name}</span>
+                </Card>
               </Link>
             ))}
           </div>

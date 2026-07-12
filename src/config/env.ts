@@ -32,6 +32,7 @@ const envSchema = z.object({
 
   SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(2_592_000),
   QUOTE_TTL_SECONDS: z.coerce.number().int().positive().default(900),
+  SUPPLIER_SYNC_INTERVAL_HOURS: z.coerce.number().int().positive().default(24),
 });
 
 export const env = envSchema.parse(process.env);

@@ -14,12 +14,14 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "queue:dev": "tsx watch src/workers/btc-watcher.ts",
-    "worker": "tsx src/workers/btc-watcher.ts"
+    "worker": "tsx src/workers/btc-watcher.ts",
+    "worker:supplier-sync": "tsx src/workers/supplier-sync.ts"
   },
   "dependencies": {
     "argon2": "^0.41.1",
     "bip32": "^4.0.0",
     "bitcoinjs-lib": "^6.1.7",
+    "cheerio": "^1.2.0",
     "drizzle-orm": "^0.36.4",
     "ioredis": "^5.4.1",
     "next": "16.2.10",
@@ -27,6 +29,7 @@
     "qrcode.react": "^4.1.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "robots-parser": "^3.0.1",
     "tiny-secp256k1": "^2.2.3",
     "zod": "^3.23.8"
   },
