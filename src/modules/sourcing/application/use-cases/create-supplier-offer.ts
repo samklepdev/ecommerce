@@ -12,6 +12,7 @@ export interface CreateSupplierOfferInput {
   costAmountMinor: number;
   costCurrency: string;
   isPreferred?: boolean;
+  isAvailable?: boolean;
 }
 
 export class CreateSupplierOffer implements UseCase<CreateSupplierOfferInput, SupplierOffer> {
@@ -24,7 +25,7 @@ export class CreateSupplierOffer implements UseCase<CreateSupplierOfferInput, Su
       supplierId: input.supplierId,
       supplierProductUrl: input.supplierProductUrl,
       cost: Money.of(input.costAmountMinor, input.costCurrency),
-      isAvailable: true,
+      isAvailable: input.isAvailable ?? true,
       isPreferred: input.isPreferred ?? false,
     });
     await this.offers.create(offer);

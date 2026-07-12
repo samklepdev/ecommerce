@@ -53,6 +53,7 @@ import { GetCurrentUser } from '@/modules/identity/application/use-cases/get-cur
 import { DrizzleSupplierRepository } from '@/modules/sourcing/infrastructure/drizzle-supplier-repository';
 import { DrizzleSupplierOfferRepository } from '@/modules/sourcing/infrastructure/drizzle-supplier-offer-repository';
 import { WooCommerceSupplierPageFetcher } from '@/modules/sourcing/infrastructure/woocommerce-supplier-page-fetcher';
+import { WooCommerceStoreApiFeedFetcher } from '@/modules/sourcing/infrastructure/woocommerce-store-api-feed-fetcher';
 import { ListSuppliers } from '@/modules/sourcing/application/use-cases/list-suppliers';
 import { CreateSupplier } from '@/modules/sourcing/application/use-cases/create-supplier';
 import { CreateSupplierOffer } from '@/modules/sourcing/application/use-cases/create-supplier-offer';
@@ -62,6 +63,7 @@ import { ListSupplierOffersForVariant } from '@/modules/sourcing/application/use
 import { SetSupplierOfferAutoSync } from '@/modules/sourcing/application/use-cases/set-supplier-offer-auto-sync';
 import { SyncSupplierOffer } from '@/modules/sourcing/application/use-cases/sync-supplier-offer';
 import { SyncAllDueSupplierOffers } from '@/modules/sourcing/application/use-cases/sync-all-due-supplier-offers';
+import { ImportProductsFromFeed } from '@/modules/sourcing/application/use-cases/import-products-from-feed';
 
 /**
  * The single DI root. Nothing else `new`s an adapter. Routes, actions, and the
@@ -96,6 +98,7 @@ export interface Container {
   setSupplierOfferAutoSync: SetSupplierOfferAutoSync;
   syncSupplierOffer: SyncSupplierOffer;
   syncAllDueSupplierOffers: SyncAllDueSupplierOffers;
+  importProductsFromFeed: ImportProductsFromFeed;
 
   placeOrder: PlaceOrder;
   startCheckout: StartCheckout;
@@ -173,6 +176,14 @@ function build(): Container {
     syncSupplierOffer,
     env.SUPPLIER_SYNC_INTERVAL_HOURS,
   );
+  const supplierFeedFetcher = new WooCommerceStoreApiFeedFetcher();
+  const importProductsFromFeed = new ImportProductsFromFeed(
+    supplierFeedFetcher,
+    products,
+    createProduct,
+    createProductVariant,
+    createSupplierOffer,
+  );
 
   // --- orders / checkout / confirmation / fulfillment ---
   const orders = new DrizzleOrderRepository(db);
@@ -230,6 +241,7 @@ function build(): Container {
     setSupplierOfferAutoSync,
     syncSupplierOffer,
     syncAllDueSupplierOffers,
+    importProductsFromFeed,
     placeOrder,
     startCheckout,
     expireStaleCheckouts,

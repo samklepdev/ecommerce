@@ -1,5 +1,4 @@
 import * as cheerio from 'cheerio';
-import robotsParser from 'robots-parser';
 
 import { err, ok, type Result } from '@/shared/domain/result';
 import type {
@@ -7,41 +6,7 @@ import type {
   ScrapedListing,
   SupplierPageFetcher,
 } from '@/modules/sourcing/application/ports/supplier-page-fetcher';
-
-// Honest, identifying UA — no browser impersonation. Adjust the contact URL
-// to something real before this ever talks to a live third-party site.
-const USER_AGENT = 'MystoreCatalogSync/1.0 (+https://example.com/bot)';
-const ROBOTS_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
-
-interface CachedRobots {
-  robots: ReturnType<typeof robotsParser>;
-  fetchedAt: number;
-}
-
-const robotsCache = new Map<string, CachedRobots>();
-
-/**
- * Absence/unreachability of robots.txt is treated as allowed (standard
- * crawler convention — a missing robots.txt is not a disallow signal).
- */
-async function isAllowedByRobots(url: string): Promise<boolean> {
-  const { origin } = new URL(url);
-  const cached = robotsCache.get(origin);
-  if (cached && Date.now() - cached.fetchedAt < ROBOTS_CACHE_TTL_MS) {
-    return cached.robots.isAllowed(url, USER_AGENT) ?? true;
-  }
-
-  const robotsUrl = `${origin}/robots.txt`;
-  try {
-    const res = await fetch(robotsUrl, { headers: { 'User-Agent': USER_AGENT } });
-    const body = res.ok ? await res.text() : '';
-    const robots = robotsParser(robotsUrl, body);
-    robotsCache.set(origin, { robots, fetchedAt: Date.now() });
-    return robots.isAllowed(url, USER_AGENT) ?? true;
-  } catch {
-    return true;
-  }
-}
+import { isAllowedByRobots, USER_AGENT } from '@/modules/sourcing/infrastructure/robots-compliance';
 
 function parsePriceToMinorUnits(text: string): number | null {
   const cleaned = text.replace(/[^0-9.]/g, '');

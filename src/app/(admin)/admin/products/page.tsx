@@ -7,6 +7,7 @@ import {
   setAutoSyncEnabledAction,
   syncSupplierOfferAction,
 } from '@/app/actions/admin/catalog';
+import { ImportFeedForm } from './ImportFeedForm';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
 import { Card } from '@/components/ui/Card';
@@ -147,6 +148,19 @@ export default async function AdminProductsPage() {
               <Button type="submit">Add supplier</Button>
             </form>
           </Card>
+        </section>
+
+        <section>
+          <h2 className={styles.sectionTitle}>Import from JSON feed</h2>
+          {suppliers.length === 0 ? (
+            <p className={styles.empty}>Add a supplier first.</p>
+          ) : (
+            <Card className={styles.formCard}>
+              <ImportFeedForm
+                suppliers={suppliers.map((s) => ({ id: s.id, name: s.name }))}
+              />
+            </Card>
+          )}
         </section>
 
         <section>

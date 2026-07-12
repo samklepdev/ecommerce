@@ -119,3 +119,36 @@ export async function setAutoSyncEnabledAction(formData: FormData): Promise<void
   await setSupplierOfferAutoSync.execute(parsed.data);
   revalidatePath('/admin/products');
 }
+
+const ImportFeedSchema = z.object({
+  supplierId: z.string().min(1),
+  feedUrl: z.string().url(),
+});
+
+export interface ImportFeedActionResult {
+  message?: string;
+  error?: string;
+}
+
+export async function importProductsFromFeedAction(
+  _prevState: ImportFeedActionResult | undefined,
+  formData: FormData,
+): Promise<ImportFeedActionResult> {
+  await requireAdmin();
+  const parsed = ImportFeedSchema.safeParse({
+    supplierId: formData.get('supplierId'),
+    feedUrl: formData.get('feedUrl'),
+  });
+  if (!parsed.success) return { error: 'Select a supplier and enter a valid feed URL.' };
+
+  const { importProductsFromFeed } = getContainer();
+  const result = await importProductsFromFeed.execute(parsed.data);
+
+  revalidatePath('/admin/products');
+  revalidatePath('/products');
+
+  if (result.status !== 'ok') {
+    return { error: result.message ?? 'Import failed.' };
+  }
+  return { message: `Imported ${result.created}, skipped ${result.skipped} already in the catalog.` };
+}
