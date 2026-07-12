@@ -1,0 +1,1 @@
+ALTER TABLE "bitcoin_payment_intents" ALTER COLUMN "sats_per_fiat_unit" SET DATA TYPE double precision;
