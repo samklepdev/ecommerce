@@ -1,0 +1,67 @@
+import { randomUUID } from 'node:crypto';
+
+import type { UseCase } from '@/shared/application/use-case';
+import { err, ok, type Result } from '@/shared/domain/result';
+import { Order } from '@/modules/orders/domain/order';
+import { OrderLine } from '@/modules/orders/domain/order-line';
+import { ShippingAddress, type ShippingAddressProps } from '@/modules/orders/domain/shipping-address';
+import type { CartOwner } from '@/modules/cart/domain/cart';
+import type { CartRepository } from '@/modules/cart/application/ports/cart-repository';
+import type { ProductRepository } from '@/modules/catalog/application/ports/product-repository';
+import type { OrderRepository } from '@/modules/orders/application/ports/order-repository';
+
+export interface PlaceOrderInput {
+  owner: CartOwner;
+  customerEmail: string;
+  currency: string;
+  shippingAddress: ShippingAddressProps;
+}
+
+export type PlaceOrderError =
+  | { code: 'empty_cart' }
+  | { code: 'variant_unavailable'; variantId: string };
+
+/** Real production path: turns a priced cart into a durable, pending order. */
+export class PlaceOrder implements UseCase<PlaceOrderInput, Result<Order, PlaceOrderError>> {
+  constructor(
+    private readonly carts: CartRepository,
+    private readonly products: ProductRepository,
+    private readonly orders: OrderRepository,
+  ) {}
+
+  async execute(input: PlaceOrderInput): Promise<Result<Order, PlaceOrderError>> {
+    const cart = await this.carts.get(input.owner);
+    if (!cart || cart.isEmpty) return err({ code: 'empty_cart' });
+
+    const lines: OrderLine[] = [];
+    for (const line of cart.lines) {
+      // Re-fetch from the catalog — never trust the cart's stored price.
+      const variant = await this.products.findVariantById(line.variantId);
+      if (!variant) return err({ code: 'variant_unavailable', variantId: line.variantId });
+
+      lines.push(
+        OrderLine.create({
+          id: randomUUID(),
+          variantId: variant.id,
+          sku: variant.sku,
+          quantity: line.quantity,
+          unitPrice: variant.price,
+        }),
+      );
+    }
+
+    const order = Order.create({
+      id: randomUUID(),
+      userId: input.owner.type === 'user' ? input.owner.userId : null,
+      customerEmail: input.customerEmail,
+      shippingAddress: ShippingAddress.create(input.shippingAddress),
+      lines,
+      currency: input.currency,
+      paymentStatus: 'pending',
+      fulfillmentStatus: 'unfulfilled',
+    });
+
+    await this.orders.create(order);
+    return ok(order);
+  }
+}
