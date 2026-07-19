@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { getContainer } from '@/composition/container';
 import { isErr } from '@/shared/domain/result';
 import { resolveCartOwner } from '@/app/lib/session';
+import { checkRateLimit, getClientIp, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
 
 const StartCheckoutSchema = z.object({
   customerEmail: z.string().email(),
@@ -40,6 +41,12 @@ export async function startCheckoutAction(
     shippingCountry: formData.get('shippingCountry'),
   });
   if (!parsed.success) return { error: 'Please fill in a valid email and shipping address.' };
+
+  const ip = await getClientIp();
+  const checkoutLimit = await checkRateLimit(`checkout-start:${ip}`, 10, 60 * 60);
+  if (!checkoutLimit.allowed) {
+    return { error: tooManyAttemptsMessage(checkoutLimit.retryAfterSeconds) };
+  }
 
   const owner = await resolveCartOwner();
   const { placeOrder, startCheckout } = getContainer();

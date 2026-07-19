@@ -62,6 +62,29 @@ export const welcomeEmails = pgTable(
   }),
 );
 
+export const passwordResetTokens = pgTable(
+  'password_reset_tokens',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    // Only a hash is stored — the raw token exists only in the emailed link
+    // and briefly in memory. A DB dump/read-replica leak of this table alone
+    // can't be used to take over an account.
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    // Unlike welcome_emails, a user can have several historical rows here —
+    // only tokenHash needs to be unique.
+    tokenHashUnique: uniqueIndex('password_reset_tokens_token_hash_unique').on(t.tokenHash),
+    userIdIdx: index('password_reset_tokens_user_id_idx').on(t.userId),
+  }),
+);
+
 export const products = pgTable(
   'products',
   {
