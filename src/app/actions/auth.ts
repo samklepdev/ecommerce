@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import { env } from '@/config/env';
 import { isErr } from '@/shared/domain/result';
+import { logger } from '@/shared/infrastructure/logger';
 import { getContainer } from '@/composition/container';
 import { GUEST_SESSION_COOKIE, SESSION_COOKIE } from '@/app/lib/session';
 
@@ -74,9 +75,17 @@ export async function signUpAction(
     };
   }
 
-  const { signUp } = getContainer();
+  const { signUp, sendWelcomeEmail } = getContainer();
   const result = await signUp.execute(parsed.data);
   if (isErr(result)) return { error: 'That email is already registered.' };
+
+  try {
+    await sendWelcomeEmail.execute({ userId: result.value.id, email: result.value.email });
+  } catch (e) {
+    logger.warn('signup: welcome email failed', {
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
 
   const sessionResult = await establishSession(parsed.data.email, parsed.data.password);
   if (sessionResult.error) return sessionResult;

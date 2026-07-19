@@ -105,3 +105,9 @@ export function DropdownItem(props: DropdownItemProps) {
     </button>
   );
 }
+
+/** A thin rule for grouping menu rows (e.g. separating admin-only links from
+ * account actions) — purely visual, not itself a `role="menuitem"`. */
+export function DropdownDivider({ className }: { className?: string }) {
+  return <div className={cx(styles.divider, className)} role="separator" />;
+}

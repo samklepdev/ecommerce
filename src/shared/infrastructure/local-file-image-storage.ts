@@ -21,7 +21,11 @@ function extensionFor(contentType: string): string | null {
 }
 
 export class LocalFileImageStorage implements ImageStorage {
-  private readonly dir = path.join(process.cwd(), 'public', 'uploads', 'products');
+  private readonly dir: string;
+
+  constructor(private readonly subdir: string = 'products') {
+    this.dir = path.join(process.cwd(), 'public', 'uploads', subdir);
+  }
 
   async store(sourceUrl: string): Promise<string | null> {
     try {
@@ -103,6 +107,6 @@ export class LocalFileImageStorage implements ImageStorage {
     await mkdir(this.dir, { recursive: true });
     await writeFile(path.join(this.dir, filename), buffer);
 
-    return `/uploads/products/${filename}`;
+    return `/uploads/${this.subdir}/${filename}`;
   }
 }

@@ -5,7 +5,8 @@ import { getContainer } from '@/composition/container';
 import { GUEST_SESSION_COOKIE, getSessionUser } from '@/app/lib/session';
 import { logOutAction } from '@/app/actions/auth';
 import type { CartOwner } from '@/modules/cart/domain/cart';
-import { Dropdown, DropdownItem } from '@/components/ui/Dropdown';
+import { Dropdown, DropdownItem, DropdownDivider } from '@/components/ui/Dropdown';
+import { Avatar } from '@/components/ui/Avatar';
 import styles from './Header.module.css';
 
 export async function Header() {
@@ -32,18 +33,24 @@ export async function Header() {
             Cart
             {itemCount > 0 && <span className={styles.badge}>{itemCount}</span>}
           </Link>
-          {user?.isAdmin && (
-            <Dropdown trigger="Admin ▾" align="right">
-              <DropdownItem href="/admin/products">Products</DropdownItem>
-              <DropdownItem href="/admin/fulfillment">Fulfillment</DropdownItem>
-            </Dropdown>
-          )}
           {user ? (
-            <form action={logOutAction}>
-              <button type="submit" className={styles.linkButton}>
-                Log out
-              </button>
-            </form>
+            <Dropdown
+              trigger={<Avatar avatarUrl={user.avatarUrl} label={user.email} size="sm" />}
+              align="right"
+            >
+              <DropdownItem href="/account">Account</DropdownItem>
+              {user.isAdmin && (
+                <>
+                  <DropdownDivider />
+                  <DropdownItem href="/admin/products">Products</DropdownItem>
+                  <DropdownItem href="/admin/fulfillment">Fulfillment</DropdownItem>
+                </>
+              )}
+              <DropdownDivider />
+              <form action={logOutAction}>
+                <DropdownItem type="submit">Log out</DropdownItem>
+              </form>
+            </Dropdown>
           ) : (
             <Link href="/login">Log in</Link>
           )}

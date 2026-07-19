@@ -36,11 +36,29 @@ export const users = pgTable(
     email: text('email').notNull(),
     passwordHash: text('password_hash').notNull(),
     role: text('role').notNull().default('customer'), // customer | admin
+    avatarUrl: text('avatar_url'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     emailUnique: uniqueIndex('users_email_unique').on(sql`lower(${t.email})`),
+  }),
+);
+
+export const welcomeEmails = pgTable(
+  'welcome_emails',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    trackingToken: text('tracking_token').notNull(),
+    sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+    openedAt: timestamp('opened_at', { withTimezone: true }),
+  },
+  (t) => ({
+    userIdUnique: uniqueIndex('welcome_emails_user_id_unique').on(t.userId),
+    trackingTokenUnique: uniqueIndex('welcome_emails_tracking_token_unique').on(t.trackingToken),
   }),
 );
 
