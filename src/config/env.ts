@@ -36,6 +36,8 @@ const envSchema = z.object({
   // Base URL used to build absolute links in outgoing email (e.g. the
   // welcome-email tracking pixel) — never derived from a request header.
   APP_URL: z.string().url().default('http://localhost:3000'),
+
+  PASSWORD_RESET_TTL_SECONDS: z.coerce.number().int().positive().default(3600),
 });
 
 export const env = envSchema.parse(process.env);

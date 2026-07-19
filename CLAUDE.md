@@ -16,7 +16,7 @@ chain-watcher poller. No third-party processor, no custody of funds, no card rai
 
 - **Next.js** (App Router) + **TypeScript** (strict mode, no implicit `any`)
 - **PostgreSQL** + **Drizzle** ORM
-- **Redis** (carts, idempotency keys, inventory reservation TTLs, BTC address-index counter)
+- **Redis** (carts, idempotency keys, BTC address-index counter, rate limiting)
 - **BullMQ** for async work (post-payment side effects, email, fulfillment, the BTC watcher)
 - **bitcoinjs-lib + bip32 + tiny-secp256k1** for HD address derivation; **qrcode.react** for
   the checkout QR
@@ -110,22 +110,25 @@ Every mutating money- or inventory-touching operation **must** be idempotent:
 - BTC `createPayment` returns the existing intent if the order already has one awaiting, so a
   double-submit never allocates a second address.
 
-## Inventory (concurrency-critical)
+## Inventory
 
-- **Never** read-then-write on stock (`SELECT stock; if > 0 then UPDATE`) — it races.
-- Use `SELECT ... FOR UPDATE` (row lock) **or** an atomic conditional update
-  (`UPDATE ... SET qty = qty - :n WHERE qty >= :n`, check affected rows).
-- Checkout **reserves** stock with a TTL, released on abandon/expiry, committed on payment.
-- **Reservation TTL must outlive on-chain confirmation lag** (up to ~an hour), so it's long
-  (default ~90 min) — see `RESERVATION_TTL` in `start-checkout.ts`. This is a real tradeoff
-  (longer holds vs. overselling); tune it to order volume.
+There is **no local stock** — this is a dropship/arbitrage model. `Product`/`ProductVariant`
+carry no quantity field, and `start-checkout.ts` sources items from suppliers only *after*
+payment confirms (`CreateSupplierOrdersForPaidOrder`). No reservation, no TTL, nothing to
+oversell. "Out of stock" means the variant no longer exists in the catalog (deleted/archived),
+not a quantity check — see `PlaceOrder`'s `variant_unavailable` error. If a real local-stock
+model is ever introduced, the classic read-then-write race (`SELECT stock; if > 0 then
+UPDATE`) still applies and must be avoided via `SELECT ... FOR UPDATE` or an atomic conditional
+update — but that's not the system as it exists today.
 
 ## Cart
 
 - **Re-price at checkout. Never trust a client-submitted price.** The reprice step is the
   authority; client price is display-only.
 - Guest carts live in Redis by session id; merged into the user's cart on login.
-- Handle "item went out of stock between add and checkout" explicitly.
+- "Item went out of stock between add and checkout" means the variant was removed from the
+  catalog, not a quantity check (see Inventory above) — `PlaceOrder` returns
+  `variant_unavailable` for this.
 
 ## Order state machine
 

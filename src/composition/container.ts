@@ -3,6 +3,8 @@ import { networks } from 'bitcoinjs-lib';
 import { env } from '@/config/env';
 import { db, type DB } from '@/shared/infrastructure/db/client';
 import { redis } from '@/shared/infrastructure/redis/client';
+import { RedisRateLimiter } from '@/shared/infrastructure/redis/redis-rate-limiter';
+import type { RateLimiter } from '@/shared/application/ports/rate-limiter';
 
 import { StartCheckout } from '@/modules/checkout/application/use-cases/start-checkout';
 import { ExpireStaleCheckouts } from '@/modules/checkout/application/use-cases/expire-stale-checkouts';
@@ -68,6 +70,9 @@ import { GetAccountProfile } from '@/modules/identity/application/use-cases/get-
 
 import { DrizzleWelcomeEmailRepository } from '@/modules/notifications/infrastructure/drizzle-welcome-email-repository';
 import { ConsoleEmailSender } from '@/modules/notifications/infrastructure/console-email-sender';
+import { DrizzlePasswordResetRepository } from '@/modules/identity/infrastructure/drizzle-password-reset-repository';
+import { RequestPasswordReset } from '@/modules/identity/application/use-cases/request-password-reset';
+import { ResetPassword } from '@/modules/identity/application/use-cases/reset-password';
 import { SendWelcomeEmail } from '@/modules/notifications/application/use-cases/send-welcome-email';
 import { MarkWelcomeEmailOpened } from '@/modules/notifications/application/use-cases/mark-welcome-email-opened';
 import { GetWelcomeEmailStatus } from '@/modules/notifications/application/use-cases/get-welcome-email-status';
@@ -92,6 +97,7 @@ import { LocalFileImageStorage } from '@/shared/infrastructure/local-file-image-
  */
 export interface Container {
   db: DB;
+  rateLimiter: RateLimiter;
 
   listProducts: ListProducts;
   getProductBySlug: GetProductBySlug;
@@ -118,6 +124,8 @@ export interface Container {
   changePassword: ChangePassword;
   updateAvatar: UpdateAvatar;
   getAccountProfile: GetAccountProfile;
+  requestPasswordReset: RequestPasswordReset;
+  resetPassword: ResetPassword;
   sendWelcomeEmail: SendWelcomeEmail;
   markWelcomeEmailOpened: MarkWelcomeEmailOpened;
   getWelcomeEmailStatus: GetWelcomeEmailStatus;
@@ -156,6 +164,8 @@ export interface Container {
 }
 
 function build(): Container {
+  const rateLimiter = new RedisRateLimiter(redis);
+
   const network = env.BTC_NETWORK === 'testnet' ? networks.testnet : networks.bitcoin;
 
   // --- bitcoin infrastructure ---
@@ -210,6 +220,17 @@ function build(): Container {
   const sendWelcomeEmail = new SendWelcomeEmail(welcomeEmails, consoleEmailSender, env.APP_URL);
   const markWelcomeEmailOpened = new MarkWelcomeEmailOpened(welcomeEmails);
   const getWelcomeEmailStatus = new GetWelcomeEmailStatus(welcomeEmails);
+
+  // --- password reset (identity — reuses notifications' generic email sender) ---
+  const passwordResetRepository = new DrizzlePasswordResetRepository(db);
+  const requestPasswordReset = new RequestPasswordReset(
+    users,
+    passwordResetRepository,
+    consoleEmailSender,
+    env.APP_URL,
+    env.PASSWORD_RESET_TTL_SECONDS,
+  );
+  const resetPassword = new ResetPassword(users, passwordResetRepository);
 
   // --- sourcing ---
   const suppliers = new DrizzleSupplierRepository(db);
@@ -276,6 +297,7 @@ function build(): Container {
 
   return {
     db,
+    rateLimiter,
     listProducts,
     getProductBySlug,
     createProduct,
@@ -299,6 +321,8 @@ function build(): Container {
     changePassword,
     updateAvatar,
     getAccountProfile,
+    requestPasswordReset,
+    resetPassword,
     sendWelcomeEmail,
     markWelcomeEmailOpened,
     getWelcomeEmailStatus,

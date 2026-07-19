@@ -9,6 +9,7 @@ import { isErr } from '@/shared/domain/result';
 import { logger } from '@/shared/infrastructure/logger';
 import { getContainer } from '@/composition/container';
 import { GUEST_SESSION_COOKIE, SESSION_COOKIE } from '@/app/lib/session';
+import { checkRateLimit, getClientIp, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
 
 const CredentialsSchema = z.object({
   email: z.string().email(),
@@ -75,6 +76,10 @@ export async function signUpAction(
     };
   }
 
+  const ip = await getClientIp();
+  const signupLimit = await checkRateLimit(`signup:${ip}`, 3, 60 * 60);
+  if (!signupLimit.allowed) return { error: tooManyAttemptsMessage(signupLimit.retryAfterSeconds) };
+
   const { signUp, sendWelcomeEmail } = getContainer();
   const result = await signUp.execute(parsed.data);
   if (isErr(result)) return { error: 'That email is already registered.' };
@@ -103,6 +108,19 @@ export async function logInAction(
   });
   if (!parsed.success) return { error: 'Enter a valid email and password.' };
 
+  const ip = await getClientIp();
+
+  // Two independent layers: one caps hammering a single victim account from
+  // one IP (keyed on IP+email), the other catches one IP sweeping many
+  // different emails (keyed on IP alone) — neither replaces the other.
+  const perIpLimit = await checkRateLimit(`login-ip:${ip}`, 20, 15 * 60);
+  if (!perIpLimit.allowed) return { error: tooManyAttemptsMessage(perIpLimit.retryAfterSeconds) };
+
+  const perAccountLimit = await checkRateLimit(`login:${ip}:${parsed.data.email}`, 5, 15 * 60);
+  if (!perAccountLimit.allowed) {
+    return { error: tooManyAttemptsMessage(perAccountLimit.retryAfterSeconds) };
+  }
+
   const result = await establishSession(parsed.data.email, parsed.data.password);
   if (result.error) return result;
 
@@ -118,4 +136,78 @@ export async function logOutAction(): Promise<void> {
   }
   cookieStore.delete(SESSION_COOKIE);
   redirect('/');
+}
+
+const RequestPasswordResetSchema = z.object({
+  email: z.string().email(),
+});
+
+export interface RequestPasswordResetActionResult {
+  message?: string;
+  error?: string;
+}
+
+/** Always returns the same success message regardless of whether the email
+ * belongs to a real account — this is the point, not an oversight (see
+ * RequestPasswordReset's own doc comment). */
+export async function requestPasswordResetAction(
+  _prevState: RequestPasswordResetActionResult | undefined,
+  formData: FormData,
+): Promise<RequestPasswordResetActionResult> {
+  const parsed = RequestPasswordResetSchema.safeParse({ email: formData.get('email') });
+  if (!parsed.success) return { error: 'Enter a valid email address.' };
+
+  const ip = await getClientIp();
+  const limit = await checkRateLimit(`password-reset:${ip}:${parsed.data.email}`, 3, 60 * 60);
+  if (!limit.allowed) return { error: tooManyAttemptsMessage(limit.retryAfterSeconds) };
+
+  const { requestPasswordReset } = getContainer();
+  await requestPasswordReset.execute({ email: parsed.data.email });
+
+  return { message: 'If that email is registered, a reset link has been sent.' };
+}
+
+const ResetPasswordSchema = z
+  .object({
+    token: z.string().min(1),
+    newPassword: z.string().min(8),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: 'Passwords do not match.',
+    path: ['confirmPassword'],
+  });
+
+export interface ResetPasswordActionResult {
+  error?: string;
+}
+
+export async function resetPasswordAction(
+  _prevState: ResetPasswordActionResult | undefined,
+  formData: FormData,
+): Promise<ResetPasswordActionResult> {
+  const parsed = ResetPasswordSchema.safeParse({
+    token: formData.get('token'),
+    newPassword: formData.get('newPassword'),
+    confirmPassword: formData.get('confirmPassword'),
+  });
+  if (!parsed.success) {
+    const mismatch = parsed.error.issues.some((issue) => issue.path.includes('confirmPassword'));
+    return {
+      error: mismatch
+        ? 'Passwords do not match.'
+        : 'Enter a new password of at least 8 characters.',
+    };
+  }
+
+  const { resetPassword } = getContainer();
+  const result = await resetPassword.execute({
+    token: parsed.data.token,
+    newPassword: parsed.data.newPassword,
+  });
+  if (isErr(result)) {
+    return { error: 'This reset link is invalid or has expired. Request a new one.' };
+  }
+
+  redirect('/login?reset=success');
 }
