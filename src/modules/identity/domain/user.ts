@@ -7,18 +7,21 @@ export interface UserProps {
   email: string;
   passwordHash: string;
   role?: UserRole;
+  avatarUrl?: string | null;
 }
 
 export class User extends AggregateRoot<string> {
   readonly email: string;
   readonly passwordHash: string;
   readonly role: UserRole;
+  readonly avatarUrl: string | null;
 
   private constructor(props: UserProps) {
     super(props.id);
     this.email = props.email.toLowerCase();
     this.passwordHash = props.passwordHash;
     this.role = props.role ?? 'customer';
+    this.avatarUrl = props.avatarUrl ?? null;
   }
 
   static create(props: UserProps): User {

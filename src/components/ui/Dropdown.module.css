@@ -54,3 +54,9 @@
 .item:hover {
   background: var(--color-border);
 }
+
+.divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--space-2) 0;
+}

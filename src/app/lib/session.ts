@@ -37,3 +37,15 @@ export async function requireAdmin(): Promise<User> {
   }
   return user;
 }
+
+/** Same fail-closed shape as `requireAdmin`, for actions that just need any
+ * logged-in user (e.g. account settings) rather than an admin. Pages that
+ * need this should call `getSessionUser()` + `redirect('/login')` directly
+ * instead, since a thrown error isn't the right UX for a normal page visit. */
+export async function requireUser(): Promise<User> {
+  const user = await getSessionUser();
+  if (!user) {
+    throw new Error('Login required');
+  }
+  return user;
+}

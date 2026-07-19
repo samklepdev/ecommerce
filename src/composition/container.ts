@@ -55,6 +55,15 @@ import { SignUp } from '@/modules/identity/application/use-cases/sign-up';
 import { LogIn } from '@/modules/identity/application/use-cases/log-in';
 import { LogOut } from '@/modules/identity/application/use-cases/log-out';
 import { GetCurrentUser } from '@/modules/identity/application/use-cases/get-current-user';
+import { ChangePassword } from '@/modules/identity/application/use-cases/change-password';
+import { UpdateAvatar } from '@/modules/identity/application/use-cases/update-avatar';
+import { GetAccountProfile } from '@/modules/identity/application/use-cases/get-account-profile';
+
+import { DrizzleWelcomeEmailRepository } from '@/modules/notifications/infrastructure/drizzle-welcome-email-repository';
+import { ConsoleEmailSender } from '@/modules/notifications/infrastructure/console-email-sender';
+import { SendWelcomeEmail } from '@/modules/notifications/application/use-cases/send-welcome-email';
+import { MarkWelcomeEmailOpened } from '@/modules/notifications/application/use-cases/mark-welcome-email-opened';
+import { GetWelcomeEmailStatus } from '@/modules/notifications/application/use-cases/get-welcome-email-status';
 
 import { DrizzleSupplierRepository } from '@/modules/sourcing/infrastructure/drizzle-supplier-repository';
 import { DrizzleSupplierOfferRepository } from '@/modules/sourcing/infrastructure/drizzle-supplier-offer-repository';
@@ -99,6 +108,12 @@ export interface Container {
   logIn: LogIn;
   logOut: LogOut;
   getCurrentUser: GetCurrentUser;
+  changePassword: ChangePassword;
+  updateAvatar: UpdateAvatar;
+  getAccountProfile: GetAccountProfile;
+  sendWelcomeEmail: SendWelcomeEmail;
+  markWelcomeEmailOpened: MarkWelcomeEmailOpened;
+  getWelcomeEmailStatus: GetWelcomeEmailStatus;
 
   listSuppliers: ListSuppliers;
   createSupplier: CreateSupplier;
@@ -170,6 +185,17 @@ function build(): Container {
   const logIn = new LogIn(users, sessions);
   const logOut = new LogOut(sessions);
   const getCurrentUser = new GetCurrentUser(sessions, users);
+  const changePassword = new ChangePassword(users);
+  const avatarImageStorage = new LocalFileImageStorage('avatars');
+  const updateAvatar = new UpdateAvatar(users, avatarImageStorage);
+  const getAccountProfile = new GetAccountProfile(users);
+
+  // --- notifications ---
+  const welcomeEmails = new DrizzleWelcomeEmailRepository(db);
+  const consoleEmailSender = new ConsoleEmailSender();
+  const sendWelcomeEmail = new SendWelcomeEmail(welcomeEmails, consoleEmailSender, env.APP_URL);
+  const markWelcomeEmailOpened = new MarkWelcomeEmailOpened(welcomeEmails);
+  const getWelcomeEmailStatus = new GetWelcomeEmailStatus(welcomeEmails);
 
   // --- sourcing ---
   const suppliers = new DrizzleSupplierRepository(db);
@@ -249,6 +275,12 @@ function build(): Container {
     logIn,
     logOut,
     getCurrentUser,
+    changePassword,
+    updateAvatar,
+    getAccountProfile,
+    sendWelcomeEmail,
+    markWelcomeEmailOpened,
+    getWelcomeEmailStatus,
     listSuppliers,
     createSupplier,
     createSupplierOffer,
