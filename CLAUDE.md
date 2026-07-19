@@ -228,3 +228,13 @@ order payment state machine, `BitcoinCheckout.tsx`, and env config.
 - Do not add a webhook for on-chain BTC — it's poll-based by design.
 - Do not use floats for money (fiat or BTC), or trust client-submitted prices.
 - Do not read-then-write inventory.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues (samklepdev/ecommerce), using the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context layout — `CONTEXT.md` + `docs/adr/` at the repo root (neither exists yet; created lazily by domain-modeling when needed). See `docs/agents/domain.md`.
