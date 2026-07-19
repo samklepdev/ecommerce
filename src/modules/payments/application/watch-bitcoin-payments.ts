@@ -29,10 +29,23 @@ export class WatchBitcoinPayments {
     for (const intent of intents) {
       try {
         const status = await this.chain.getStatus(intent.address);
+        const underpaid = status.confirmedSats < intent.expectedSats - DUST_TOLERANCE_SATS;
+
+        // Persisted every pass (all 3 branches below), not just the
+        // underpaid one — otherwise a later top-up that goes straight to
+        // full-confirm would leave a stale underpaid flag on a paid order.
+        await this.paymentStore.recordProgress(intent.orderId, {
+          confirmations: status.confirmations,
+          underpaid,
+        });
 
         // Underpayment is not payment — stays awaiting_confirmation for
-        // manual review, never auto-fulfilled.
-        if (status.confirmedSats < intent.expectedSats - DUST_TOLERANCE_SATS) continue;
+        // manual review, never auto-fulfilled. Still recorded as "seen"
+        // rather than left indistinguishable from "hasn't paid at all."
+        if (underpaid) {
+          await this.markAwaitingConfirmation.execute({ orderId: intent.orderId });
+          continue;
+        }
 
         if (status.confirmations < this.requiredConfirmations) {
           // Seen on-chain but shallow — track it, but never auto-fulfill.

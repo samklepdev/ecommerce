@@ -21,6 +21,11 @@ import type {
   OrderSummary,
   OrderSummaryRepository,
 } from '@/modules/orders/application/ports/order-summary-repository';
+import type {
+  OrderDetail,
+  OrderHistoryRepository,
+  OrderListItem,
+} from '@/modules/orders/application/ports/order-history-repository';
 
 /**
  * One repository satisfies the place-order, checkout-side, confirm-side,
@@ -35,7 +40,8 @@ export class DrizzleOrderRepository
     StaleCheckoutOrderRepository,
     OrderFulfillmentRepository,
     PaidOrderLinesRepository,
-    OrderSummaryRepository
+    OrderSummaryRepository,
+    OrderHistoryRepository
 {
   constructor(private readonly db: DB) {}
 
@@ -190,5 +196,46 @@ export class DrizzleOrderRepository
     });
     if (!row) return null;
     return { id: row.id, customerEmail: row.customerEmail, shippingAddress: row.shippingAddress };
+  }
+
+  async listByCustomer(userId: string): Promise<OrderListItem[]> {
+    const rows = await this.db.query.orders.findMany({
+      where: eq(orders.userId, userId),
+      orderBy: (o, { desc }) => [desc(o.createdAt)],
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      createdAt: row.createdAt,
+      currency: row.currency,
+      amountMinor: row.amountMinor,
+      paymentStatus: row.paymentStatus as PaymentStatus,
+      fulfillmentStatus: row.fulfillmentStatus as FulfillmentStatus,
+    }));
+  }
+
+  async findDetailById(orderId: string, userId: string): Promise<OrderDetail | null> {
+    const row = await this.db.query.orders.findFirst({
+      where: and(eq(orders.id, orderId), eq(orders.userId, userId)),
+    });
+    if (!row) return null;
+
+    const lines = await this.db.query.orderLines.findMany({
+      where: eq(orderLines.orderId, orderId),
+    });
+
+    return {
+      id: row.id,
+      createdAt: row.createdAt,
+      currency: row.currency,
+      amountMinor: row.amountMinor,
+      paymentStatus: row.paymentStatus as PaymentStatus,
+      fulfillmentStatus: row.fulfillmentStatus as FulfillmentStatus,
+      shippingAddress: row.shippingAddress,
+      lines: lines.map((l) => ({
+        sku: l.sku,
+        quantity: l.quantity,
+        unitAmountMinor: l.unitAmountMinor,
+      })),
+    };
   }
 }

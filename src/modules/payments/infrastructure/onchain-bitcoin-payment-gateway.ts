@@ -12,16 +12,7 @@ import type {
   BtcRateProvider,
 } from '@/modules/payments/application/ports/bitcoin-ports';
 import type { HdAddressDeriver } from '@/modules/payments/infrastructure/bitcoin/address-deriver';
-
-const SATS_PER_BTC = 100_000_000;
-
-export function satsToBtcString(sats: number): string {
-  return (sats / SATS_PER_BTC).toFixed(8);
-}
-
-function toBip21(address: string, sats: number): string {
-  return `bitcoin:${address}?amount=${satsToBtcString(sats)}`;
-}
+import { toBip21 } from '@/modules/payments/domain/bip21';
 
 export class OnChainBitcoinPaymentGateway implements PaymentGateway {
   readonly method = 'crypto' as const;

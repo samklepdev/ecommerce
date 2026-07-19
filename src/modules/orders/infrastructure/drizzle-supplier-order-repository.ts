@@ -68,6 +68,26 @@ export class DrizzleSupplierOrderRepository implements SupplierOrderRepository {
     const rows = await this.db.query.supplierOrders.findMany({
       where: inArray(supplierOrders.status, ['needs_ordering', 'ordered']),
     });
+    return this.hydrateLines(rows);
+  }
+
+  async listByOrderId(orderId: string): Promise<SupplierOrderSummary[]> {
+    const rows = await this.db.query.supplierOrders.findMany({
+      where: eq(supplierOrders.orderId, orderId),
+    });
+    return this.hydrateLines(rows);
+  }
+
+  async listByStatus(status?: SupplierOrderStatus): Promise<SupplierOrderSummary[]> {
+    const rows = await this.db.query.supplierOrders.findMany({
+      where: status ? eq(supplierOrders.status, status) : undefined,
+    });
+    return this.hydrateLines(rows);
+  }
+
+  /** Joins each supplier-order row with its line items — shared by every
+   * method that returns `SupplierOrderSummary[]`. */
+  private async hydrateLines(rows: SupplierOrderRow[]): Promise<SupplierOrderSummary[]> {
     if (rows.length === 0) return [];
 
     const lineRows = await this.db
@@ -116,6 +136,20 @@ export class DrizzleSupplierOrderRepository implements SupplierOrderRepository {
       .update(supplierOrders)
       .set({ status: 'shipped', trackingNumber, updatedAt: new Date() })
       .where(and(eq(supplierOrders.id, supplierOrderId), eq(supplierOrders.status, 'ordered')))
+      .returning({ id: supplierOrders.id });
+    return result.length > 0;
+  }
+
+  async cancel(supplierOrderId: string): Promise<boolean> {
+    const result = await this.db
+      .update(supplierOrders)
+      .set({ status: 'cancelled', updatedAt: new Date() })
+      .where(
+        and(
+          eq(supplierOrders.id, supplierOrderId),
+          inArray(supplierOrders.status, ['needs_ordering', 'ordered']),
+        ),
+      )
       .returning({ id: supplierOrders.id });
     return result.length > 0;
   }

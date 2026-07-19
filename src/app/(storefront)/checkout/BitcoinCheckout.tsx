@@ -9,7 +9,14 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import styles from './BitcoinCheckout.module.css';
 
-type WidgetStatus = 'awaiting' | 'confirming' | 'paid' | 'expired';
+type WidgetStatus = 'awaiting' | 'confirming' | 'paid' | 'failed' | 'expired' | 'refunded';
+
+interface StatusResponse {
+  status: WidgetStatus;
+  confirmations: number;
+  requiredConfirmations: number;
+  underpaid: boolean;
+}
 
 interface BitcoinCheckoutProps {
   orderId: string;
@@ -22,14 +29,18 @@ const STATUS_LABEL: Record<WidgetStatus, string> = {
   awaiting: 'Awaiting payment',
   confirming: 'Confirming',
   paid: 'Paid',
+  failed: 'Failed',
   expired: 'Expired',
+  refunded: 'Refunded',
 };
 
 const STATUS_TONE: Record<WidgetStatus, 'accent' | 'success' | 'danger'> = {
   awaiting: 'accent',
   confirming: 'accent',
   paid: 'success',
+  failed: 'danger',
   expired: 'danger',
+  refunded: 'danger',
 };
 
 function useCountdown(expiresAt: string | null): string | null {
@@ -54,9 +65,17 @@ function useCountdown(expiresAt: string | null): string | null {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
+const initialProgress: StatusResponse = {
+  status: 'awaiting',
+  confirmations: 0,
+  requiredConfirmations: 0,
+  underpaid: false,
+};
+
 export function BitcoinCheckout({ orderId, address, bip21Uri, expiresAt }: BitcoinCheckoutProps) {
-  const [status, setStatus] = useState<WidgetStatus>('awaiting');
+  const [progress, setProgress] = useState<StatusResponse>(initialProgress);
   const [copied, setCopied] = useState(false);
+  const { status } = progress;
   const countdown = useCountdown(status === 'awaiting' ? expiresAt : null);
 
   useEffect(() => {
@@ -66,8 +85,8 @@ export function BitcoinCheckout({ orderId, address, bip21Uri, expiresAt }: Bitco
       try {
         const res = await fetch(`/api/orders/${orderId}/status`, { cache: 'no-store' });
         if (!res.ok) return;
-        const data = (await res.json()) as { status: WidgetStatus };
-        if (!cancelled) setStatus(data.status);
+        const data = (await res.json()) as StatusResponse;
+        if (!cancelled) setProgress(data);
       } catch {
         // transient network error — next interval retries
       }
@@ -102,6 +121,19 @@ export function BitcoinCheckout({ orderId, address, bip21Uri, expiresAt }: Bitco
         <p className={styles.message}>Payment confirmed. Thank you for your order!</p>
       )}
 
+      {status === 'refunded' && (
+        <p className={styles.message}>This order has been refunded.</p>
+      )}
+
+      {status === 'failed' && (
+        <div className={styles.stack}>
+          <p className={styles.message}>This payment could not be completed.</p>
+          <Link href="/cart">
+            <Button variant="secondary">Back to cart</Button>
+          </Link>
+        </div>
+      )}
+
       {status === 'expired' && (
         <div className={styles.stack}>
           <p className={styles.message}>
@@ -115,11 +147,18 @@ export function BitcoinCheckout({ orderId, address, bip21Uri, expiresAt }: Bitco
 
       {(status === 'awaiting' || status === 'confirming') && (
         <div className={styles.stack}>
-          <p className={styles.message}>
-            {status === 'confirming'
-              ? 'Payment seen, waiting for confirmations…'
-              : 'Send exactly this amount to the address below.'}
-          </p>
+          {status === 'confirming' && progress.underpaid ? (
+            <p className={styles.message}>
+              We received less than the expected amount. This needs manual review — please
+              contact support with your order id.
+            </p>
+          ) : (
+            <p className={styles.message}>
+              {status === 'confirming'
+                ? `Payment seen, waiting for confirmations… (${progress.confirmations} of ${progress.requiredConfirmations})`
+                : 'Send exactly this amount to the address below.'}
+            </p>
+          )}
 
           <div className={styles.qrWrapper}>
             <QRCodeSVG value={bip21Uri} size={220} />

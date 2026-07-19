@@ -280,6 +280,11 @@ export const bitcoinPaymentIntents = pgTable(
     satsPerFiatUnit: doublePrecision('sats_per_fiat_unit').notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     status: text('status').notNull().default('awaiting'), // awaiting | confirmed | expired
+    // Last confirmation count / underpayment flag the watcher observed —
+    // telemetry for the customer-facing status widget, not a status-enum
+    // transition itself.
+    confirmations: integer('confirmations').notNull().default(0),
+    underpaid: boolean('underpaid').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({

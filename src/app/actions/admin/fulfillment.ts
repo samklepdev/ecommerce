@@ -43,3 +43,19 @@ export async function markSupplierOrderShippedAction(formData: FormData): Promis
   await markSupplierOrderShipped.execute(parsed.data);
   revalidatePath('/admin/fulfillment');
 }
+
+const CancelSupplierOrderSchema = z.object({
+  supplierOrderId: z.string().min(1),
+});
+
+export async function cancelSupplierOrderAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const parsed = CancelSupplierOrderSchema.safeParse({
+    supplierOrderId: formData.get('supplierOrderId'),
+  });
+  if (!parsed.success) return;
+
+  const { cancelSupplierOrder } = getContainer();
+  await cancelSupplierOrder.execute(parsed.data);
+  revalidatePath('/admin/fulfillment');
+}

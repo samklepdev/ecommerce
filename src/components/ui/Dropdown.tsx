@@ -68,7 +68,15 @@ export function Dropdown({
           id={menuId}
           role="menu"
           className={cx(styles.menu, align === 'right' && styles.alignRight, menuClassName)}
-          onClick={() => setOpen(false)}
+          onClick={() => {
+            // Deferred: closing synchronously would unmount this menu (and
+            // any <form> inside it, e.g. a submit-button DropdownItem)
+            // before the browser gets to carry out the click's default
+            // action — a form whose DOM node is removed mid-click has its
+            // submission silently cancelled. Waiting a tick lets the
+            // browser finish (submit/navigate) before React unmounts.
+            setTimeout(() => setOpen(false), 0);
+          }}
         >
           {children}
         </div>
