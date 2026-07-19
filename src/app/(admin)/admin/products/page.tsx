@@ -1,39 +1,45 @@
 import { getContainer } from '@/composition/container';
 import { requireAdmin } from '@/app/lib/session';
-import { supplierOfferSyncStatusTone } from '@/app/lib/status-tone';
-import {
-  createProductWithOfferAction,
-  createSupplierAction,
-  setAutoSyncEnabledAction,
-  syncSupplierOfferAction,
-} from '@/app/actions/admin/catalog';
-import { ImportFeedForm } from './ImportFeedForm';
+import { ProductActionsBar } from './ProductActionsBar';
+import { SupplierFilterSelect } from './SupplierFilterSelect';
+import { AdminProductsTable, type AdminProductRow } from './AdminProductsTable';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
-import { Card } from '@/components/ui/Card';
-import { Field } from '@/components/ui/Field';
-import { Input, Select } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
+import { Pagination } from '@/components/ui/Pagination';
+import { paginate, parsePage, DEFAULT_PAGE_SIZE } from '@/components/ui/paginate';
 import type { SupplierOffer } from '@/modules/sourcing/domain/supplier-offer';
 import styles from './page.module.css';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AdminProductsPage() {
+interface AdminProductsPageProps {
+  searchParams: Promise<{ supplierId?: string; page?: string }>;
+}
+
+function buildHref(supplierId: string | undefined, page: number): string {
+  const params = new URLSearchParams();
+  if (supplierId) params.set('supplierId', supplierId);
+  if (page > 1) params.set('page', String(page));
+  const qs = params.toString();
+  return qs ? `/admin/products?${qs}` : '/admin/products';
+}
+
+export default async function AdminProductsPage({ searchParams }: AdminProductsPageProps) {
   await requireAdmin();
+  const { supplierId, page: pageParam } = await searchParams;
 
   const { listAllProductsForAdmin, listSuppliers, listSupplierOffersForVariant } =
     getContainer();
-  const [products, suppliers] = await Promise.all([
+  const [allProducts, suppliers] = await Promise.all([
     listAllProductsForAdmin.execute(),
     listSuppliers.execute(),
   ]);
   const supplierNameById = new Map(suppliers.map((s) => [s.id, s.name] as const));
+  const supplierOptions = suppliers.map((s) => ({ id: s.id, name: s.name }));
 
   const offersByVariant = new Map<string, SupplierOffer[]>(
     await Promise.all(
-      products
+      allProducts
         .flatMap((p) => p.variants)
         .map(
           async (v) =>
@@ -42,218 +48,65 @@ export default async function AdminProductsPage() {
     ),
   );
 
+  const products = supplierId
+    ? allProducts.filter((p) =>
+        p.variants.some((v) =>
+          (offersByVariant.get(v.id) ?? []).some((offer) => offer.supplierId === supplierId),
+        ),
+      )
+    : allProducts;
+
+  const { items: pagedProducts, page, totalPages } = paginate(
+    products,
+    parsePage(pageParam),
+    DEFAULT_PAGE_SIZE,
+  );
+
+  const rows: AdminProductRow[] = pagedProducts.map((p) => ({
+    id: p.id,
+    name: p.name,
+    slug: p.slug.value,
+    status: p.status,
+    imageUrl: p.imageUrl,
+    additionalImages: p.additionalImages,
+    variants: p.variants.map((v) => ({
+      id: v.id,
+      sku: v.sku,
+      priceDisplay: v.price.toString(),
+      offers: (offersByVariant.get(v.id) ?? []).map((offer) => ({
+        id: offer.id,
+        supplierId: offer.supplierId,
+        supplierName: supplierNameById.get(offer.supplierId) ?? offer.supplierId,
+        isPreferred: offer.isPreferred,
+        costDisplay: offer.cost.toString(),
+      })),
+    })),
+  }));
+
   return (
     <PageContainer>
       <Stack gap={5}>
         <h1>Products</h1>
 
+        <div className={styles.toolbar}>
+          <ProductActionsBar suppliers={supplierOptions} />
+          <div className={styles.filterRow}>
+            <SupplierFilterSelect suppliers={supplierOptions} selectedSupplierId={supplierId} />
+          </div>
+        </div>
+
         <section>
           <h2 className={styles.sectionTitle}>Existing products</h2>
-          <Stack gap={3}>
-            {products.length === 0 && <p className={styles.empty}>No products yet.</p>}
-            {products.map((p) => (
-              <Card key={p.id}>
-                <div className={styles.productHeader}>
-                  <strong>{p.name}</strong>
-                  <span className={styles.slug}>{p.slug.value}</span>
-                  <Badge tone={p.status === 'active' ? 'success' : 'neutral'}>{p.status}</Badge>
-                </div>
+          <AdminProductsTable
+            products={rows}
+            emptyMessage={supplierId ? 'No products from this supplier.' : 'No products yet.'}
+          />
 
-                <Stack gap={3}>
-                  {p.variants.map((v) => (
-                    <div key={v.id} className={styles.variantBlock}>
-                      <p className={styles.variantHeading}>
-                        {v.sku}: {v.price.toString()}
-                      </p>
-
-                      <ul className={styles.offerList}>
-                        {(offersByVariant.get(v.id) ?? []).map((offer) => (
-                          <li key={offer.id} className={styles.offerRow}>
-                            <div className={styles.offerInfo}>
-                              <span>
-                                {supplierNameById.get(offer.supplierId) ?? offer.supplierId}
-                                {offer.isPreferred && (
-                                  <Badge tone="accent">preferred</Badge>
-                                )}
-                              </span>
-                              <span className={styles.offerCost}>
-                                cost {offer.cost.toString()}
-                              </span>
-                              <Badge tone={supplierOfferSyncStatusTone(offer.lastSyncStatus)}>
-                                {offer.lastSyncStatus}
-                              </Badge>
-                              {offer.lastSyncedAt && (
-                                <span className={styles.syncedAt}>
-                                  {new Date(offer.lastSyncedAt).toLocaleString()}
-                                </span>
-                              )}
-                            </div>
-                            {offer.scrapedTitle && (
-                              <p className={styles.scrapedTitle}>
-                                Scraped title: &ldquo;{offer.scrapedTitle}&rdquo;
-                              </p>
-                            )}
-                            {offer.lastSyncError && (
-                              <p className={styles.syncError}>{offer.lastSyncError}</p>
-                            )}
-                            <div className={styles.offerActions}>
-                              <form action={syncSupplierOfferAction}>
-                                <input
-                                  type="hidden"
-                                  name="supplierOfferId"
-                                  value={offer.id}
-                                />
-                                <Button type="submit" variant="secondary">
-                                  Sync now
-                                </Button>
-                              </form>
-                              <form action={setAutoSyncEnabledAction}>
-                                <input type="hidden" name="offerId" value={offer.id} />
-                                <input
-                                  type="hidden"
-                                  name="enabled"
-                                  value={String(!offer.autoSyncEnabled)}
-                                />
-                                <Button type="submit" variant="ghost">
-                                  {offer.autoSyncEnabled
-                                    ? 'Disable auto-sync'
-                                    : 'Enable auto-sync'}
-                                </Button>
-                              </form>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </Stack>
-              </Card>
-            ))}
-          </Stack>
-        </section>
-
-        <section>
-          <h2 className={styles.sectionTitle}>Add supplier</h2>
-          <Card className={styles.formCard}>
-            <form action={createSupplierAction}>
-              <Field label="Name" htmlFor="supplierName">
-                <Input type="text" id="supplierName" name="name" required />
-              </Field>
-              <Field label="URL" htmlFor="supplierUrl">
-                <Input type="url" id="supplierUrl" name="url" required />
-              </Field>
-              <Field label="Notes" htmlFor="supplierNotes" hint="Optional">
-                <Input type="text" id="supplierNotes" name="notes" />
-              </Field>
-              <Button type="submit">Add supplier</Button>
-            </form>
-          </Card>
-        </section>
-
-        <section>
-          <h2 className={styles.sectionTitle}>Import from JSON feed</h2>
-          {suppliers.length === 0 ? (
-            <p className={styles.empty}>Add a supplier first.</p>
-          ) : (
-            <Card className={styles.formCard}>
-              <ImportFeedForm
-                suppliers={suppliers.map((s) => ({ id: s.id, name: s.name }))}
-              />
-            </Card>
-          )}
-        </section>
-
-        <section>
-          <h2 className={styles.sectionTitle}>Add product</h2>
-          {suppliers.length === 0 ? (
-            <p className={styles.empty}>Add a supplier first.</p>
-          ) : (
-            <Card className={styles.formCard}>
-              <form action={createProductWithOfferAction}>
-                <div className={styles.row}>
-                  <Field label="Slug" htmlFor="slug" className={styles.rowField}>
-                    <Input type="text" id="slug" name="slug" required />
-                  </Field>
-                  <Field label="Name" htmlFor="name" className={styles.rowField}>
-                    <Input type="text" id="name" name="name" required />
-                  </Field>
-                </div>
-                <Field label="Description" htmlFor="description" hint="Optional">
-                  <Input type="text" id="description" name="description" />
-                </Field>
-
-                <div className={styles.row}>
-                  <Field label="SKU" htmlFor="sku" className={styles.rowField}>
-                    <Input type="text" id="sku" name="sku" required />
-                  </Field>
-                  <Field
-                    label="Sell price (minor units)"
-                    htmlFor="unitAmountMinor"
-                    hint="e.g. cents"
-                    className={styles.rowField}
-                  >
-                    <Input
-                      type="number"
-                      id="unitAmountMinor"
-                      name="unitAmountMinor"
-                      min={1}
-                      required
-                    />
-                  </Field>
-                  <Field label="Currency" htmlFor="currency" className={styles.rowField}>
-                    <Input type="text" id="currency" name="currency" defaultValue="USD" required />
-                  </Field>
-                </div>
-
-                <Field label="Supplier" htmlFor="supplierId">
-                  <Select id="supplierId" name="supplierId" required defaultValue="">
-                    <option value="" disabled>
-                      Select a supplier
-                    </option>
-                    {suppliers.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field label="Supplier product URL" htmlFor="supplierProductUrl">
-                  <Input type="url" id="supplierProductUrl" name="supplierProductUrl" required />
-                </Field>
-
-                <div className={styles.row}>
-                  <Field
-                    label="Cost (minor units)"
-                    htmlFor="costAmountMinor"
-                    className={styles.rowField}
-                  >
-                    <Input
-                      type="number"
-                      id="costAmountMinor"
-                      name="costAmountMinor"
-                      min={1}
-                      required
-                    />
-                  </Field>
-                  <Field
-                    label="Cost currency"
-                    htmlFor="costCurrency"
-                    className={styles.rowField}
-                  >
-                    <Input
-                      type="text"
-                      id="costCurrency"
-                      name="costCurrency"
-                      defaultValue="USD"
-                      required
-                    />
-                  </Field>
-                </div>
-
-                <Button type="submit">Add product</Button>
-              </form>
-            </Card>
-          )}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            buildHref={(p) => buildHref(supplierId, p)}
+          />
         </section>
       </Stack>
     </PageContainer>

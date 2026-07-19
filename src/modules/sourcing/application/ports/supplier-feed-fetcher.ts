@@ -20,11 +20,19 @@ export type FetchFeedError =
   | { code: 'network_error'; message: string };
 
 /**
- * Fetches a bulk product feed (e.g. the WooCommerce Store API's
- * /wp-json/wc/store/v1/products) in one request, rather than scraping one
- * page per product. Same fail-closed contract as SupplierPageFetcher: never
- * retries or alters its approach on a block.
+ * Fetches a supplier's bulk product feed (a JSON array of products) in one
+ * request, rather than scraping one page per product. Platform-agnostic —
+ * any endpoint returning this shape works. Fail-closed: never retries or
+ * alters its approach on a block.
  */
 export interface SupplierFeedFetcher {
   fetchListings(feedUrl: string): Promise<Result<FeedListing[], FetchFeedError>>;
+  /** Same parsing/validation as `fetchListings`, for JSON an admin already
+   * has in hand (e.g. a pasted/uploaded export) rather than a live URL —
+   * no network fetch, no robots check. */
+  parseListings(rawJson: string): Result<FeedListing[], FetchFeedError>;
+  /** Same idea, for an uploaded `.csv`/`.xlsx` file — a flat, column-based
+   * shape (name/price/slug/product url/... headers) rather than the nested
+   * feed JSON shape, since spreadsheets don't nest. */
+  parseSpreadsheet(buffer: Buffer): Promise<Result<FeedListing[], FetchFeedError>>;
 }

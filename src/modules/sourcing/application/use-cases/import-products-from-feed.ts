@@ -1,16 +1,35 @@
 import type { UseCase } from '@/shared/application/use-case';
 import { isErr } from '@/shared/domain/result';
 import { logger } from '@/shared/infrastructure/logger';
+import type { ImageStorage } from '@/shared/application/ports/image-storage';
 import type { ProductRepository } from '@/modules/catalog/application/ports/product-repository';
 import type { CreateProduct } from '@/modules/catalog/application/use-cases/create-product';
 import type { CreateProductVariant } from '@/modules/catalog/application/use-cases/create-product-variant';
 import type { SupplierFeedFetcher } from '@/modules/sourcing/application/ports/supplier-feed-fetcher';
 import type { CreateSupplierOffer } from '@/modules/sourcing/application/use-cases/create-supplier-offer';
 
-export interface ImportProductsFromFeedInput {
-  supplierId: string;
-  feedUrl: string;
-}
+export type ImportProductsFromFeedInput =
+  | {
+      supplierId: string;
+      source: 'url';
+      feedUrl: string;
+      /** Raw querystring (e.g. "page=2&per_page=50") merged onto feedUrl —
+       * lets an admin paginate a feed without hand-editing the URL each time. */
+      queryParams?: string;
+    }
+  | {
+      supplierId: string;
+      source: 'json';
+      /** JSON text an admin already has in hand (e.g. an uploaded export),
+       * same shape as a feed URL's response body. */
+      rawJson: string;
+    }
+  | {
+      supplierId: string;
+      source: 'spreadsheet';
+      /** Raw bytes of an uploaded .csv/.xlsx file. */
+      fileBuffer: Buffer;
+    };
 
 export interface ImportProductsFromFeedResult {
   status: 'ok' | 'blocked' | 'error';
@@ -26,6 +45,13 @@ export interface ImportProductsFromFeedResult {
  * against the same feed is safe: any slug that already exists is skipped, not
  * overwritten (use the existing per-offer "Sync now" to refresh an
  * already-imported product's cost/availability).
+ *
+ * Listing images are downloaded via `ImageStorage` and re-hosted under our
+ * own URL rather than stored as a hotlink to the supplier's domain — many
+ * sites reject direct embeds of their media from other origins, and a
+ * hotlink also breaks if the supplier reorganizes their media library later.
+ * A failed/unsupported image download just leaves the product without an
+ * image; it never fails the import.
  */
 export class ImportProductsFromFeed
   implements UseCase<ImportProductsFromFeedInput, ImportProductsFromFeedResult>
@@ -36,10 +62,16 @@ export class ImportProductsFromFeed
     private readonly createProduct: CreateProduct,
     private readonly createProductVariant: CreateProductVariant,
     private readonly createSupplierOffer: CreateSupplierOffer,
+    private readonly imageStorage: ImageStorage,
   ) {}
 
   async execute(input: ImportProductsFromFeedInput): Promise<ImportProductsFromFeedResult> {
-    const result = await this.fetcher.fetchListings(input.feedUrl);
+    const result =
+      input.source === 'url'
+        ? await this.fetcher.fetchListings(this.buildFeedUrl(input.feedUrl, input.queryParams))
+        : input.source === 'json'
+          ? this.fetcher.parseListings(input.rawJson)
+          : await this.fetcher.parseSpreadsheet(input.fileBuffer);
 
     if (isErr(result)) {
       const { error } = result;
@@ -60,7 +92,7 @@ export class ImportProductsFromFeed
           message = error.message;
           break;
       }
-      logger.warn('feed import failed', { feedUrl: input.feedUrl, code: error.code, message });
+      logger.warn('feed import failed', { source: input.source, code: error.code, message });
       return { status, message, created: 0, skipped: 0 };
     }
 
@@ -80,10 +112,14 @@ export class ImportProductsFromFeed
           name: listing.name,
           description: listing.description,
           status: 'draft',
+          source: 'feed_import',
         });
 
         if (listing.imageUrl) {
-          await this.products.updateImageUrl(product.id, listing.imageUrl);
+          const storedImageUrl = await this.imageStorage.store(listing.imageUrl);
+          if (storedImageUrl) {
+            await this.products.updateImageUrl(product.id, storedImageUrl);
+          }
         }
 
         const variant = await this.createProductVariant.execute({
@@ -100,7 +136,6 @@ export class ImportProductsFromFeed
           supplierProductUrl: listing.productUrl,
           costAmountMinor: listing.priceMinor,
           costCurrency: listing.currency,
-          isPreferred: true,
           isAvailable: listing.available,
         });
 
@@ -114,5 +149,15 @@ export class ImportProductsFromFeed
     }
 
     return { status: 'ok', created, skipped };
+  }
+
+  private buildFeedUrl(feedUrl: string, queryParams?: string): string {
+    if (!queryParams) return feedUrl;
+    const url = new URL(feedUrl);
+    const extra = new URLSearchParams(queryParams);
+    for (const [key, value] of extra) {
+      url.searchParams.set(key, value);
+    }
+    return url.toString();
   }
 }

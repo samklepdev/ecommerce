@@ -8,8 +8,9 @@ export type BadgeTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger';
 interface BadgeProps {
   children: ReactNode;
   tone?: BadgeTone;
+  className?: string;
 }
 
-export function Badge({ children, tone = 'neutral' }: BadgeProps) {
-  return <span className={cx(styles.badge, styles[tone])}>{children}</span>;
+export function Badge({ children, tone = 'neutral', className }: BadgeProps) {
+  return <span className={cx(styles.badge, styles[tone], className)}>{children}</span>;
 }

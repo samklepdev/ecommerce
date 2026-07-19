@@ -8,6 +8,7 @@ import { Stack } from '@/components/ui/Stack';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { ProductGallery } from './ProductGallery';
 import styles from './page.module.css';
 
 export const revalidate = 3600;
@@ -39,14 +40,15 @@ export default async function ProductPage({ params }: ProductPageProps) {
   );
   const availabilityByVariant = new Map(availabilityEntries);
 
+  const images = [
+    ...(product.imageUrl ? [{ id: 'primary', url: product.imageUrl }] : []),
+    ...product.additionalImages.map((img) => ({ id: img.id, url: img.url })),
+  ];
+
   return (
     <PageContainer>
       <Stack gap={5}>
-        {product.imageUrl && (
-          // Supplier image hosts are dynamic/admin-added, not known at build time.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={product.imageUrl} alt={product.name} className={styles.heroImage} />
-        )}
+        <ProductGallery images={images} productName={product.name} />
 
         <div>
           <h1>{product.name}</h1>

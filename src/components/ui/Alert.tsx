@@ -8,11 +8,15 @@ export type AlertTone = 'danger' | 'success' | 'neutral';
 interface AlertProps {
   children: ReactNode;
   tone?: AlertTone;
+  className?: string;
 }
 
-export function Alert({ children, tone = 'danger' }: AlertProps) {
+export function Alert({ children, tone = 'danger', className }: AlertProps) {
   return (
-    <p className={cx(styles.alert, styles[tone])} role={tone === 'danger' ? 'alert' : 'status'}>
+    <p
+      className={cx(styles.alert, styles[tone], className)}
+      role={tone === 'danger' ? 'alert' : 'status'}
+    >
       {children}
     </p>
   );

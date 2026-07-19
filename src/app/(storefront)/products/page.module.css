@@ -20,12 +20,34 @@
   border-color: var(--color-accent);
 }
 
+.imageStack {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+}
+
 .image {
   width: 100%;
+  height: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
   border-radius: var(--radius-sm);
   background: var(--background);
+}
+
+.hoverImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.productCard:hover .hoverImage {
+  opacity: 1;
 }
 
 .imagePlaceholder {

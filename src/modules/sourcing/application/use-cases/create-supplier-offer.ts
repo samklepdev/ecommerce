@@ -11,7 +11,6 @@ export interface CreateSupplierOfferInput {
   supplierProductUrl: string;
   costAmountMinor: number;
   costCurrency: string;
-  isPreferred?: boolean;
   isAvailable?: boolean;
 }
 
@@ -19,6 +18,8 @@ export class CreateSupplierOffer implements UseCase<CreateSupplierOfferInput, Su
   constructor(private readonly offers: SupplierOfferRepository) {}
 
   async execute(input: CreateSupplierOfferInput): Promise<SupplierOffer> {
+    const existingPreferred = await this.offers.findPreferredByVariantId(input.variantId);
+
     const offer = SupplierOffer.create({
       id: randomUUID(),
       variantId: input.variantId,
@@ -26,7 +27,7 @@ export class CreateSupplierOffer implements UseCase<CreateSupplierOfferInput, Su
       supplierProductUrl: input.supplierProductUrl,
       cost: Money.of(input.costAmountMinor, input.costCurrency),
       isAvailable: input.isAvailable ?? true,
-      isPreferred: input.isPreferred ?? false,
+      isPreferred: existingPreferred === null,
     });
     await this.offers.create(offer);
     return offer;

@@ -24,9 +24,20 @@ export default async function ProductsPage() {
               <Link key={product.id} href={`/products/${product.slug.value}`}>
                 <Card className={styles.productCard}>
                   {product.imageUrl ? (
-                    // Supplier image hosts are dynamic/admin-added, not known at build time.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={product.imageUrl} alt={product.name} className={styles.image} />
+                    <div className={styles.imageStack}>
+                      {/* Supplier image hosts are dynamic/admin-added, not known at build time. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={product.imageUrl} alt={product.name} className={styles.image} />
+                      {product.hoverImageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={product.hoverImageUrl}
+                          alt=""
+                          aria-hidden
+                          className={styles.hoverImage}
+                        />
+                      )}
+                    </div>
                   ) : (
                     <div className={styles.imagePlaceholder} aria-hidden />
                   )}

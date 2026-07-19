@@ -1,6 +1,5 @@
 import type { FulfillmentStatus, PaymentStatus } from '@/modules/orders/domain/order-status';
 import type { SupplierOrderStatus } from '@/modules/orders/domain/supplier-order-status';
-import type { SupplierOfferSyncStatus } from '@/modules/sourcing/domain/supplier-offer';
 import type { BadgeTone } from '@/components/ui/Badge';
 
 export function paymentStatusTone(status: PaymentStatus): BadgeTone {
@@ -41,19 +40,6 @@ export function supplierOrderStatusTone(status: SupplierOrderStatus): BadgeTone 
       return 'accent';
     case 'cancelled':
       return 'danger';
-    default:
-      return 'neutral';
-  }
-}
-
-export function supplierOfferSyncStatusTone(status: SupplierOfferSyncStatus): BadgeTone {
-  switch (status) {
-    case 'ok':
-      return 'success';
-    case 'blocked':
-      return 'danger';
-    case 'error':
-      return 'warning';
     default:
       return 'neutral';
   }

@@ -1,11 +1,10 @@
-import { and, eq, lt, or, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { supplierOffers } from '@/shared/infrastructure/db/schema';
 import { Money } from '@/shared/domain/money';
-import { SupplierOffer, type SupplierOfferSyncStatus } from '@/modules/sourcing/domain/supplier-offer';
+import { SupplierOffer } from '@/modules/sourcing/domain/supplier-offer';
 import type { SupplierOfferRepository } from '@/modules/sourcing/application/ports/supplier-offer-repository';
-import type { ScrapedListing } from '@/modules/sourcing/application/ports/supplier-page-fetcher';
 
 type SupplierOfferRow = typeof supplierOffers.$inferSelect;
 
@@ -18,11 +17,6 @@ function toOffer(row: SupplierOfferRow): SupplierOffer {
     cost: Money.of(row.costAmountMinor, row.costCurrency),
     isAvailable: row.isAvailable,
     isPreferred: row.isPreferred,
-    lastSyncedAt: row.lastSyncedAt,
-    lastSyncStatus: row.lastSyncStatus as SupplierOfferSyncStatus,
-    lastSyncError: row.lastSyncError,
-    autoSyncEnabled: row.autoSyncEnabled,
-    scrapedTitle: row.scrapedTitle,
   });
 }
 
@@ -77,62 +71,5 @@ export class DrizzleSupplierOfferRepository implements SupplierOfferRepository {
       where: eq(supplierOffers.variantId, variantId),
     });
     return rows.map(toOffer);
-  }
-
-  async findById(offerId: string): Promise<SupplierOffer | null> {
-    const row = await this.db.query.supplierOffers.findFirst({
-      where: eq(supplierOffers.id, offerId),
-    });
-    return row ? toOffer(row) : null;
-  }
-
-  async listDueForSync(intervalHours: number): Promise<SupplierOffer[]> {
-    const cutoff = new Date(Date.now() - intervalHours * 60 * 60 * 1000);
-    const rows = await this.db.query.supplierOffers.findMany({
-      where: and(
-        eq(supplierOffers.autoSyncEnabled, true),
-        or(sql`${supplierOffers.lastSyncedAt} IS NULL`, lt(supplierOffers.lastSyncedAt, cutoff)),
-      ),
-    });
-    return rows.map(toOffer);
-  }
-
-  async setAutoSyncEnabled(offerId: string, enabled: boolean): Promise<void> {
-    await this.db
-      .update(supplierOffers)
-      .set({ autoSyncEnabled: enabled, updatedAt: new Date() })
-      .where(eq(supplierOffers.id, offerId));
-  }
-
-  async recordSyncSuccess(offerId: string, listing: ScrapedListing): Promise<void> {
-    await this.db
-      .update(supplierOffers)
-      .set({
-        costAmountMinor: listing.priceMinor,
-        costCurrency: listing.currency,
-        isAvailable: listing.available,
-        scrapedTitle: listing.title,
-        lastSyncedAt: new Date(),
-        lastSyncStatus: 'ok',
-        lastSyncError: null,
-        updatedAt: new Date(),
-      })
-      .where(eq(supplierOffers.id, offerId));
-  }
-
-  async recordSyncFailure(
-    offerId: string,
-    status: 'blocked' | 'error',
-    message: string,
-  ): Promise<void> {
-    await this.db
-      .update(supplierOffers)
-      .set({
-        lastSyncedAt: new Date(),
-        lastSyncStatus: status,
-        lastSyncError: message,
-        updatedAt: new Date(),
-      })
-      .where(eq(supplierOffers.id, offerId));
   }
 }

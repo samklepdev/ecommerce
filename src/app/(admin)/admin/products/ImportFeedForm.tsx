@@ -1,10 +1,10 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 
 import { importProductsFromFeedAction, type ImportFeedActionResult } from '@/app/actions/admin/catalog';
 import { Field } from '@/components/ui/Field';
-import { Input, Select } from '@/components/ui/Input';
+import { Input, Select, Textarea } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 
@@ -17,10 +17,13 @@ interface ImportFeedFormProps {
   suppliers: Supplier[];
 }
 
+type SourceType = 'url' | 'json' | 'spreadsheet';
+
 const initialState: ImportFeedActionResult = {};
 
 export function ImportFeedForm({ suppliers }: ImportFeedFormProps) {
   const [state, formAction, isPending] = useActionState(importProductsFromFeedAction, initialState);
+  const [sourceType, setSourceType] = useState<SourceType>('url');
 
   return (
     <form action={formAction}>
@@ -36,13 +39,54 @@ export function ImportFeedForm({ suppliers }: ImportFeedFormProps) {
           ))}
         </Select>
       </Field>
-      <Field
-        label="Feed URL"
-        htmlFor="feedUrl"
-        hint="A JSON product list, e.g. a WooCommerce Store API endpoint (/wp-json/wc/store/v1/products)"
-      >
-        <Input type="url" id="feedUrl" name="feedUrl" required />
+
+      <Field label="Source" htmlFor="sourceType">
+        <Select
+          id="sourceType"
+          name="sourceType"
+          value={sourceType}
+          onChange={(e) => setSourceType(e.target.value as SourceType)}
+        >
+          <option value="url">Feed URL</option>
+          <option value="json">JSON / JS / TS file or pasted JSON</option>
+          <option value="spreadsheet">Spreadsheet (.csv or .xlsx)</option>
+        </Select>
       </Field>
+
+      {sourceType === 'url' && (
+        <Field
+          label="Feed URL"
+          htmlFor="feedUrl"
+          hint="A JSON product list endpoint returning an array of products with name/price/image/stock fields"
+        >
+          <Input type="url" id="feedUrl" name="feedUrl" required />
+        </Field>
+      )}
+
+      {sourceType === 'json' && (
+        <>
+          <Field
+            label="JSON / JS / TS file"
+            htmlFor="jsonFile"
+            hint="A .json, .js, or .ts file containing (or exporting) an array of products. File content is only ever parsed as data, never executed."
+          >
+            <Input type="file" id="jsonFile" name="jsonFile" accept=".json,.js,.ts" />
+          </Field>
+          <Field label="…or paste JSON" htmlFor="jsonText">
+            <Textarea id="jsonText" name="jsonText" rows={8} />
+          </Field>
+        </>
+      )}
+
+      {sourceType === 'spreadsheet' && (
+        <Field
+          label="Spreadsheet file"
+          htmlFor="spreadsheetFile"
+          hint="A .csv or .xlsx file with columns like name/slug/price/image/stock"
+        >
+          <Input type="file" id="spreadsheetFile" name="spreadsheetFile" accept=".csv,.xlsx" required />
+        </Field>
+      )}
 
       {state.error && <Alert tone="danger">{state.error}</Alert>}
       {state.message && <Alert tone="success">{state.message}</Alert>}

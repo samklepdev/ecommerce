@@ -53,6 +53,7 @@ export const products = pgTable(
     description: text('description'),
     imageUrl: text('image_url'),
     status: text('status').notNull().default('draft'), // draft | active | archived
+    source: text('source').notNull().default('manual'), // manual | feed_import
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -77,6 +78,25 @@ export const productVariants = pgTable(
   (t) => ({
     skuUnique: uniqueIndex('product_variants_sku_unique').on(t.sku),
     productIdx: index('product_variants_product_id_idx').on(t.productId),
+  }),
+);
+
+/** Images beyond a product's primary `products.image_url` — e.g. a
+ * hover/alternate shot. `position` starts at 1 (0 is reserved for the
+ * primary image, which lives on the `products` row itself). */
+export const productImages = pgTable(
+  'product_images',
+  {
+    id: text('id').primaryKey(),
+    productId: text('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    url: text('url').notNull(),
+    position: integer('position').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    productIdx: index('product_images_product_id_idx').on(t.productId),
   }),
 );
 
@@ -110,7 +130,9 @@ export const supplierOffers = pgTable(
     costCurrency: text('cost_currency').notNull(),
     isAvailable: boolean('is_available').notNull().default(true),
     isPreferred: boolean('is_preferred').notNull().default(false),
-    // Sync bookkeeping — see WooCommerceSupplierPageFetcher / SyncSupplierOffer.
+    // Vestigial: bookkeeping for the removed page-scraping sync feature.
+    // No longer read or written by the app; left in place rather than
+    // migrated away. Safe to drop in a future migration if desired.
     lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
     lastSyncStatus: text('last_sync_status').notNull().default('never'), // never | ok | blocked | error
     lastSyncError: text('last_sync_error'),

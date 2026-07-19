@@ -35,6 +35,12 @@ import { GetProductBySlug } from '@/modules/catalog/application/use-cases/get-pr
 import { CreateProduct } from '@/modules/catalog/application/use-cases/create-product';
 import { CreateProductVariant } from '@/modules/catalog/application/use-cases/create-product-variant';
 import { ListAllProductsForAdmin } from '@/modules/catalog/application/use-cases/list-all-products-for-admin';
+import { DeleteProducts } from '@/modules/catalog/application/use-cases/delete-products';
+import { PublishProducts } from '@/modules/catalog/application/use-cases/publish-products';
+import { UnpublishProducts } from '@/modules/catalog/application/use-cases/unpublish-products';
+import { AddProductImages } from '@/modules/catalog/application/use-cases/add-product-images';
+import { RemoveProductImage } from '@/modules/catalog/application/use-cases/remove-product-image';
+import { RemovePrimaryProductImage } from '@/modules/catalog/application/use-cases/remove-primary-product-image';
 
 import { RedisCartRepository } from '@/modules/cart/infrastructure/redis-cart-repository';
 import { GetCart } from '@/modules/cart/application/use-cases/get-cart';
@@ -52,18 +58,17 @@ import { GetCurrentUser } from '@/modules/identity/application/use-cases/get-cur
 
 import { DrizzleSupplierRepository } from '@/modules/sourcing/infrastructure/drizzle-supplier-repository';
 import { DrizzleSupplierOfferRepository } from '@/modules/sourcing/infrastructure/drizzle-supplier-offer-repository';
-import { WooCommerceSupplierPageFetcher } from '@/modules/sourcing/infrastructure/woocommerce-supplier-page-fetcher';
-import { WooCommerceStoreApiFeedFetcher } from '@/modules/sourcing/infrastructure/woocommerce-store-api-feed-fetcher';
+import { JsonProductFeedFetcher } from '@/modules/sourcing/infrastructure/json-product-feed-fetcher';
+import { HtmlUrlContentExtractor } from '@/modules/sourcing/infrastructure/html-url-content-extractor';
 import { ListSuppliers } from '@/modules/sourcing/application/use-cases/list-suppliers';
 import { CreateSupplier } from '@/modules/sourcing/application/use-cases/create-supplier';
 import { CreateSupplierOffer } from '@/modules/sourcing/application/use-cases/create-supplier-offer';
 import { SetPreferredSupplierOffer } from '@/modules/sourcing/application/use-cases/set-preferred-supplier-offer';
 import { GetPreferredOfferForVariant } from '@/modules/sourcing/application/use-cases/get-preferred-offer-for-variant';
 import { ListSupplierOffersForVariant } from '@/modules/sourcing/application/use-cases/list-supplier-offers-for-variant';
-import { SetSupplierOfferAutoSync } from '@/modules/sourcing/application/use-cases/set-supplier-offer-auto-sync';
-import { SyncSupplierOffer } from '@/modules/sourcing/application/use-cases/sync-supplier-offer';
-import { SyncAllDueSupplierOffers } from '@/modules/sourcing/application/use-cases/sync-all-due-supplier-offers';
 import { ImportProductsFromFeed } from '@/modules/sourcing/application/use-cases/import-products-from-feed';
+import { ExtractProductFromUrl } from '@/modules/sourcing/application/use-cases/extract-product-from-url';
+import { LocalFileImageStorage } from '@/shared/infrastructure/local-file-image-storage';
 
 /**
  * The single DI root. Nothing else `new`s an adapter. Routes, actions, and the
@@ -77,6 +82,12 @@ export interface Container {
   createProduct: CreateProduct;
   createProductVariant: CreateProductVariant;
   listAllProductsForAdmin: ListAllProductsForAdmin;
+  deleteProducts: DeleteProducts;
+  publishProducts: PublishProducts;
+  unpublishProducts: UnpublishProducts;
+  addProductImages: AddProductImages;
+  removeProductImage: RemoveProductImage;
+  removePrimaryProductImage: RemovePrimaryProductImage;
 
   getCart: GetCart;
   addToCart: AddToCart;
@@ -95,10 +106,8 @@ export interface Container {
   setPreferredSupplierOffer: SetPreferredSupplierOffer;
   getPreferredOfferForVariant: GetPreferredOfferForVariant;
   listSupplierOffersForVariant: ListSupplierOffersForVariant;
-  setSupplierOfferAutoSync: SetSupplierOfferAutoSync;
-  syncSupplierOffer: SyncSupplierOffer;
-  syncAllDueSupplierOffers: SyncAllDueSupplierOffers;
   importProductsFromFeed: ImportProductsFromFeed;
+  extractProductFromUrl: ExtractProductFromUrl;
 
   placeOrder: PlaceOrder;
   startCheckout: StartCheckout;
@@ -142,6 +151,9 @@ function build(): Container {
   const createProduct = new CreateProduct(products);
   const createProductVariant = new CreateProductVariant(products);
   const listAllProductsForAdmin = new ListAllProductsForAdmin(products);
+  const deleteProducts = new DeleteProducts(products);
+  const publishProducts = new PublishProducts(products);
+  const unpublishProducts = new UnpublishProducts(products);
 
   // --- cart ---
   const carts = new RedisCartRepository(redis);
@@ -168,22 +180,21 @@ function build(): Container {
   const setPreferredSupplierOffer = new SetPreferredSupplierOffer(supplierOffers);
   const getPreferredOfferForVariant = new GetPreferredOfferForVariant(supplierOffers);
   const listSupplierOffersForVariant = new ListSupplierOffersForVariant(supplierOffers);
-  const setSupplierOfferAutoSync = new SetSupplierOfferAutoSync(supplierOffers);
-  const supplierPageFetcher = new WooCommerceSupplierPageFetcher();
-  const syncSupplierOffer = new SyncSupplierOffer(supplierOffers, supplierPageFetcher, products);
-  const syncAllDueSupplierOffers = new SyncAllDueSupplierOffers(
-    supplierOffers,
-    syncSupplierOffer,
-    env.SUPPLIER_SYNC_INTERVAL_HOURS,
-  );
-  const supplierFeedFetcher = new WooCommerceStoreApiFeedFetcher();
+  const imageStorage = new LocalFileImageStorage();
+  const addProductImages = new AddProductImages(products, imageStorage);
+  const removeProductImage = new RemoveProductImage(products);
+  const removePrimaryProductImage = new RemovePrimaryProductImage(products);
+  const supplierFeedFetcher = new JsonProductFeedFetcher();
   const importProductsFromFeed = new ImportProductsFromFeed(
     supplierFeedFetcher,
     products,
     createProduct,
     createProductVariant,
     createSupplierOffer,
+    imageStorage,
   );
+  const urlContentExtractor = new HtmlUrlContentExtractor();
+  const extractProductFromUrl = new ExtractProductFromUrl(urlContentExtractor);
 
   // --- orders / checkout / confirmation / fulfillment ---
   const orders = new DrizzleOrderRepository(db);
@@ -223,6 +234,12 @@ function build(): Container {
     createProduct,
     createProductVariant,
     listAllProductsForAdmin,
+    deleteProducts,
+    publishProducts,
+    unpublishProducts,
+    addProductImages,
+    removeProductImage,
+    removePrimaryProductImage,
     getCart,
     addToCart,
     removeFromCart,
@@ -238,10 +255,8 @@ function build(): Container {
     setPreferredSupplierOffer,
     getPreferredOfferForVariant,
     listSupplierOffersForVariant,
-    setSupplierOfferAutoSync,
-    syncSupplierOffer,
-    syncAllDueSupplierOffers,
     importProductsFromFeed,
+    extractProductFromUrl,
     placeOrder,
     startCheckout,
     expireStaleCheckouts,
