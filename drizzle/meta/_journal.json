@@ -50,6 +50,13 @@
       "when": 1784474371191,
       "tag": "0006_lethal_magdalene",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784486049256,
+      "tag": "0007_slippery_proemial_gods",
+      "breakpoints": true
     }
   ]
 }

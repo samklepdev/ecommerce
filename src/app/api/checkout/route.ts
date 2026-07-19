@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { getContainer } from '@/composition/container';
 import { isErr } from '@/shared/domain/result';
-import { satsToBtcString } from '@/modules/payments/infrastructure/onchain-bitcoin-payment-gateway';
+import { satsToBtcString } from '@/modules/payments/domain/bip21';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

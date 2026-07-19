@@ -59,6 +59,16 @@ export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore {
       .set({ status: 'expired' })
       .where(eq(bitcoinPaymentIntents.orderId, orderId));
   }
+
+  async recordProgress(
+    orderId: string,
+    progress: { confirmations: number; underpaid: boolean },
+  ): Promise<void> {
+    await this.db
+      .update(bitcoinPaymentIntents)
+      .set({ confirmations: progress.confirmations, underpaid: progress.underpaid })
+      .where(eq(bitcoinPaymentIntents.orderId, orderId));
+  }
 }
 
 type Row = typeof bitcoinPaymentIntents.$inferSelect;
@@ -72,5 +82,7 @@ function toIntent(row: Row): BitcoinPaymentIntent {
     satsPerFiatUnit: row.satsPerFiatUnit,
     expiresAt: row.expiresAt,
     status: row.status as BitcoinPaymentIntent['status'],
+    confirmations: row.confirmations,
+    underpaid: row.underpaid,
   };
 }

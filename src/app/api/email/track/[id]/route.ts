@@ -1,0 +1,42 @@
+import { NextResponse } from 'next/server';
+
+import { logger } from '@/shared/infrastructure/logger';
+import { getContainer } from '@/composition/container';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// 1x1 transparent GIF — the smallest valid tracking pixel.
+const TRANSPARENT_GIF = Buffer.from(
+  'R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==',
+  'base64',
+);
+
+/** Hit by an email client rendering the `<img>` tag in the welcome email —
+ * never by a logged-in session, so there's no auth check here. Fails
+ * closed/silently on an unknown or already-opened token (the guarded
+ * `markOpened` update just affects 0 rows) and always returns the pixel
+ * regardless, since a broken tracking pixel would otherwise show up as a
+ * broken image in the recipient's inbox. */
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<NextResponse> {
+  const { id } = await params;
+
+  try {
+    const { markWelcomeEmailOpened } = getContainer();
+    await markWelcomeEmailOpened.execute({ trackingToken: id });
+  } catch (e) {
+    logger.warn('welcome email tracking: failed to mark opened', {
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  return new NextResponse(TRANSPARENT_GIF, {
+    headers: {
+      'Content-Type': 'image/gif',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+    },
+  });
+}

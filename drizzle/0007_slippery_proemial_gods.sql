@@ -1,0 +1,2 @@
+ALTER TABLE "bitcoin_payment_intents" ADD COLUMN "confirmations" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "bitcoin_payment_intents" ADD COLUMN "underpaid" boolean DEFAULT false NOT NULL;

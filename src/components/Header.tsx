@@ -39,6 +39,7 @@ export async function Header() {
               align="right"
             >
               <DropdownItem href="/account">Account</DropdownItem>
+              <DropdownItem href="/account/orders">Orders</DropdownItem>
               {user.isAdmin && (
                 <>
                   <DropdownDivider />

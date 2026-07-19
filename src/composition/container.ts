@@ -12,9 +12,16 @@ import { PlaceOrder } from '@/modules/orders/application/use-cases/place-order';
 import { CreateSupplierOrdersForPaidOrder } from '@/modules/orders/application/use-cases/create-supplier-orders-for-paid-order';
 import { MarkSupplierOrderOrdered } from '@/modules/orders/application/use-cases/mark-supplier-order-ordered';
 import { MarkSupplierOrderShipped } from '@/modules/orders/application/use-cases/mark-supplier-order-shipped';
+import { CancelSupplierOrder } from '@/modules/orders/application/use-cases/cancel-supplier-order';
+import { ListSupplierOrdersByStatus } from '@/modules/orders/application/use-cases/list-supplier-orders-by-status';
 import { ListSupplierOrdersNeedingAction } from '@/modules/orders/application/use-cases/list-supplier-orders-needing-action';
 import { GetOrderSummary } from '@/modules/orders/application/use-cases/get-order-summary';
+import { ListOrdersForCustomer } from '@/modules/orders/application/use-cases/list-orders-for-customer';
+import { GetOrderDetailForCustomer } from '@/modules/orders/application/use-cases/get-order-detail-for-customer';
+import { GetShipmentsForOrder } from '@/modules/orders/application/use-cases/get-shipments-for-order';
+import { GetPaymentSessionForOrder } from '@/modules/payments/application/use-cases/get-payment-session-for-order';
 import { WatchBitcoinPayments } from '@/modules/payments/application/watch-bitcoin-payments';
+import { GetPaymentProgress } from '@/modules/payments/application/use-cases/get-payment-progress';
 import { PaymentGatewayRegistry } from '@/modules/payments/application/payment-gateway-registry';
 
 import { OnChainBitcoinPaymentGateway } from '@/modules/payments/infrastructure/onchain-bitcoin-payment-gateway';
@@ -130,12 +137,19 @@ export interface Container {
   confirmPayment: ConfirmPayment;
   markAwaitingConfirmation: MarkAwaitingConfirmation;
   watchBitcoinPayments: WatchBitcoinPayments;
+  getPaymentProgress: GetPaymentProgress;
 
   createSupplierOrdersForPaidOrder: CreateSupplierOrdersForPaidOrder;
   markSupplierOrderOrdered: MarkSupplierOrderOrdered;
   markSupplierOrderShipped: MarkSupplierOrderShipped;
+  cancelSupplierOrder: CancelSupplierOrder;
+  listSupplierOrdersByStatus: ListSupplierOrdersByStatus;
   listSupplierOrdersNeedingAction: ListSupplierOrdersNeedingAction;
   getOrderSummary: GetOrderSummary;
+  listOrdersForCustomer: ListOrdersForCustomer;
+  getOrderDetailForCustomer: GetOrderDetailForCustomer;
+  getShipmentsForOrder: GetShipmentsForOrder;
+  getPaymentSessionForOrder: GetPaymentSessionForOrder;
 
   orders: DrizzleOrderRepository;
   paymentStore: DrizzleBitcoinPaymentStore;
@@ -240,8 +254,14 @@ function build(): Container {
   const fulfillment = new SupplierOrderFulfillmentQueue(createSupplierOrdersForPaidOrder);
   const markSupplierOrderOrdered = new MarkSupplierOrderOrdered(supplierOrders);
   const markSupplierOrderShipped = new MarkSupplierOrderShipped(supplierOrders, orders);
+  const cancelSupplierOrder = new CancelSupplierOrder(supplierOrders);
+  const listSupplierOrdersByStatus = new ListSupplierOrdersByStatus(supplierOrders);
   const listSupplierOrdersNeedingAction = new ListSupplierOrdersNeedingAction(supplierOrders);
   const getOrderSummary = new GetOrderSummary(orders);
+  const listOrdersForCustomer = new ListOrdersForCustomer(orders);
+  const getOrderDetailForCustomer = new GetOrderDetailForCustomer(orders);
+  const getShipmentsForOrder = new GetShipmentsForOrder(supplierOrders);
+  const getPaymentSessionForOrder = new GetPaymentSessionForOrder(paymentStore);
 
   const confirmPayment = new ConfirmPayment(orders, processed, fulfillment);
   const markAwaitingConfirmation = new MarkAwaitingConfirmation(orders);
@@ -252,6 +272,7 @@ function build(): Container {
     markAwaitingConfirmation,
     env.BTC_REQUIRED_CONFIRMATIONS,
   );
+  const getPaymentProgress = new GetPaymentProgress(orders, paymentStore, env.BTC_REQUIRED_CONFIRMATIONS);
 
   return {
     db,
@@ -295,11 +316,18 @@ function build(): Container {
     confirmPayment,
     markAwaitingConfirmation,
     watchBitcoinPayments,
+    getPaymentProgress,
     createSupplierOrdersForPaidOrder,
     markSupplierOrderOrdered,
     markSupplierOrderShipped,
+    cancelSupplierOrder,
+    listSupplierOrdersByStatus,
     listSupplierOrdersNeedingAction,
     getOrderSummary,
+    listOrdersForCustomer,
+    getOrderDetailForCustomer,
+    getShipmentsForOrder,
+    getPaymentSessionForOrder,
     orders,
     paymentStore,
   };

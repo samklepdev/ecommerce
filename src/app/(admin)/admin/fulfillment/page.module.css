@@ -2,6 +2,35 @@
   color: var(--color-muted);
 }
 
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.orderHeading {
+  font-size: 1rem;
+  color: var(--color-muted);
+  margin-bottom: var(--space-3);
+}
+
+.cancelRow {
+  padding-top: var(--space-4);
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.warning {
+  color: var(--color-warning);
+  font-size: 0.875rem;
+}
+
 .cardHeader {
   display: flex;
   align-items: center;

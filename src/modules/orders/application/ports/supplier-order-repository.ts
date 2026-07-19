@@ -38,9 +38,14 @@ export interface SupplierOrderRepository {
   /** One row (+ lines) per distinct supplier. */
   createForPaidOrder(inputs: CreateSupplierOrderInput[]): Promise<void>;
   listNeedingAction(): Promise<SupplierOrderSummary[]>;
+  listByOrderId(orderId: string): Promise<SupplierOrderSummary[]>;
+  /** `undefined` returns all four statuses. */
+  listByStatus(status?: SupplierOrderStatus): Promise<SupplierOrderSummary[]>;
   /** Guarded + idempotent: false if not currently `needs_ordering`. */
   markOrdered(supplierOrderId: string, reference: string): Promise<boolean>;
   /** Guarded + idempotent: false if not currently `ordered`. */
   markShipped(supplierOrderId: string, trackingNumber: string): Promise<boolean>;
+  /** Guarded + idempotent: false unless currently `needs_ordering` or `ordered`. */
+  cancel(supplierOrderId: string): Promise<boolean>;
   allShippedForOrder(orderId: string): Promise<boolean>;
 }
