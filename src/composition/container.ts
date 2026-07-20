@@ -266,7 +266,7 @@ function build(): Container {
   const processed = new RedisProcessedEventStore(redis);
 
   const placeOrder = new PlaceOrder(carts, products, orders);
-  const startCheckout = new StartCheckout(orders, gateways);
+  const startCheckout = new StartCheckout(orders, gateways, env.QUOTE_TTL_SECONDS);
   const expireStaleCheckouts = new ExpireStaleCheckouts(orders);
 
   const createSupplierOrdersForPaidOrder = new CreateSupplierOrdersForPaidOrder(

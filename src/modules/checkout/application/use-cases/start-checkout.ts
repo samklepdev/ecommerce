@@ -1,4 +1,3 @@
-import { env } from '@/config/env';
 import { err, isErr, ok, type Result } from '@/shared/domain/result';
 import type { UseCase } from '@/shared/application/use-case';
 import type { CheckoutOrderRepository } from '@/modules/checkout/application/ports/checkout-order-repository';
@@ -29,6 +28,7 @@ export class StartCheckout
   constructor(
     private readonly orders: CheckoutOrderRepository,
     private readonly gateways: PaymentGatewayRegistry,
+    private readonly quoteTtlSeconds: number,
   ) {}
 
   async execute(input: StartCheckoutInput): Promise<Result<PaymentSession, StartCheckoutError>> {
@@ -43,7 +43,7 @@ export class StartCheckout
 
     if (isErr(result)) return err(result.error);
 
-    const paymentWindowExpiresAt = new Date(Date.now() + env.QUOTE_TTL_SECONDS * 1000);
+    const paymentWindowExpiresAt = new Date(Date.now() + this.quoteTtlSeconds * 1000);
     await this.orders.markAwaitingPayment(
       input.orderId,
       result.value.reference,
