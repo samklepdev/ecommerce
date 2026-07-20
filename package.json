@@ -15,7 +15,8 @@
     "db:studio": "drizzle-kit studio",
     "queue:dev": "tsx watch src/workers/btc-watcher.ts",
     "worker": "tsx src/workers/btc-watcher.ts",
-    "fixture:supplier": "node scripts/fixture-supplier-server.mjs"
+    "fixture:supplier": "node scripts/fixture-supplier-server.mjs",
+    "admin:promote": "tsx --env-file=.env scripts/bootstrap-admin.ts"
   },
   "dependencies": {
     "argon2": "^0.41.1",

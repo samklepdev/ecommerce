@@ -24,6 +24,7 @@ function makeFakeUsers(existing?: User): UserRepository {
     async create() {},
     async updatePasswordHash() {},
     async updateAvatarUrl() {},
+    async updateRole() {},
     async findProfileById() {
       return null;
     },
