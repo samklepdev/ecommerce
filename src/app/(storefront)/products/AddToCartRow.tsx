@@ -50,7 +50,7 @@ export function AddToCartRow({ variantId, priceDisplay, disabled = false }: AddT
       <span className={styles.price}>{priceDisplay}</span>
 
       <Button type="submit" disabled={disabled || isPending} className={styles.addButton}>
-        {disabled ? 'Out of stock' : 'Add to cart'}
+        {disabled ? 'Out of stock' : 'Add'}
       </Button>
     </form>
   );
