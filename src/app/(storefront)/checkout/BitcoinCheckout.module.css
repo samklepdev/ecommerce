@@ -28,6 +28,18 @@
   color: var(--foreground);
 }
 
+.amount {
+  font-size: 1.25rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.amountFiat {
+  font-size: 0.9375rem;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
 .qrWrapper {
   padding: var(--space-4);
   background: #ffffff;

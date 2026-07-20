@@ -23,6 +23,8 @@ interface BitcoinCheckoutProps {
   address: string;
   bip21Uri: string;
   expiresAt: string | null;
+  amountBtc: string;
+  amountFiat: string;
 }
 
 const STATUS_LABEL: Record<WidgetStatus, string> = {
@@ -72,7 +74,14 @@ const initialProgress: StatusResponse = {
   underpaid: false,
 };
 
-export function BitcoinCheckout({ orderId, address, bip21Uri, expiresAt }: BitcoinCheckoutProps) {
+export function BitcoinCheckout({
+  orderId,
+  address,
+  bip21Uri,
+  expiresAt,
+  amountBtc,
+  amountFiat,
+}: BitcoinCheckoutProps) {
   const [progress, setProgress] = useState<StatusResponse>(initialProgress);
   const [copied, setCopied] = useState(false);
   const { status } = progress;
@@ -157,6 +166,12 @@ export function BitcoinCheckout({ orderId, address, bip21Uri, expiresAt }: Bitco
               {status === 'confirming'
                 ? `Payment seen, waiting for confirmations… (${progress.confirmations} of ${progress.requiredConfirmations})`
                 : 'Send exactly this amount to the address below.'}
+            </p>
+          )}
+
+          {status === 'awaiting' && (
+            <p className={styles.amount}>
+              {amountBtc} BTC <span className={styles.amountFiat}>({amountFiat})</span>
             </p>
           )}
 

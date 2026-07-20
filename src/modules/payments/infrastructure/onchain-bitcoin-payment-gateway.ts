@@ -34,6 +34,7 @@ export class OnChainBitcoinPaymentGateway implements PaymentGateway {
         reference: existing.address,
         bip21Uri: toBip21(existing.address, existing.expectedSats),
         expiresAt: existing.expiresAt,
+        expectedSats: existing.expectedSats,
       });
     }
 
@@ -57,7 +58,7 @@ export class OnChainBitcoinPaymentGateway implements PaymentGateway {
         status: 'awaiting',
       });
 
-      return ok({ reference: address, bip21Uri: toBip21(address, expectedSats), expiresAt });
+      return ok({ reference: address, bip21Uri: toBip21(address, expectedSats), expiresAt, expectedSats });
     } catch (e) {
       return err({ code: 'gateway_error', message: e instanceof Error ? e.message : String(e) });
     }

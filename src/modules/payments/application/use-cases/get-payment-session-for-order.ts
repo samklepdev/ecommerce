@@ -10,6 +10,7 @@ export interface PaymentSession {
   address: string;
   bip21Uri: string;
   expiresAt: Date;
+  expectedSats: number;
 }
 
 /** Reads the already-persisted payment intent rather than re-invoking
@@ -28,6 +29,7 @@ export class GetPaymentSessionForOrder implements UseCase<GetPaymentSessionForOr
       address: intent.address,
       bip21Uri: toBip21(intent.address, intent.expectedSats),
       expiresAt: intent.expiresAt,
+      expectedSats: intent.expectedSats,
     };
   }
 }

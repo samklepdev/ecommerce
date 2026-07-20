@@ -3,7 +3,6 @@
 import { useActionState } from 'react';
 
 import { startCheckoutAction, type StartCheckoutActionResult } from '@/app/actions/checkout';
-import { BitcoinCheckout } from './BitcoinCheckout';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
 import { Input } from '@/components/ui/Input';
@@ -15,17 +14,6 @@ const initialState: StartCheckoutActionResult = {};
 
 export function CheckoutForm() {
   const [state, formAction, isPending] = useActionState(startCheckoutAction, initialState);
-
-  if (state.orderId && state.reference && state.bip21Uri) {
-    return (
-      <BitcoinCheckout
-        orderId={state.orderId}
-        address={state.reference}
-        bip21Uri={state.bip21Uri}
-        expiresAt={state.expiresAt ?? null}
-      />
-    );
-  }
 
   return (
     <Card className={styles.card}>

@@ -75,7 +75,8 @@ function makeIntent(overrides: Partial<BitcoinPaymentIntent> = {}): BitcoinPayme
 function makeWatcher(paymentStore: BitcoinPaymentStore, chain: ChainDataProvider, orders: ConfirmPaymentOrderRepository) {
   const processedEvents = { seen: async () => false, markSeen: async () => {} };
   const fulfillment = { enqueueOrderPaid: async () => {} };
-  const confirmPayment = new ConfirmPayment(orders, processedEvents, fulfillment);
+  const paymentConfirmationNotifier = { notifyPaymentConfirmed: async () => {} };
+  const confirmPayment = new ConfirmPayment(orders, processedEvents, fulfillment, paymentConfirmationNotifier);
   const markAwaitingConfirmation = new MarkAwaitingConfirmation(orders);
   return new WatchBitcoinPayments(paymentStore, chain, confirmPayment, markAwaitingConfirmation, REQUIRED_CONFIRMATIONS);
 }
