@@ -58,6 +58,7 @@ import { RedisCartRepository } from '@/modules/cart/infrastructure/redis-cart-re
 import { GetCart } from '@/modules/cart/application/use-cases/get-cart';
 import { AddToCart } from '@/modules/cart/application/use-cases/add-to-cart';
 import { RemoveFromCart } from '@/modules/cart/application/use-cases/remove-from-cart';
+import { UpdateCartLineQuantity } from '@/modules/cart/application/use-cases/update-cart-line-quantity';
 import { RepriceCart } from '@/modules/cart/application/use-cases/reprice-cart';
 import { MergeGuestCart } from '@/modules/cart/application/use-cases/merge-guest-cart';
 
@@ -121,6 +122,7 @@ export interface Container {
   getCart: GetCart;
   addToCart: AddToCart;
   removeFromCart: RemoveFromCart;
+  updateCartLineQuantity: UpdateCartLineQuantity;
   repriceCart: RepriceCart;
   mergeGuestCart: MergeGuestCart;
 
@@ -211,6 +213,7 @@ function build(): Container {
   const getCart = new GetCart(carts);
   const addToCart = new AddToCart(carts, products);
   const removeFromCart = new RemoveFromCart(carts);
+  const updateCartLineQuantity = new UpdateCartLineQuantity(carts);
   const repriceCart = new RepriceCart(carts, products);
   const mergeGuestCart = new MergeGuestCart(carts);
 
@@ -334,6 +337,7 @@ function build(): Container {
     getCart,
     addToCart,
     removeFromCart,
+    updateCartLineQuantity,
     repriceCart,
     mergeGuestCart,
     signUp,

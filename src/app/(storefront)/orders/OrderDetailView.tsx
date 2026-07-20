@@ -59,7 +59,7 @@ export function OrderDetailView({
             bip21Uri={paymentSession.bip21Uri}
             expiresAt={paymentSession.expiresAt.toISOString()}
             amountBtc={satsToBtcString(paymentSession.expectedSats)}
-            amountFiat={total.toString()}
+            amountFiat={total.toDisplayString()}
           />
         )}
 
@@ -72,14 +72,14 @@ export function OrderDetailView({
                   {line.sku} × {line.quantity}
                 </span>
                 <span>
-                  {Money.of(line.unitAmountMinor, order.currency).multiply(line.quantity).toString()}
+                  {Money.of(line.unitAmountMinor, order.currency).multiply(line.quantity).toDisplayString()}
                 </span>
               </li>
             ))}
           </ul>
           <div className={styles.total}>
             <span>Total</span>
-            <span>{total.toString()}</span>
+            <span>{total.toDisplayString()}</span>
           </div>
         </Card>
 

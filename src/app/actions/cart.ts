@@ -46,3 +46,22 @@ export async function removeFromCartAction(formData: FormData): Promise<void> {
 
   revalidatePath('/cart');
 }
+
+const UpdateCartLineQuantitySchema = z.object({
+  variantId: z.string().min(1),
+  quantity: z.coerce.number().int().min(0),
+});
+
+export async function updateCartLineQuantityAction(formData: FormData): Promise<void> {
+  const parsed = UpdateCartLineQuantitySchema.safeParse({
+    variantId: formData.get('variantId'),
+    quantity: formData.get('quantity'),
+  });
+  if (!parsed.success) return;
+
+  const owner = await resolveCartOwner();
+  const { updateCartLineQuantity } = getContainer();
+  await updateCartLineQuantity.execute({ owner, ...parsed.data });
+
+  revalidatePath('/cart');
+}

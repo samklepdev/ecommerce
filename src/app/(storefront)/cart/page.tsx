@@ -7,6 +7,7 @@ import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { CartLineQuantityStepper } from './CartLineQuantityStepper';
 import styles from './page.module.css';
 
 // Cart is personalized — never cached.
@@ -43,10 +44,9 @@ export default async function CartPage() {
             <Card key={line.variantId} className={styles.lineCard}>
               <div>
                 <p className={styles.sku}>{line.sku}</p>
-                <p className={styles.qty}>
-                  Qty {line.quantity} — {line.subtotal.toString()}
-                </p>
+                <p className={styles.qty}>{line.subtotal.toDisplayString()}</p>
               </div>
+              <CartLineQuantityStepper variantId={line.variantId} quantity={line.quantity} />
               <form action={removeFromCartAction}>
                 <input type="hidden" name="variantId" value={line.variantId} />
                 <Button type="submit" variant="ghost">
@@ -58,7 +58,7 @@ export default async function CartPage() {
         </Stack>
 
         <Card className={styles.summary}>
-          <p className={styles.subtotal}>Subtotal: {cart.subtotal('USD').toString()}</p>
+          <p className={styles.subtotal}>Subtotal: {cart.subtotal('USD').toDisplayString()}</p>
           <Link href="/checkout">
             <Button>Checkout</Button>
           </Link>

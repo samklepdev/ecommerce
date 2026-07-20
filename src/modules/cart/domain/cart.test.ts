@@ -65,6 +65,37 @@ describe('Cart#removeLine', () => {
   });
 });
 
+describe('Cart#setLineQuantity', () => {
+  it('sets the quantity for the given variant', () => {
+    const variantId = randomUUID();
+    const cart = makeCart([makeLine(variantId, 2)]);
+    const updated = cart.setLineQuantity(variantId, 5);
+    expect(updated.lines).toHaveLength(1);
+    expect(updated.lines[0]?.quantity).toBe(5);
+  });
+
+  it('is a no-op for a variant not in the cart', () => {
+    const cart = makeCart([makeLine(randomUUID(), 2)]);
+    const updated = cart.setLineQuantity(randomUUID(), 5);
+    expect(updated.lines).toHaveLength(1);
+    expect(updated.lines[0]?.quantity).toBe(2);
+  });
+
+  it('removes the line when set to zero or a negative quantity', () => {
+    const variantId = randomUUID();
+    const cart = makeCart([makeLine(variantId, 2)]);
+    expect(cart.setLineQuantity(variantId, 0).isEmpty).toBe(true);
+    expect(cart.setLineQuantity(variantId, -1).isEmpty).toBe(true);
+  });
+
+  it('does not mutate the original cart', () => {
+    const variantId = randomUUID();
+    const cart = makeCart([makeLine(variantId, 2)]);
+    cart.setLineQuantity(variantId, 9);
+    expect(cart.lines[0]?.quantity).toBe(2);
+  });
+});
+
 describe('Cart#mergeWith', () => {
   it('unions lines from another cart', () => {
     const cart = makeCart([makeLine('v1', 1)]);
