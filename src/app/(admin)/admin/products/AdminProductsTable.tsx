@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { Stack } from '@/components/ui/Stack';
 import { ProductImagesManager } from './ProductImagesManager';
+import { VariantPriceEditor } from './VariantPriceEditor';
 import styles from './page.module.css';
 
 export interface AdminProductOfferRow {
@@ -28,7 +29,8 @@ export interface AdminProductOfferRow {
 export interface AdminProductVariantRow {
   id: string;
   sku: string;
-  priceDisplay: string;
+  priceAmountMinor: number;
+  currency: string;
   offers: AdminProductOfferRow[];
 }
 
@@ -131,9 +133,12 @@ export function AdminProductsTable({ products, emptyMessage }: AdminProductsTabl
                   <Stack gap={3}>
                     {p.variants.map((v) => (
                       <div key={v.id} className={styles.variantBlock}>
-                        <p className={styles.variantHeading}>
-                          {v.sku}: {v.priceDisplay}
-                        </p>
+                        <p className={styles.variantHeading}>{v.sku}</p>
+                        <VariantPriceEditor
+                          variantId={v.id}
+                          priceAmountMinor={v.priceAmountMinor}
+                          currency={v.currency}
+                        />
 
                         <ul className={styles.offerList}>
                           {v.offers.map((offer) => (

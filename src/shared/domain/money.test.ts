@@ -79,3 +79,25 @@ describe('Money#toString', () => {
     expect(Money.of(1999, 'USD').toString()).toBe('1999 USD');
   });
 });
+
+describe('Money#toDisplayString', () => {
+  it('renders a typical amount with a decimal point and currency symbol', () => {
+    expect(Money.of(1999, 'USD').toDisplayString()).toBe('$19.99');
+  });
+
+  it('renders a whole-dollar amount with trailing zeros', () => {
+    expect(Money.of(2000, 'USD').toDisplayString()).toBe('$20.00');
+  });
+
+  it('renders zero', () => {
+    expect(Money.of(0, 'USD').toDisplayString()).toBe('$0.00');
+  });
+
+  it('includes a thousands separator for large amounts', () => {
+    expect(Money.of(100_000_000, 'USD').toDisplayString()).toBe('$1,000,000.00');
+  });
+
+  it('uses the currency symbol for a non-USD currency', () => {
+    expect(Money.of(1999, 'EUR').toDisplayString()).toBe('€19.99');
+  });
+});

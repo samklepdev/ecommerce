@@ -9,6 +9,7 @@ export interface ProductRepository {
   listAllForAdmin(): Promise<Product[]>;
   createProduct(product: Product): Promise<void>;
   createVariant(variant: ProductVariant): Promise<void>;
+  updateVariantPrice(variantId: string, amountMinor: number, currency: string): Promise<void>;
   updateImageUrl(productId: string, imageUrl: string): Promise<void>;
   /** Sets the product's primary image if it doesn't have one yet; otherwise
    * appends an additional (e.g. hover) image at the next position. */

@@ -52,4 +52,14 @@ export class Money {
   toString(): string {
     return `${this.amountMinor} ${this.currency}`;
   }
+
+  /** User-facing formatted price (e.g. "$19.99") — assumes a 2-decimal-place
+   * fiat currency, same assumption already made in the BTC gateway's sats
+   * conversion. Locale is fixed (not the server's default) for deterministic
+   * output across environments. */
+  toDisplayString(): string {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: this.currency }).format(
+      this.amountMinor / 100,
+    );
+  }
 }

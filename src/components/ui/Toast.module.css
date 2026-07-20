@@ -1,0 +1,21 @@
+.toast {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  border: 1px solid transparent;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  pointer-events: auto;
+  max-width: 320px;
+}
+
+.success {
+  background: color-mix(in srgb, var(--color-success) 12%, var(--background));
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.danger {
+  background: color-mix(in srgb, var(--color-danger) 12%, var(--background));
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}

@@ -12,19 +12,28 @@ const AddToCartSchema = z.object({
   quantity: z.coerce.number().int().positive(),
 });
 
-export async function addToCartAction(formData: FormData): Promise<void> {
+export interface AddToCartActionResult {
+  message?: string;
+  error?: string;
+}
+
+export async function addToCartAction(
+  _prevState: AddToCartActionResult | undefined,
+  formData: FormData,
+): Promise<AddToCartActionResult> {
   const parsed = AddToCartSchema.safeParse({
     variantId: formData.get('variantId'),
     quantity: formData.get('quantity') ?? 1,
   });
-  if (!parsed.success) return;
+  if (!parsed.success) return { error: 'Could not add to cart.' };
 
   const owner = await resolveCartOwner();
   const { addToCart } = getContainer();
   const result = await addToCart.execute({ owner, ...parsed.data });
-  if (isErr(result)) return;
+  if (isErr(result)) return { error: 'That item is no longer available.' };
 
   revalidatePath('/cart');
+  return { message: 'Added to cart.' };
 }
 
 export async function removeFromCartAction(formData: FormData): Promise<void> {

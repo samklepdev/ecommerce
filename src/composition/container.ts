@@ -45,6 +45,7 @@ import { ListProducts } from '@/modules/catalog/application/use-cases/list-produ
 import { GetProductBySlug } from '@/modules/catalog/application/use-cases/get-product-by-slug';
 import { CreateProduct } from '@/modules/catalog/application/use-cases/create-product';
 import { CreateProductVariant } from '@/modules/catalog/application/use-cases/create-product-variant';
+import { UpdateVariantPrice } from '@/modules/catalog/application/use-cases/update-variant-price';
 import { ListAllProductsForAdmin } from '@/modules/catalog/application/use-cases/list-all-products-for-admin';
 import { DeleteProducts } from '@/modules/catalog/application/use-cases/delete-products';
 import { PublishProducts } from '@/modules/catalog/application/use-cases/publish-products';
@@ -107,6 +108,7 @@ export interface Container {
   getProductBySlug: GetProductBySlug;
   createProduct: CreateProduct;
   createProductVariant: CreateProductVariant;
+  updateVariantPrice: UpdateVariantPrice;
   listAllProductsForAdmin: ListAllProductsForAdmin;
   deleteProducts: DeleteProducts;
   publishProducts: PublishProducts;
@@ -196,6 +198,7 @@ function build(): Container {
   const getProductBySlug = new GetProductBySlug(products);
   const createProduct = new CreateProduct(products);
   const createProductVariant = new CreateProductVariant(products);
+  const updateVariantPrice = new UpdateVariantPrice(products);
   const listAllProductsForAdmin = new ListAllProductsForAdmin(products);
   const deleteProducts = new DeleteProducts(products);
   const publishProducts = new PublishProducts(products);
@@ -317,6 +320,7 @@ function build(): Container {
     getProductBySlug,
     createProduct,
     createProductVariant,
+    updateVariantPrice,
     listAllProductsForAdmin,
     deleteProducts,
     publishProducts,
