@@ -21,6 +21,7 @@ function makeFakeUsers() {
       passwordHashByUserId.set(userId, passwordHash);
     },
     async updateAvatarUrl() {},
+    async updateRole() {},
     async findProfileById() {
       return null;
     },

@@ -53,6 +53,10 @@ export class DrizzleUserRepository implements UserRepository {
     await this.db.update(users).set({ avatarUrl }).where(eq(users.id, userId));
   }
 
+  async updateRole(userId: string, role: UserRole): Promise<void> {
+    await this.db.update(users).set({ role }).where(eq(users.id, userId));
+  }
+
   async findProfileById(userId: string): Promise<UserProfile | null> {
     const row = await this.db.query.users.findFirst({ where: eq(users.id, userId) });
     if (!row) return null;

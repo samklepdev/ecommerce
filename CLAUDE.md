@@ -178,6 +178,7 @@ npm run db:generate      # drizzle-kit generate (migrations)
 npm run db:migrate       # apply migrations
 npm run db:studio        # drizzle studio
 npm run queue:dev        # run BullMQ workers (incl. BTC watcher) locally
+npm run admin:promote -- <email>  # promote an existing account to admin
 ```
 
 ## Git workflow

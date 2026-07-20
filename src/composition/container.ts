@@ -65,6 +65,7 @@ import { LogIn } from '@/modules/identity/application/use-cases/log-in';
 import { LogOut } from '@/modules/identity/application/use-cases/log-out';
 import { GetCurrentUser } from '@/modules/identity/application/use-cases/get-current-user';
 import { ChangePassword } from '@/modules/identity/application/use-cases/change-password';
+import { PromoteUserToAdmin } from '@/modules/identity/application/use-cases/promote-user-to-admin';
 import { UpdateAvatar } from '@/modules/identity/application/use-cases/update-avatar';
 import { GetAccountProfile } from '@/modules/identity/application/use-cases/get-account-profile';
 
@@ -122,6 +123,7 @@ export interface Container {
   logOut: LogOut;
   getCurrentUser: GetCurrentUser;
   changePassword: ChangePassword;
+  promoteUserToAdmin: PromoteUserToAdmin;
   updateAvatar: UpdateAvatar;
   getAccountProfile: GetAccountProfile;
   requestPasswordReset: RequestPasswordReset;
@@ -210,6 +212,7 @@ function build(): Container {
   const logOut = new LogOut(sessions);
   const getCurrentUser = new GetCurrentUser(sessions, users);
   const changePassword = new ChangePassword(users);
+  const promoteUserToAdmin = new PromoteUserToAdmin(users);
   const avatarImageStorage = new LocalFileImageStorage('avatars');
   const updateAvatar = new UpdateAvatar(users, avatarImageStorage);
   const getAccountProfile = new GetAccountProfile(users);
@@ -319,6 +322,7 @@ function build(): Container {
     logOut,
     getCurrentUser,
     changePassword,
+    promoteUserToAdmin,
     updateAvatar,
     getAccountProfile,
     requestPasswordReset,

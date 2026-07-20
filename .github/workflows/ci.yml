@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      # No `next build` step here: `/products` has no `force-dynamic` and
+      # statically generates at build time, which calls a real Postgres
+      # query through the DI container — and the container also eagerly
+      # constructs a Redis client the moment it's imported. Making a build
+      # job green needs either real Postgres+Redis service containers with
+      # migrations applied, or a code change (make `/products` dynamic, or
+      # make the container's client construction lazy). Deliberately out of
+      # scope here — typecheck/lint/test need zero env vars and zero
+      # services, which is why they're what's covered.
