@@ -26,6 +26,7 @@ export interface OrderDetailLine {
 }
 
 export interface OrderDetail extends OrderListItem {
+  customerEmail: string;
   shippingAddress: OrderShippingAddress | null;
   lines: OrderDetailLine[];
 }
@@ -35,4 +36,9 @@ export interface OrderHistoryRepository {
   /** Scoped by userId in the query itself, not fetch-then-check — a
    * mismatched userId returns null, never another customer's order. */
   findDetailById(orderId: string, userId: string): Promise<OrderDetail | null>;
+  /** Unscoped — the order id itself (a randomUUID, effectively unguessable)
+   * is the access capability, matching the existing unauthenticated
+   * `/api/orders/[id]/status` route. Used for guest order lookup and
+   * anything else that only has an order id, no user context. */
+  findById(orderId: string): Promise<OrderDetail | null>;
 }

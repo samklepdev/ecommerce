@@ -1,9 +1,12 @@
 'use server';
 
+import { redirect } from 'next/navigation';
 import { z } from 'zod';
 
+import { env } from '@/config/env';
 import { getContainer } from '@/composition/container';
 import { isErr } from '@/shared/domain/result';
+import { logger } from '@/shared/infrastructure/logger';
 import { resolveCartOwner } from '@/app/lib/session';
 import { checkRateLimit, getClientIp, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
 
@@ -20,10 +23,6 @@ const StartCheckoutSchema = z.object({
 
 export interface StartCheckoutActionResult {
   error?: string;
-  orderId?: string;
-  reference?: string;
-  bip21Uri?: string;
-  expiresAt?: string;
 }
 
 export async function startCheckoutAction(
@@ -49,7 +48,7 @@ export async function startCheckoutAction(
   }
 
   const owner = await resolveCartOwner();
-  const { placeOrder, startCheckout } = getContainer();
+  const { placeOrder, startCheckout, sendOrderConfirmationEmail } = getContainer();
 
   const placed = await placeOrder.execute({
     owner,
@@ -84,10 +83,20 @@ export async function startCheckoutAction(
     return { error: 'Could not start checkout — try again.' };
   }
 
-  return {
-    orderId: placed.value.id,
-    reference: result.value.reference,
-    bip21Uri: result.value.bip21Uri,
-    expiresAt: result.value.expiresAt?.toISOString(),
-  };
+  const orderUrl = `${env.APP_URL}/orders/${placed.value.id}`;
+  try {
+    await sendOrderConfirmationEmail.execute({
+      customerEmail: parsed.data.customerEmail,
+      orderId: placed.value.id,
+      lines: placed.value.lines.map((line) => ({ sku: line.sku, quantity: line.quantity })),
+      totalDisplay: placed.value.total.toString(),
+      orderUrl,
+    });
+  } catch (e) {
+    logger.warn('checkout: order confirmation email failed', {
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  redirect(`/orders/${placed.value.id}`);
 }

@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
+
+import { logger } from '@/shared/infrastructure/logger';
 
 import {
   CreateSupplierOrdersForPaidOrder,
@@ -104,7 +106,7 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
     expect(supplier2Order.lines).toHaveLength(1);
   });
 
-  it('skips lines whose variant has no preferred supplier offer', async () => {
+  it('skips lines whose variant has no preferred supplier offer, logging a warning', async () => {
     const variantA = randomUUID();
     const variantNoOffer = randomUUID();
     const lines: PaidOrderLine[] = [
@@ -115,6 +117,7 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
     const offers = makeFakeSupplierOffers(new Map([[variantA, makeOffer(variantA, 'supplier-1', 1000)]]));
     const { repo: supplierOrders, created } = makeFakeSupplierOrders();
     const { repo: fulfillment } = makeFakeOrderFulfillment('paid', 'unfulfilled');
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
 
     await new CreateSupplierOrdersForPaidOrder(orders, offers, supplierOrders, fulfillment).execute({
       orderId: 'order-1',
@@ -122,6 +125,12 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
 
     expect(created).toHaveLength(1);
     expect(created[0]?.lines).toHaveLength(1);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ orderId: 'order-1', orderLineId: 'line-b', variantId: variantNoOffer }),
+    );
+    warnSpy.mockRestore();
   });
 
   it('advances the order to processing when it was unfulfilled', async () => {

@@ -13,6 +13,9 @@ export interface CreatePaymentOutput {
   reference: string;
   bip21Uri: string;
   expiresAt: Date | null;
+  /** Locked BTC amount in satoshis — needed to render a readable amount
+   * alongside the QR, not just encoded inside the BIP21 URI. */
+  expectedSats: number;
 }
 
 export type CreatePaymentError = { code: 'gateway_error'; message: string };

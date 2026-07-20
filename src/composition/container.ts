@@ -20,6 +20,7 @@ import { ListSupplierOrdersNeedingAction } from '@/modules/orders/application/us
 import { GetOrderSummary } from '@/modules/orders/application/use-cases/get-order-summary';
 import { ListOrdersForCustomer } from '@/modules/orders/application/use-cases/list-orders-for-customer';
 import { GetOrderDetailForCustomer } from '@/modules/orders/application/use-cases/get-order-detail-for-customer';
+import { GetOrderDetail } from '@/modules/orders/application/use-cases/get-order-detail';
 import { GetShipmentsForOrder } from '@/modules/orders/application/use-cases/get-shipments-for-order';
 import { GetPaymentSessionForOrder } from '@/modules/payments/application/use-cases/get-payment-session-for-order';
 import { WatchBitcoinPayments } from '@/modules/payments/application/watch-bitcoin-payments';
@@ -37,6 +38,7 @@ import { DrizzleOrderRepository } from '@/modules/orders/infrastructure/drizzle-
 import { DrizzleSupplierOrderRepository } from '@/modules/orders/infrastructure/drizzle-supplier-order-repository';
 import { RedisProcessedEventStore } from '@/modules/orders/infrastructure/redis-processed-event-store';
 import { SupplierOrderFulfillmentQueue } from '@/modules/orders/infrastructure/supplier-order-fulfillment-queue';
+import { EmailPaymentConfirmationNotifier } from '@/modules/orders/infrastructure/email-payment-confirmation-notifier';
 
 import { DrizzleProductRepository } from '@/modules/catalog/infrastructure/drizzle-product-repository';
 import { ListProducts } from '@/modules/catalog/application/use-cases/list-products';
@@ -75,6 +77,7 @@ import { DrizzlePasswordResetRepository } from '@/modules/identity/infrastructur
 import { RequestPasswordReset } from '@/modules/identity/application/use-cases/request-password-reset';
 import { ResetPassword } from '@/modules/identity/application/use-cases/reset-password';
 import { SendWelcomeEmail } from '@/modules/notifications/application/use-cases/send-welcome-email';
+import { SendOrderConfirmationEmail } from '@/modules/notifications/application/use-cases/send-order-confirmation-email';
 import { MarkWelcomeEmailOpened } from '@/modules/notifications/application/use-cases/mark-welcome-email-opened';
 import { GetWelcomeEmailStatus } from '@/modules/notifications/application/use-cases/get-welcome-email-status';
 
@@ -129,6 +132,7 @@ export interface Container {
   requestPasswordReset: RequestPasswordReset;
   resetPassword: ResetPassword;
   sendWelcomeEmail: SendWelcomeEmail;
+  sendOrderConfirmationEmail: SendOrderConfirmationEmail;
   markWelcomeEmailOpened: MarkWelcomeEmailOpened;
   getWelcomeEmailStatus: GetWelcomeEmailStatus;
 
@@ -158,6 +162,7 @@ export interface Container {
   getOrderSummary: GetOrderSummary;
   listOrdersForCustomer: ListOrdersForCustomer;
   getOrderDetailForCustomer: GetOrderDetailForCustomer;
+  getOrderDetail: GetOrderDetail;
   getShipmentsForOrder: GetShipmentsForOrder;
   getPaymentSessionForOrder: GetPaymentSessionForOrder;
 
@@ -221,6 +226,7 @@ function build(): Container {
   const welcomeEmails = new DrizzleWelcomeEmailRepository(db);
   const consoleEmailSender = new ConsoleEmailSender();
   const sendWelcomeEmail = new SendWelcomeEmail(welcomeEmails, consoleEmailSender, env.APP_URL);
+  const sendOrderConfirmationEmail = new SendOrderConfirmationEmail(consoleEmailSender);
   const markWelcomeEmailOpened = new MarkWelcomeEmailOpened(welcomeEmails);
   const getWelcomeEmailStatus = new GetWelcomeEmailStatus(welcomeEmails);
 
@@ -276,6 +282,11 @@ function build(): Container {
     orders,
   );
   const fulfillment = new SupplierOrderFulfillmentQueue(createSupplierOrdersForPaidOrder);
+  const paymentConfirmationNotifier = new EmailPaymentConfirmationNotifier(
+    orders,
+    consoleEmailSender,
+    env.APP_URL,
+  );
   const markSupplierOrderOrdered = new MarkSupplierOrderOrdered(supplierOrders);
   const markSupplierOrderShipped = new MarkSupplierOrderShipped(supplierOrders, orders);
   const cancelSupplierOrder = new CancelSupplierOrder(supplierOrders);
@@ -284,10 +295,11 @@ function build(): Container {
   const getOrderSummary = new GetOrderSummary(orders);
   const listOrdersForCustomer = new ListOrdersForCustomer(orders);
   const getOrderDetailForCustomer = new GetOrderDetailForCustomer(orders);
+  const getOrderDetail = new GetOrderDetail(orders);
   const getShipmentsForOrder = new GetShipmentsForOrder(supplierOrders);
   const getPaymentSessionForOrder = new GetPaymentSessionForOrder(paymentStore);
 
-  const confirmPayment = new ConfirmPayment(orders, processed, fulfillment);
+  const confirmPayment = new ConfirmPayment(orders, processed, fulfillment, paymentConfirmationNotifier);
   const markAwaitingConfirmation = new MarkAwaitingConfirmation(orders);
   const watchBitcoinPayments = new WatchBitcoinPayments(
     paymentStore,
@@ -328,6 +340,7 @@ function build(): Container {
     requestPasswordReset,
     resetPassword,
     sendWelcomeEmail,
+    sendOrderConfirmationEmail,
     markWelcomeEmailOpened,
     getWelcomeEmailStatus,
     listSuppliers,
@@ -354,6 +367,7 @@ function build(): Container {
     getOrderSummary,
     listOrdersForCustomer,
     getOrderDetailForCustomer,
+    getOrderDetail,
     getShipmentsForOrder,
     getPaymentSessionForOrder,
     orders,

@@ -62,6 +62,7 @@ export class PlaceOrder implements UseCase<PlaceOrderInput, Result<Order, PlaceO
     });
 
     await this.orders.create(order);
+    await this.carts.delete(input.owner);
     return ok(order);
   }
 }

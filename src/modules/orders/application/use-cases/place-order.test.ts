@@ -22,14 +22,17 @@ function makeVariant(id: string, unitAmountMinor: number) {
 }
 
 function makeFakeCarts(cart: Cart | null) {
+  const deletedOwners: unknown[] = [];
   const repo: CartRepository = {
     async get() {
       return cart;
     },
     async save() {},
-    async delete() {},
+    async delete(owner) {
+      deletedOwners.push(owner);
+    },
   };
-  return repo;
+  return { repo, deletedOwners };
 }
 
 function makeFakeProducts(variantsById: Map<string, ProductVariant>) {
@@ -74,7 +77,7 @@ describe('PlaceOrder', () => {
       lines: [CartLine.create({ variantId, sku: 'OLD-SKU', quantity: 2, unitPrice: Money.of(1, 'USD') })],
     });
 
-    const carts = makeFakeCarts(cart);
+    const { repo: carts, deletedOwners } = makeFakeCarts(cart);
     const products = makeFakeProducts(new Map([[variantId, variant]]));
     const { repo: orders, created } = makeFakeOrders();
 
@@ -94,11 +97,13 @@ describe('PlaceOrder', () => {
     expect(order.lines[0]?.sku).toBe(variant.sku); // catalog sku, not the cart's stale one
     expect(order.paymentStatus).toBe('pending');
     expect(order.fulfillmentStatus).toBe('unfulfilled');
+    // The cart is cleared once its contents become a durable order.
+    expect(deletedOwners).toEqual([{ type: 'guest', sessionId: 's1' }]);
   });
 
   it('returns empty_cart when the cart has no lines', async () => {
     const cart = Cart.create({ id: randomUUID(), owner: { type: 'guest', sessionId: 's1' }, lines: [] });
-    const carts = makeFakeCarts(cart);
+    const { repo: carts, deletedOwners } = makeFakeCarts(cart);
     const products = makeFakeProducts(new Map());
     const { repo: orders, created } = makeFakeOrders();
 
@@ -112,10 +117,11 @@ describe('PlaceOrder', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe('empty_cart');
     expect(created).toHaveLength(0);
+    expect(deletedOwners).toHaveLength(0); // never clear on failure
   });
 
   it('returns empty_cart when there is no cart at all', async () => {
-    const carts = makeFakeCarts(null);
+    const { repo: carts } = makeFakeCarts(null);
     const products = makeFakeProducts(new Map());
     const { repo: orders } = makeFakeOrders();
 
@@ -137,7 +143,7 @@ describe('PlaceOrder', () => {
       owner: { type: 'guest', sessionId: 's1' },
       lines: [CartLine.create({ variantId, sku: 'GONE', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
     });
-    const carts = makeFakeCarts(cart);
+    const { repo: carts } = makeFakeCarts(cart);
     const products = makeFakeProducts(new Map()); // variant not found
     const { repo: orders, created } = makeFakeOrders();
 
@@ -164,7 +170,7 @@ describe('PlaceOrder', () => {
       owner: { type: 'user', userId: 'user-1' },
       lines: [CartLine.create({ variantId, sku: 'X', quantity: 1, unitPrice: Money.of(500, 'USD') })],
     });
-    const carts = makeFakeCarts(cart);
+    const { repo: carts } = makeFakeCarts(cart);
     const products = makeFakeProducts(new Map([[variantId, variant]]));
     const { repo: orders, created } = makeFakeOrders();
 

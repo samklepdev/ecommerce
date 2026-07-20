@@ -41,6 +41,7 @@ describe('StartCheckout', () => {
       reference: 'bc1qtest',
       bip21Uri: 'bitcoin:bc1qtest?amount=0.00001999',
       expiresAt: null,
+      expectedSats: 1999,
     };
     const gateways = new PaymentGatewayRegistry([makeFakeGateway(ok(output))]);
     const useCase = new StartCheckout(orders, gateways, 900);

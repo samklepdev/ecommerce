@@ -1,4 +1,5 @@
 import type { UseCase } from '@/shared/application/use-case';
+import { logger } from '@/shared/infrastructure/logger';
 import { assertFulfillmentTransition } from '@/modules/orders/domain/order-status';
 import type { OrderFulfillmentRepository } from '@/modules/orders/application/ports/order-fulfillment-repository';
 import type {
@@ -45,7 +46,14 @@ export class CreateSupplierOrdersForPaidOrder
 
     for (const line of lines) {
       const offer = await this.supplierOffers.findPreferredByVariantId(line.variantId);
-      if (!offer) continue;
+      if (!offer) {
+        logger.warn('supplier order line skipped: no preferred offer', {
+          orderId: input.orderId,
+          orderLineId: line.id,
+          variantId: line.variantId,
+        });
+        continue;
+      }
 
       const draft = {
         orderLineId: line.id,

@@ -218,9 +218,20 @@ export class DrizzleOrderRepository
       where: and(eq(orders.id, orderId), eq(orders.userId, userId)),
     });
     if (!row) return null;
+    return this.hydrateOrderDetail(row);
+  }
 
+  async findById(orderId: string): Promise<OrderDetail | null> {
+    const row = await this.db.query.orders.findFirst({
+      where: eq(orders.id, orderId),
+    });
+    if (!row) return null;
+    return this.hydrateOrderDetail(row);
+  }
+
+  private async hydrateOrderDetail(row: typeof orders.$inferSelect): Promise<OrderDetail> {
     const lines = await this.db.query.orderLines.findMany({
-      where: eq(orderLines.orderId, orderId),
+      where: eq(orderLines.orderId, row.id),
     });
 
     return {
@@ -230,6 +241,7 @@ export class DrizzleOrderRepository
       amountMinor: row.amountMinor,
       paymentStatus: row.paymentStatus as PaymentStatus,
       fulfillmentStatus: row.fulfillmentStatus as FulfillmentStatus,
+      customerEmail: row.customerEmail,
       shippingAddress: row.shippingAddress,
       lines: lines.map((l) => ({
         sku: l.sku,
