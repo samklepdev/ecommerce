@@ -79,7 +79,8 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
         supplierId: offer.supplierId,
         supplierName: supplierNameById.get(offer.supplierId) ?? offer.supplierId,
         isPreferred: offer.isPreferred,
-        costDisplay: offer.cost.toString(),
+        costAmountMinor: offer.cost.amountMinor,
+        currency: offer.cost.currency,
       })),
     })),
   }));

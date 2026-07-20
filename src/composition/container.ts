@@ -89,6 +89,7 @@ import { HtmlUrlContentExtractor } from '@/modules/sourcing/infrastructure/html-
 import { ListSuppliers } from '@/modules/sourcing/application/use-cases/list-suppliers';
 import { CreateSupplier } from '@/modules/sourcing/application/use-cases/create-supplier';
 import { CreateSupplierOffer } from '@/modules/sourcing/application/use-cases/create-supplier-offer';
+import { UpdateSupplierOfferCost } from '@/modules/sourcing/application/use-cases/update-supplier-offer-cost';
 import { SetPreferredSupplierOffer } from '@/modules/sourcing/application/use-cases/set-preferred-supplier-offer';
 import { GetPreferredOfferForVariant } from '@/modules/sourcing/application/use-cases/get-preferred-offer-for-variant';
 import { ListSupplierOffersForVariant } from '@/modules/sourcing/application/use-cases/list-supplier-offers-for-variant';
@@ -141,6 +142,7 @@ export interface Container {
   listSuppliers: ListSuppliers;
   createSupplier: CreateSupplier;
   createSupplierOffer: CreateSupplierOffer;
+  updateSupplierOfferCost: UpdateSupplierOfferCost;
   setPreferredSupplierOffer: SetPreferredSupplierOffer;
   getPreferredOfferForVariant: GetPreferredOfferForVariant;
   listSupplierOffersForVariant: ListSupplierOffersForVariant;
@@ -250,6 +252,7 @@ function build(): Container {
   const listSuppliers = new ListSuppliers(suppliers);
   const createSupplier = new CreateSupplier(suppliers);
   const createSupplierOffer = new CreateSupplierOffer(supplierOffers);
+  const updateSupplierOfferCost = new UpdateSupplierOfferCost(supplierOffers);
   const setPreferredSupplierOffer = new SetPreferredSupplierOffer(supplierOffers);
   const getPreferredOfferForVariant = new GetPreferredOfferForVariant(supplierOffers);
   const listSupplierOffersForVariant = new ListSupplierOffersForVariant(supplierOffers);
@@ -350,6 +353,7 @@ function build(): Container {
     listSuppliers,
     createSupplier,
     createSupplierOffer,
+    updateSupplierOfferCost,
     setPreferredSupplierOffer,
     getPreferredOfferForVariant,
     listSupplierOffersForVariant,

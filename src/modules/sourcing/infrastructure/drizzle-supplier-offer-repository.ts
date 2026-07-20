@@ -59,6 +59,13 @@ export class DrizzleSupplierOfferRepository implements SupplierOfferRepository {
     });
   }
 
+  async updateCost(offerId: string, amountMinor: number, currency: string): Promise<void> {
+    await this.db
+      .update(supplierOffers)
+      .set({ costAmountMinor: amountMinor, costCurrency: currency, updatedAt: new Date() })
+      .where(eq(supplierOffers.id, offerId));
+  }
+
   async findPreferredByVariantId(variantId: string): Promise<SupplierOffer | null> {
     const row = await this.db.query.supplierOffers.findFirst({
       where: and(eq(supplierOffers.variantId, variantId), eq(supplierOffers.isPreferred, true)),

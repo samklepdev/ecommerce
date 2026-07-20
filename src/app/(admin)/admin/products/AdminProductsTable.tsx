@@ -16,6 +16,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Stack } from '@/components/ui/Stack';
 import { ProductImagesManager } from './ProductImagesManager';
 import { VariantPriceEditor } from './VariantPriceEditor';
+import { SupplierOfferCostEditor } from './SupplierOfferCostEditor';
 import styles from './page.module.css';
 
 export interface AdminProductOfferRow {
@@ -23,7 +24,8 @@ export interface AdminProductOfferRow {
   supplierId: string;
   supplierName: string;
   isPreferred: boolean;
-  costDisplay: string;
+  costAmountMinor: number;
+  currency: string;
 }
 
 export interface AdminProductVariantRow {
@@ -152,7 +154,14 @@ export function AdminProductsTable({ products, emptyMessage }: AdminProductsTabl
                                     </Badge>
                                   )}
                                 </span>
-                                <span className={styles.offerCost}>cost {offer.costDisplay}</span>
+                                <div className={styles.offerCost}>
+                                  cost
+                                  <SupplierOfferCostEditor
+                                    offerId={offer.id}
+                                    costAmountMinor={offer.costAmountMinor}
+                                    currency={offer.currency}
+                                  />
+                                </div>
                               </div>
                             </li>
                           ))}

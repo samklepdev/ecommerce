@@ -483,3 +483,40 @@ export async function updateVariantPriceAction(
   revalidatePath('/products');
   return { message: 'Price updated.' };
 }
+
+const UpdateSupplierOfferCostSchema = z.object({
+  offerId: z.string().min(1),
+  cost: z.string().min(1),
+  currency: z.string().length(3),
+});
+
+export interface UpdateSupplierOfferCostActionResult {
+  message?: string;
+  error?: string;
+}
+
+export async function updateSupplierOfferCostAction(
+  _prevState: UpdateSupplierOfferCostActionResult | undefined,
+  formData: FormData,
+): Promise<UpdateSupplierOfferCostActionResult> {
+  await requireAdmin();
+  const parsed = UpdateSupplierOfferCostSchema.safeParse({
+    offerId: formData.get('offerId'),
+    cost: formData.get('cost'),
+    currency: formData.get('currency'),
+  });
+  if (!parsed.success) return { error: 'Enter a valid cost.' };
+
+  const amountMinor = parseDecimalToMinorUnits(parsed.data.cost);
+  if (amountMinor === null || amountMinor <= 0) return { error: 'Enter a valid cost.' };
+
+  const { updateSupplierOfferCost } = getContainer();
+  await updateSupplierOfferCost.execute({
+    offerId: parsed.data.offerId,
+    amountMinor,
+    currency: parsed.data.currency,
+  });
+
+  revalidatePath('/admin/products');
+  return { message: 'Cost updated.' };
+}
