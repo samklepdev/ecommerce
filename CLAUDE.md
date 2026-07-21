@@ -204,6 +204,7 @@ npm install -D drizzle-kit
 3. Implement the port in `infrastructure` (Drizzle / bitcoin / Redis adapter).
 4. Wire it in `composition/container.ts`.
 5. Expose it via a thin server action or route handler in `app/`.
+6. If it changes what a customer or admin can do, update `docs/features.md` in the same PR.
 
 Domain and use-case tests must run **without** a database or network.
 
