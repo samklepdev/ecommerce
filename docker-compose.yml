@@ -27,6 +27,39 @@ services:
       timeout: 3s
       retries: 5
 
+  # `web` and `worker` run the same built image as the `web`/`worker`
+  # processes described in src/workers/btc-watcher.ts's own doc comment —
+  # bring the whole stack up with `docker compose up` to test the production
+  # image locally before deploying. Not part of the everyday dev loop
+  # (`npm run dev` talks to `postgres`/`redis` above directly); start these
+  # two only when you want a production-shaped smoke test.
+  web:
+    build: .
+    ports:
+      - '3000:3000'
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://ecommerce:ecommerce@postgres:5432/ecommerce
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: .
+    command: ['npm', 'run', 'worker']
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://ecommerce:ecommerce@postgres:5432/ecommerce
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
   pgdata:
   redisdata:
