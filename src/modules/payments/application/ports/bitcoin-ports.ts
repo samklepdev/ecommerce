@@ -14,11 +14,12 @@ export interface BitcoinPaymentIntent {
   satsPerFiatUnit: number;
   expiresAt: Date;
   status: BitcoinPaymentIntentStatus;
-  /** Last confirmation count / underpayment flag the watcher observed —
-   * absent at creation time (DB defaults to 0/false), always present once
-   * read back via `getByOrderId`/`listWatchable`. */
+  /** Last confirmation count / underpayment/overpayment flags the watcher
+   * observed — absent at creation time (DB defaults to 0/false), always
+   * present once read back via `getByOrderId`/`listWatchable`. */
   confirmations?: number;
   underpaid?: boolean;
+  overpaid?: boolean;
 }
 
 export interface BitcoinPaymentStore {
@@ -31,7 +32,10 @@ export interface BitcoinPaymentStore {
   /** Auxiliary telemetry for the customer-facing status widget — not a
    * status-enum transition, so it's a distinct method rather than folded
    * into `markConfirmed`/`markExpired`. */
-  recordProgress(orderId: string, progress: { confirmations: number; underpaid: boolean }): Promise<void>;
+  recordProgress(
+    orderId: string,
+    progress: { confirmations: number; underpaid: boolean; overpaid: boolean },
+  ): Promise<void>;
 }
 
 export interface BtcRateProvider {

@@ -28,6 +28,13 @@ const envSchema = z.object({
   BTC_NETWORK: z.enum(['bitcoin', 'testnet']).default('testnet'),
   BTC_ESPLORA_URL: z.string().url().default('https://mempool.space/api'),
   BTC_REQUIRED_CONFIRMATIONS: z.coerce.number().int().positive().default(2),
+  // Extra confirmations layered on top of BTC_REQUIRED_CONFIRMATIONS before
+  // an order is actually marked paid/fulfilled — a reorg-safety margin, not
+  // a change to the nominal/documented requirement. Threaded through as one
+  // unified "effective" number everywhere confirmations are checked or
+  // displayed, so the customer-facing progress count and the actual gate
+  // never disagree (see container.ts).
+  BTC_SETTLEMENT_BUFFER_CONFIRMATIONS: z.coerce.number().int().nonnegative().default(1),
   BTC_WATCH_INTERVAL_MS: z.coerce.number().int().positive().default(45_000),
 
   SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(2_592_000),

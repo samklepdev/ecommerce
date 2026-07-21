@@ -16,6 +16,10 @@ export interface PaidOrderLine {
 
 export interface PaidOrderLinesRepository {
   getOrderLines(orderId: string): Promise<PaidOrderLine[]>;
+  /** Durable, admin-visible record that a line couldn't be sourced — not
+   * just a log line, so an admin can act on it after adding a supplier
+   * offer. */
+  flagFulfillmentIssue(orderLineId: string, reason: string): Promise<void>;
 }
 
 export interface CreateSupplierOrdersForPaidOrderInput {
@@ -52,6 +56,7 @@ export class CreateSupplierOrdersForPaidOrder
           orderLineId: line.id,
           variantId: line.variantId,
         });
+        await this.orders.flagFulfillmentIssue(line.id, 'no_preferred_supplier_offer');
         continue;
       }
 

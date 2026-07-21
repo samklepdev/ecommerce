@@ -12,6 +12,7 @@ export interface PaymentProgress {
   confirmations: number;
   requiredConfirmations: number;
   underpaid: boolean;
+  overpaid: boolean;
 }
 
 /** Composes across the orders/payments module boundary at the application
@@ -35,6 +36,7 @@ export class GetPaymentProgress implements UseCase<GetPaymentProgressInput, Paym
       confirmations: intent?.confirmations ?? 0,
       requiredConfirmations: this.requiredConfirmations,
       underpaid: intent?.underpaid ?? false,
+      overpaid: intent?.overpaid ?? false,
     };
   }
 }

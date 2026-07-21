@@ -59,12 +59,13 @@ describe('GetPaymentProgress', () => {
       confirmations: 0,
       requiredConfirmations: 2,
       underpaid: false,
+      overpaid: false,
     });
   });
 
-  it('passes through confirmations/underpaid from the payment intent when present', async () => {
+  it('passes through confirmations/underpaid/overpaid from the payment intent when present', async () => {
     const orders = makeFakeOrders('awaiting_confirmation');
-    const paymentStore = makeFakePaymentStore(makeIntent({ confirmations: 1, underpaid: true }));
+    const paymentStore = makeFakePaymentStore(makeIntent({ confirmations: 1, underpaid: true, overpaid: false }));
 
     const result = await new GetPaymentProgress(orders, paymentStore, 2).execute({ orderId: 'order-1' });
 
@@ -73,6 +74,22 @@ describe('GetPaymentProgress', () => {
       confirmations: 1,
       requiredConfirmations: 2,
       underpaid: true,
+      overpaid: false,
+    });
+  });
+
+  it('surfaces overpaid from the payment intent', async () => {
+    const orders = makeFakeOrders('paid');
+    const paymentStore = makeFakePaymentStore(makeIntent({ confirmations: 2, underpaid: false, overpaid: true }));
+
+    const result = await new GetPaymentProgress(orders, paymentStore, 2).execute({ orderId: 'order-1' });
+
+    expect(result).toEqual({
+      status: 'paid',
+      confirmations: 2,
+      requiredConfirmations: 2,
+      underpaid: false,
+      overpaid: true,
     });
   });
 });

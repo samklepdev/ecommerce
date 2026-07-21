@@ -1,4 +1,3 @@
-import { env } from '@/config/env';
 import { err, ok, type Result } from '@/shared/domain/result';
 import type {
   CreatePaymentError,
@@ -22,6 +21,7 @@ export class OnChainBitcoinPaymentGateway implements PaymentGateway {
     private readonly indexAllocator: AddressIndexAllocator,
     private readonly rates: BtcRateProvider,
     private readonly paymentStore: BitcoinPaymentStore,
+    private readonly quoteTtlSeconds: number,
   ) {}
 
   async createPayment(
@@ -45,7 +45,7 @@ export class OnChainBitcoinPaymentGateway implements PaymentGateway {
       // Assumes a 2-decimal-place fiat currency (minor unit = 1/100 major unit),
       // true for USD/EUR/etc — revisit if a 0- or 3-decimal currency is added.
       const expectedSats = Math.round((input.amount.amountMinor / 100) * satsPerFiatUnit);
-      const expiresAt = new Date(Date.now() + env.QUOTE_TTL_SECONDS * 1000);
+      const expiresAt = new Date(Date.now() + this.quoteTtlSeconds * 1000);
 
       await this.paymentStore.save({
         orderId: input.orderId,
@@ -58,7 +58,23 @@ export class OnChainBitcoinPaymentGateway implements PaymentGateway {
         status: 'awaiting',
       });
 
-      return ok({ reference: address, bip21Uri: toBip21(address, expectedSats), expiresAt, expectedSats });
+      // Re-fetch rather than trusting what we just computed: `save()`'s
+      // unique constraint on orderId means a concurrent request may have
+      // already won and persisted its own intent, in which case this call's
+      // save() silently no-op'd. Returning our own locally-derived address
+      // in that case would hand the caller an address nobody is watching —
+      // always return whatever actually ended up persisted.
+      const persisted = await this.paymentStore.getByOrderId(input.orderId);
+      if (!persisted) {
+        return err({ code: 'gateway_error', message: 'payment intent missing immediately after save' });
+      }
+
+      return ok({
+        reference: persisted.address,
+        bip21Uri: toBip21(persisted.address, persisted.expectedSats),
+        expiresAt: persisted.expiresAt,
+        expectedSats: persisted.expectedSats,
+      });
     } catch (e) {
       return err({ code: 'gateway_error', message: e instanceof Error ? e.message : String(e) });
     }

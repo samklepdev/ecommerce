@@ -43,6 +43,16 @@ export class ConfirmPayment implements UseCase<ConfirmPaymentInput, void> {
     }
 
     assertPaymentTransition(status, 'paid');
+    if (status === 'expired') {
+      // Rare recovery path — the order-expiry grace window is kept in sync
+      // with the watcher's own polling window specifically to avoid this,
+      // so it recovering here means that safety margin was insufficient.
+      // Worth an admin's attention even though it self-heals correctly.
+      logger.warn('confirm-payment: order recovered from expired to paid', {
+        orderId: input.orderId,
+        eventId: input.eventId,
+      });
+    }
     await this.orders.setPaymentStatus(input.orderId, 'paid');
 
     await this.fulfillment.enqueueOrderPaid(input.orderId);
