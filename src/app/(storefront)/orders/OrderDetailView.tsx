@@ -28,10 +28,12 @@ export function OrderDetailView({
   backHref,
   backLabel,
 }: OrderDetailViewProps) {
-  const total = order.lines.reduce(
+  const subtotal = order.lines.reduce(
     (sum, line) => sum.add(Money.of(line.unitAmountMinor, order.currency).multiply(line.quantity)),
     Money.zero(order.currency),
   );
+  const shipping = Money.of(order.shippingAmountMinor, order.currency);
+  const total = subtotal.add(shipping);
   const trackedShipments = shipments.filter((s) => s.trackingNumber);
 
   return (
@@ -77,6 +79,10 @@ export function OrderDetailView({
               </li>
             ))}
           </ul>
+          <div className={styles.lineRow}>
+            <span>Shipping</span>
+            <span>{shipping.toDisplayString()}</span>
+          </div>
           <div className={styles.total}>
             <span>Total</span>
             <span>{total.toDisplayString()}</span>

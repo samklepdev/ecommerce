@@ -28,6 +28,7 @@ export interface OrderDetailLine {
 export interface OrderDetail extends OrderListItem {
   customerEmail: string;
   shippingAddress: OrderShippingAddress | null;
+  shippingAmountMinor: number;
   lines: OrderDetailLine[];
 }
 

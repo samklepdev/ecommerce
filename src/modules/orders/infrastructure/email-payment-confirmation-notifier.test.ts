@@ -33,6 +33,7 @@ function makeOrder(overrides: Partial<OrderDetail> = {}): OrderDetail {
     fulfillmentStatus: 'unfulfilled',
     customerEmail: 'buyer@example.com',
     shippingAddress: null,
+    shippingAmountMinor: 0,
     lines: [{ sku: 'SKU-1', quantity: 2, unitAmountMinor: 2100 }],
     ...overrides,
   };

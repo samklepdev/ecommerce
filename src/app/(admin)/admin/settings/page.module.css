@@ -1,0 +1,14 @@
+.settingCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.settingTitle {
+  font-size: 1.125rem;
+}
+
+.settingDescription {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}

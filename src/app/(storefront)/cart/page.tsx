@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function CartPage() {
   const owner = await resolveCartOwner();
-  const { getCart } = getContainer();
+  const { getCart, getShippingRate } = getContainer();
   const cart = await getCart.execute({ owner });
 
   if (!cart || cart.isEmpty) {
@@ -33,6 +33,10 @@ export default async function CartPage() {
       </PageContainer>
     );
   }
+
+  const subtotal = cart.subtotal('USD');
+  const shipping = await getShippingRate.execute();
+  const total = subtotal.add(shipping);
 
   return (
     <PageContainer>
@@ -58,7 +62,11 @@ export default async function CartPage() {
         </Stack>
 
         <Card className={styles.summary}>
-          <p className={styles.subtotal}>Subtotal: {cart.subtotal('USD').toDisplayString()}</p>
+          <div className={styles.priceLines}>
+            <p className={styles.priceLine}>Subtotal: {subtotal.toDisplayString()}</p>
+            <p className={styles.priceLine}>Shipping: {shipping.toDisplayString()}</p>
+            <p className={styles.subtotal}>Total: {total.toDisplayString()}</p>
+          </div>
           <Link href="/checkout">
             <Button>Checkout</Button>
           </Link>

@@ -18,6 +18,7 @@ export interface OrderProps {
   currency: string;
   paymentStatus: PaymentStatus;
   fulfillmentStatus: FulfillmentStatus;
+  shippingAmount: Money;
 }
 
 export class Order extends AggregateRoot<string> {
@@ -28,6 +29,7 @@ export class Order extends AggregateRoot<string> {
   readonly currency: string;
   readonly paymentStatus: PaymentStatus;
   readonly fulfillmentStatus: FulfillmentStatus;
+  readonly shippingAmount: Money;
 
   private constructor(props: OrderProps) {
     super(props.id);
@@ -38,6 +40,7 @@ export class Order extends AggregateRoot<string> {
     this.currency = props.currency;
     this.paymentStatus = props.paymentStatus;
     this.fulfillmentStatus = props.fulfillmentStatus;
+    this.shippingAmount = props.shippingAmount;
   }
 
   static create(props: OrderProps): Order {
@@ -45,8 +48,12 @@ export class Order extends AggregateRoot<string> {
     return new Order(props);
   }
 
-  get total(): Money {
+  get subtotal(): Money {
     return this.lines.reduce((sum, l) => sum.add(l.subtotal), Money.zero(this.currency));
+  }
+
+  get total(): Money {
+    return this.subtotal.add(this.shippingAmount);
   }
 
   withPaymentStatus(next: PaymentStatus): Order {

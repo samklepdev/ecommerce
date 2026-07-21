@@ -99,6 +99,10 @@ import { ImportProductsFromFeed } from '@/modules/sourcing/application/use-cases
 import { ExtractProductFromUrl } from '@/modules/sourcing/application/use-cases/extract-product-from-url';
 import { LocalFileImageStorage } from '@/shared/infrastructure/local-file-image-storage';
 
+import { DrizzleShippingRateRepository } from '@/modules/shipping/infrastructure/drizzle-shipping-rate-repository';
+import { GetShippingRate } from '@/modules/shipping/application/use-cases/get-shipping-rate';
+import { SetShippingRate } from '@/modules/shipping/application/use-cases/set-shipping-rate';
+
 /**
  * The single DI root. Nothing else `new`s an adapter. Routes, actions, and the
  * worker resolve dependencies from here.
@@ -151,6 +155,9 @@ export interface Container {
   listSupplierOffersForVariant: ListSupplierOffersForVariant;
   importProductsFromFeed: ImportProductsFromFeed;
   extractProductFromUrl: ExtractProductFromUrl;
+
+  getShippingRate: GetShippingRate;
+  setShippingRate: SetShippingRate;
 
   placeOrder: PlaceOrder;
   startCheckout: StartCheckout;
@@ -278,12 +285,17 @@ function build(): Container {
   const urlContentExtractor = new HtmlUrlContentExtractor();
   const extractProductFromUrl = new ExtractProductFromUrl(urlContentExtractor);
 
+  // --- shipping ---
+  const shippingRates = new DrizzleShippingRateRepository(db);
+  const getShippingRate = new GetShippingRate(shippingRates);
+  const setShippingRate = new SetShippingRate(shippingRates);
+
   // --- orders / checkout / confirmation / fulfillment ---
   const orders = new DrizzleOrderRepository(db);
   const supplierOrders = new DrizzleSupplierOrderRepository(db);
   const processed = new RedisProcessedEventStore(redis);
 
-  const placeOrder = new PlaceOrder(carts, products, orders);
+  const placeOrder = new PlaceOrder(carts, products, orders, shippingRates);
   const startCheckout = new StartCheckout(orders, gateways, env.QUOTE_TTL_SECONDS);
   const expireStaleCheckouts = new ExpireStaleCheckouts(orders);
 
@@ -374,6 +386,8 @@ function build(): Container {
     listSupplierOffersForVariant,
     importProductsFromFeed,
     extractProductFromUrl,
+    getShippingRate,
+    setShippingRate,
     placeOrder,
     startCheckout,
     expireStaleCheckouts,

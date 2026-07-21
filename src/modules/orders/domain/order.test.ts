@@ -27,7 +27,7 @@ function makeLine(unitAmountMinor: number, quantity: number) {
   });
 }
 
-function makeOrder(lines = [makeLine(1000, 1)]) {
+function makeOrder(lines = [makeLine(1000, 1)], shippingAmountMinor = 0) {
   return Order.create({
     id: randomUUID(),
     userId: null,
@@ -37,6 +37,7 @@ function makeOrder(lines = [makeLine(1000, 1)]) {
     currency: 'USD',
     paymentStatus: 'pending',
     fulfillmentStatus: 'unfulfilled',
+    shippingAmount: Money.of(shippingAmountMinor, 'USD'),
   });
 }
 
@@ -58,6 +59,12 @@ describe('Order#total', () => {
     // (1000 * 2) + (500 * 3) = 3500
     expect(order.total.amountMinor).toBe(3500);
     expect(order.total.currency).toBe('USD');
+  });
+
+  it('adds the shipping amount on top of the line subtotal', () => {
+    const order = makeOrder([makeLine(1000, 2), makeLine(500, 3)], 599);
+    expect(order.subtotal.amountMinor).toBe(3500);
+    expect(order.total.amountMinor).toBe(4099);
   });
 });
 
