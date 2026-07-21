@@ -6,6 +6,7 @@ export interface SupplierOfferRepository {
    * unique index as a backstop). */
   create(offer: SupplierOffer): Promise<void>;
   setPreferred(offerId: string, variantId: string): Promise<void>;
+  updateCost(offerId: string, amountMinor: number, currency: string): Promise<void>;
   findPreferredByVariantId(variantId: string): Promise<SupplierOffer | null>;
   listByVariantId(variantId: string): Promise<SupplierOffer[]>;
 }

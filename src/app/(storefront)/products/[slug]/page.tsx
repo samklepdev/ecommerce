@@ -2,13 +2,12 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import { getContainer } from '@/composition/container';
-import { addToCartAction } from '@/app/actions/cart';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { ProductGallery } from './ProductGallery';
+import { AddToCartButton } from './AddToCartButton';
 import styles from './page.module.css';
 
 export const revalidate = 3600;
@@ -65,13 +64,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
                   <p className={styles.price}>{variant.price.toString()}</p>
                   {!isAvailable && <Badge tone="danger">Out of stock</Badge>}
                 </div>
-                <form action={addToCartAction}>
-                  <input type="hidden" name="variantId" value={variant.id} />
-                  <input type="hidden" name="quantity" value="1" />
-                  <Button type="submit" disabled={!isAvailable}>
-                    {isAvailable ? 'Add to cart' : 'Out of stock'}
-                  </Button>
-                </form>
+                <AddToCartButton variantId={variant.id} isAvailable={isAvailable} />
               </Card>
             );
           })}

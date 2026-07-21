@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { Stack } from '@/components/ui/Stack';
 import { ProductImagesManager } from './ProductImagesManager';
+import { VariantPriceEditor } from './VariantPriceEditor';
+import { SupplierOfferCostEditor } from './SupplierOfferCostEditor';
 import styles from './page.module.css';
 
 export interface AdminProductOfferRow {
@@ -22,13 +24,15 @@ export interface AdminProductOfferRow {
   supplierId: string;
   supplierName: string;
   isPreferred: boolean;
-  costDisplay: string;
+  costAmountMinor: number;
+  currency: string;
 }
 
 export interface AdminProductVariantRow {
   id: string;
   sku: string;
-  priceDisplay: string;
+  priceAmountMinor: number;
+  currency: string;
   offers: AdminProductOfferRow[];
 }
 
@@ -131,9 +135,12 @@ export function AdminProductsTable({ products, emptyMessage }: AdminProductsTabl
                   <Stack gap={3}>
                     {p.variants.map((v) => (
                       <div key={v.id} className={styles.variantBlock}>
-                        <p className={styles.variantHeading}>
-                          {v.sku}: {v.priceDisplay}
-                        </p>
+                        <p className={styles.variantHeading}>{v.sku}</p>
+                        <VariantPriceEditor
+                          variantId={v.id}
+                          priceAmountMinor={v.priceAmountMinor}
+                          currency={v.currency}
+                        />
 
                         <ul className={styles.offerList}>
                           {v.offers.map((offer) => (
@@ -147,7 +154,14 @@ export function AdminProductsTable({ products, emptyMessage }: AdminProductsTabl
                                     </Badge>
                                   )}
                                 </span>
-                                <span className={styles.offerCost}>cost {offer.costDisplay}</span>
+                                <div className={styles.offerCost}>
+                                  cost
+                                  <SupplierOfferCostEditor
+                                    offerId={offer.id}
+                                    costAmountMinor={offer.costAmountMinor}
+                                    currency={offer.currency}
+                                  />
+                                </div>
                               </div>
                             </li>
                           ))}

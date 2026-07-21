@@ -45,6 +45,7 @@ import { ListProducts } from '@/modules/catalog/application/use-cases/list-produ
 import { GetProductBySlug } from '@/modules/catalog/application/use-cases/get-product-by-slug';
 import { CreateProduct } from '@/modules/catalog/application/use-cases/create-product';
 import { CreateProductVariant } from '@/modules/catalog/application/use-cases/create-product-variant';
+import { UpdateVariantPrice } from '@/modules/catalog/application/use-cases/update-variant-price';
 import { ListAllProductsForAdmin } from '@/modules/catalog/application/use-cases/list-all-products-for-admin';
 import { DeleteProducts } from '@/modules/catalog/application/use-cases/delete-products';
 import { PublishProducts } from '@/modules/catalog/application/use-cases/publish-products';
@@ -57,6 +58,7 @@ import { RedisCartRepository } from '@/modules/cart/infrastructure/redis-cart-re
 import { GetCart } from '@/modules/cart/application/use-cases/get-cart';
 import { AddToCart } from '@/modules/cart/application/use-cases/add-to-cart';
 import { RemoveFromCart } from '@/modules/cart/application/use-cases/remove-from-cart';
+import { UpdateCartLineQuantity } from '@/modules/cart/application/use-cases/update-cart-line-quantity';
 import { RepriceCart } from '@/modules/cart/application/use-cases/reprice-cart';
 import { MergeGuestCart } from '@/modules/cart/application/use-cases/merge-guest-cart';
 
@@ -88,6 +90,7 @@ import { HtmlUrlContentExtractor } from '@/modules/sourcing/infrastructure/html-
 import { ListSuppliers } from '@/modules/sourcing/application/use-cases/list-suppliers';
 import { CreateSupplier } from '@/modules/sourcing/application/use-cases/create-supplier';
 import { CreateSupplierOffer } from '@/modules/sourcing/application/use-cases/create-supplier-offer';
+import { UpdateSupplierOfferCost } from '@/modules/sourcing/application/use-cases/update-supplier-offer-cost';
 import { SetPreferredSupplierOffer } from '@/modules/sourcing/application/use-cases/set-preferred-supplier-offer';
 import { GetPreferredOfferForVariant } from '@/modules/sourcing/application/use-cases/get-preferred-offer-for-variant';
 import { ListSupplierOffersForVariant } from '@/modules/sourcing/application/use-cases/list-supplier-offers-for-variant';
@@ -107,6 +110,7 @@ export interface Container {
   getProductBySlug: GetProductBySlug;
   createProduct: CreateProduct;
   createProductVariant: CreateProductVariant;
+  updateVariantPrice: UpdateVariantPrice;
   listAllProductsForAdmin: ListAllProductsForAdmin;
   deleteProducts: DeleteProducts;
   publishProducts: PublishProducts;
@@ -118,6 +122,7 @@ export interface Container {
   getCart: GetCart;
   addToCart: AddToCart;
   removeFromCart: RemoveFromCart;
+  updateCartLineQuantity: UpdateCartLineQuantity;
   repriceCart: RepriceCart;
   mergeGuestCart: MergeGuestCart;
 
@@ -139,6 +144,7 @@ export interface Container {
   listSuppliers: ListSuppliers;
   createSupplier: CreateSupplier;
   createSupplierOffer: CreateSupplierOffer;
+  updateSupplierOfferCost: UpdateSupplierOfferCost;
   setPreferredSupplierOffer: SetPreferredSupplierOffer;
   getPreferredOfferForVariant: GetPreferredOfferForVariant;
   listSupplierOffersForVariant: ListSupplierOffersForVariant;
@@ -196,6 +202,7 @@ function build(): Container {
   const getProductBySlug = new GetProductBySlug(products);
   const createProduct = new CreateProduct(products);
   const createProductVariant = new CreateProductVariant(products);
+  const updateVariantPrice = new UpdateVariantPrice(products);
   const listAllProductsForAdmin = new ListAllProductsForAdmin(products);
   const deleteProducts = new DeleteProducts(products);
   const publishProducts = new PublishProducts(products);
@@ -206,6 +213,7 @@ function build(): Container {
   const getCart = new GetCart(carts);
   const addToCart = new AddToCart(carts, products);
   const removeFromCart = new RemoveFromCart(carts);
+  const updateCartLineQuantity = new UpdateCartLineQuantity(carts);
   const repriceCart = new RepriceCart(carts, products);
   const mergeGuestCart = new MergeGuestCart(carts);
 
@@ -247,6 +255,7 @@ function build(): Container {
   const listSuppliers = new ListSuppliers(suppliers);
   const createSupplier = new CreateSupplier(suppliers);
   const createSupplierOffer = new CreateSupplierOffer(supplierOffers);
+  const updateSupplierOfferCost = new UpdateSupplierOfferCost(supplierOffers);
   const setPreferredSupplierOffer = new SetPreferredSupplierOffer(supplierOffers);
   const getPreferredOfferForVariant = new GetPreferredOfferForVariant(supplierOffers);
   const listSupplierOffersForVariant = new ListSupplierOffersForVariant(supplierOffers);
@@ -317,6 +326,7 @@ function build(): Container {
     getProductBySlug,
     createProduct,
     createProductVariant,
+    updateVariantPrice,
     listAllProductsForAdmin,
     deleteProducts,
     publishProducts,
@@ -327,6 +337,7 @@ function build(): Container {
     getCart,
     addToCart,
     removeFromCart,
+    updateCartLineQuantity,
     repriceCart,
     mergeGuestCart,
     signUp,
@@ -346,6 +357,7 @@ function build(): Container {
     listSuppliers,
     createSupplier,
     createSupplierOffer,
+    updateSupplierOfferCost,
     setPreferredSupplierOffer,
     getPreferredOfferForVariant,
     listSupplierOffersForVariant,

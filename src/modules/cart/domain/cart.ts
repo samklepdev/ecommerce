@@ -43,6 +43,18 @@ export class Cart extends AggregateRoot<string> {
     return Cart.create({ id: this.id, owner: this.owner, lines });
   }
 
+  /** Sets a line's quantity directly (not additive, unlike `addLine`) — zero
+   * or negative removes the line, matching `CartLine.create`'s own guard
+   * against non-positive quantities. A no-op if the variant isn't in the
+   * cart. */
+  setLineQuantity(variantId: string, quantity: number): Cart {
+    if (quantity <= 0) return this.removeLine(variantId);
+    const existingIndex = this._lines.findIndex((l) => l.variantId === variantId);
+    if (existingIndex < 0) return this;
+    const lines = this._lines.map((l, i) => (i === existingIndex ? l.withQuantity(quantity) : l));
+    return Cart.create({ id: this.id, owner: this.owner, lines });
+  }
+
   removeLine(variantId: string): Cart {
     return Cart.create({
       id: this.id,

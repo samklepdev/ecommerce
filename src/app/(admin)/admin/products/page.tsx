@@ -72,13 +72,15 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
     variants: p.variants.map((v) => ({
       id: v.id,
       sku: v.sku,
-      priceDisplay: v.price.toString(),
+      priceAmountMinor: v.price.amountMinor,
+      currency: v.price.currency,
       offers: (offersByVariant.get(v.id) ?? []).map((offer) => ({
         id: offer.id,
         supplierId: offer.supplierId,
         supplierName: supplierNameById.get(offer.supplierId) ?? offer.supplierId,
         isPreferred: offer.isPreferred,
-        costDisplay: offer.cost.toString(),
+        costAmountMinor: offer.cost.amountMinor,
+        currency: offer.cost.currency,
       })),
     })),
   }));

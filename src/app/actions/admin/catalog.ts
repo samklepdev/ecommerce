@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import { getContainer } from '@/composition/container';
 import { requireAdmin } from '@/app/lib/session';
+import { parseDecimalToMinorUnits } from '@/shared/domain/parse-decimal-amount';
 
 const CreateSupplierSchema = z.object({
   name: z.string().min(1),
@@ -443,4 +444,79 @@ export async function extractProductFromUrlAction(
   const { text, guessedName, guessedDescription, guessedImageUrl, guessedPriceMinor, guessedCurrency } =
     result;
   return { text, guessedName, guessedDescription, guessedImageUrl, guessedPriceMinor, guessedCurrency };
+}
+
+const UpdateVariantPriceSchema = z.object({
+  variantId: z.string().min(1),
+  price: z.string().min(1),
+  currency: z.string().length(3),
+});
+
+export interface UpdateVariantPriceActionResult {
+  message?: string;
+  error?: string;
+}
+
+export async function updateVariantPriceAction(
+  _prevState: UpdateVariantPriceActionResult | undefined,
+  formData: FormData,
+): Promise<UpdateVariantPriceActionResult> {
+  await requireAdmin();
+  const parsed = UpdateVariantPriceSchema.safeParse({
+    variantId: formData.get('variantId'),
+    price: formData.get('price'),
+    currency: formData.get('currency'),
+  });
+  if (!parsed.success) return { error: 'Enter a valid price.' };
+
+  const amountMinor = parseDecimalToMinorUnits(parsed.data.price);
+  if (amountMinor === null || amountMinor <= 0) return { error: 'Enter a valid price.' };
+
+  const { updateVariantPrice } = getContainer();
+  await updateVariantPrice.execute({
+    variantId: parsed.data.variantId,
+    amountMinor,
+    currency: parsed.data.currency,
+  });
+
+  revalidatePath('/admin/products');
+  revalidatePath('/products');
+  return { message: 'Price updated.' };
+}
+
+const UpdateSupplierOfferCostSchema = z.object({
+  offerId: z.string().min(1),
+  cost: z.string().min(1),
+  currency: z.string().length(3),
+});
+
+export interface UpdateSupplierOfferCostActionResult {
+  message?: string;
+  error?: string;
+}
+
+export async function updateSupplierOfferCostAction(
+  _prevState: UpdateSupplierOfferCostActionResult | undefined,
+  formData: FormData,
+): Promise<UpdateSupplierOfferCostActionResult> {
+  await requireAdmin();
+  const parsed = UpdateSupplierOfferCostSchema.safeParse({
+    offerId: formData.get('offerId'),
+    cost: formData.get('cost'),
+    currency: formData.get('currency'),
+  });
+  if (!parsed.success) return { error: 'Enter a valid cost.' };
+
+  const amountMinor = parseDecimalToMinorUnits(parsed.data.cost);
+  if (amountMinor === null || amountMinor <= 0) return { error: 'Enter a valid cost.' };
+
+  const { updateSupplierOfferCost } = getContainer();
+  await updateSupplierOfferCost.execute({
+    offerId: parsed.data.offerId,
+    amountMinor,
+    currency: parsed.data.currency,
+  });
+
+  revalidatePath('/admin/products');
+  return { message: 'Cost updated.' };
 }

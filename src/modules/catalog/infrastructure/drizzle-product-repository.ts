@@ -121,6 +121,13 @@ export class DrizzleProductRepository implements ProductRepository {
     });
   }
 
+  async updateVariantPrice(variantId: string, amountMinor: number, currency: string): Promise<void> {
+    await this.db
+      .update(productVariants)
+      .set({ unitAmountMinor: amountMinor, currency })
+      .where(eq(productVariants.id, variantId));
+  }
+
   async updateImageUrl(productId: string, imageUrl: string): Promise<void> {
     await this.db
       .update(products)
