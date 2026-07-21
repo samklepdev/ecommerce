@@ -1,0 +1,15 @@
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.priceLine {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+
+.total {
+  font-weight: 600;
+  font-size: 1.0625rem;
+}

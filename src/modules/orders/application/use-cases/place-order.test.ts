@@ -10,6 +10,7 @@ import type { CartRepository } from '@/modules/cart/application/ports/cart-repos
 import type { ProductRepository } from '@/modules/catalog/application/ports/product-repository';
 import type { OrderRepository } from '@/modules/orders/application/ports/order-repository';
 import type { Order } from '@/modules/orders/domain/order';
+import type { ShippingRateRepository } from '@/modules/shipping/application/ports/shipping-rate-repository';
 
 function makeVariant(id: string, unitAmountMinor: number) {
   return ProductVariant.create({
@@ -54,6 +55,16 @@ function makeFakeOrders() {
   return { repo, created };
 }
 
+function makeFakeShippingRates(rate: Money) {
+  const repo: ShippingRateRepository = {
+    async get() {
+      return rate;
+    },
+    async set() {},
+  };
+  return repo;
+}
+
 function validShippingAddress() {
   return {
     name: 'Ada Lovelace',
@@ -81,7 +92,8 @@ describe('PlaceOrder', () => {
     const products = makeFakeProducts(new Map([[variantId, variant]]));
     const { repo: orders, created } = makeFakeOrders();
 
-    const result = await new PlaceOrder(carts, products, orders).execute({
+    const shippingRates = makeFakeShippingRates(Money.zero('USD'));
+    const result = await new PlaceOrder(carts, products, orders, shippingRates).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -107,7 +119,8 @@ describe('PlaceOrder', () => {
     const products = makeFakeProducts(new Map());
     const { repo: orders, created } = makeFakeOrders();
 
-    const result = await new PlaceOrder(carts, products, orders).execute({
+    const shippingRates = makeFakeShippingRates(Money.zero('USD'));
+    const result = await new PlaceOrder(carts, products, orders, shippingRates).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -125,7 +138,8 @@ describe('PlaceOrder', () => {
     const products = makeFakeProducts(new Map());
     const { repo: orders } = makeFakeOrders();
 
-    const result = await new PlaceOrder(carts, products, orders).execute({
+    const shippingRates = makeFakeShippingRates(Money.zero('USD'));
+    const result = await new PlaceOrder(carts, products, orders, shippingRates).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -147,7 +161,8 @@ describe('PlaceOrder', () => {
     const products = makeFakeProducts(new Map()); // variant not found
     const { repo: orders, created } = makeFakeOrders();
 
-    const result = await new PlaceOrder(carts, products, orders).execute({
+    const shippingRates = makeFakeShippingRates(Money.zero('USD'));
+    const result = await new PlaceOrder(carts, products, orders, shippingRates).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -173,8 +188,9 @@ describe('PlaceOrder', () => {
     const { repo: carts } = makeFakeCarts(cart);
     const products = makeFakeProducts(new Map([[variantId, variant]]));
     const { repo: orders, created } = makeFakeOrders();
+    const shippingRates = makeFakeShippingRates(Money.zero('USD'));
 
-    await new PlaceOrder(carts, products, orders).execute({
+    await new PlaceOrder(carts, products, orders, shippingRates).execute({
       owner: { type: 'user', userId: 'user-1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -182,5 +198,29 @@ describe('PlaceOrder', () => {
     });
 
     expect(created[0]?.userId).toBe('user-1');
+  });
+
+  it('snapshots the current shipping rate onto the order', async () => {
+    const variantId = randomUUID();
+    const variant = makeVariant(variantId, 1000);
+    const cart = Cart.create({
+      id: randomUUID(),
+      owner: { type: 'guest', sessionId: 's1' },
+      lines: [CartLine.create({ variantId, sku: 'X', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
+    });
+    const { repo: carts } = makeFakeCarts(cart);
+    const products = makeFakeProducts(new Map([[variantId, variant]]));
+    const { repo: orders, created } = makeFakeOrders();
+    const shippingRates = makeFakeShippingRates(Money.of(599, 'USD'));
+
+    await new PlaceOrder(carts, products, orders, shippingRates).execute({
+      owner: { type: 'guest', sessionId: 's1' },
+      customerEmail: 'test@example.com',
+      currency: 'USD',
+      shippingAddress: validShippingAddress(),
+    });
+
+    expect(created[0]?.shippingAmount.amountMinor).toBe(599);
+    expect(created[0]?.total.amountMinor).toBe(1599);
   });
 });

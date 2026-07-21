@@ -22,6 +22,7 @@ function makeOrderDetail(id: string): OrderDetail {
     fulfillmentStatus: 'unfulfilled',
     customerEmail: 'guest@example.com',
     shippingAddress: null,
+    shippingAmountMinor: 0,
     lines: [],
   };
 }

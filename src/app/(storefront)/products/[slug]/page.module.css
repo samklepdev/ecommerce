@@ -24,3 +24,8 @@
   color: var(--color-muted);
   font-size: 0.875rem;
 }
+
+.shippingNote {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}

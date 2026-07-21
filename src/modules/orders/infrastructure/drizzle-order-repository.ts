@@ -59,6 +59,7 @@ export class DrizzleOrderRepository
         userId: order.userId,
         currency: order.currency,
         amountMinor: order.total.amountMinor,
+        shippingAmountMinor: order.shippingAmount.amountMinor,
         paymentStatus: order.paymentStatus,
         fulfillmentStatus: order.fulfillmentStatus,
         customerEmail: order.customerEmail,
@@ -92,6 +93,7 @@ export class DrizzleOrderRepository
     await this.db.insert(orders).values({
       id: input.id,
       amountMinor: input.amountMinor,
+      shippingAmountMinor: 0,
       currency: input.currency,
       customerEmail: input.customerEmail,
       paymentStatus: 'pending',
@@ -115,7 +117,7 @@ export class DrizzleOrderRepository
     }
     return lines.reduce(
       (total, l) => total.add(Money.of(l.unitAmountMinor, row.currency).multiply(l.quantity)),
-      Money.zero(row.currency),
+      Money.of(row.shippingAmountMinor, row.currency),
     );
   }
 
@@ -268,6 +270,7 @@ export class DrizzleOrderRepository
     return {
       ...toOrderListItem(row),
       shippingAddress: row.shippingAddress,
+      shippingAmountMinor: row.shippingAmountMinor,
       lines: lines.map((l) => ({
         sku: l.sku,
         quantity: l.quantity,

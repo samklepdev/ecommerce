@@ -197,6 +197,9 @@ export const orders = pgTable(
     userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
     currency: text('currency').notNull(), // ISO 4217
     amountMinor: bigint('amount_minor', { mode: 'number' }).notNull(),
+    // Snapshotted from the global shipping rate at PlaceOrder time — never
+    // re-read live, so a later admin change doesn't alter historical orders.
+    shippingAmountMinor: bigint('shipping_amount_minor', { mode: 'number' }).notNull().default(0),
     paymentStatus: text('payment_status').notNull().default('pending'),
     fulfillmentStatus: text('fulfillment_status').notNull().default('unfulfilled'),
     // For on-chain BTC this is the order's unique receive address.
@@ -321,3 +324,11 @@ export const bitcoinPaymentIntents = pgTable(
     indexUnique: uniqueIndex('btc_intent_index_unique').on(t.addressIndex),
   }),
 );
+
+/** Single-row store config — `id` is always the fixed value 'default'. */
+export const shippingRates = pgTable('shipping_rates', {
+  id: text('id').primaryKey(),
+  amountMinor: bigint('amount_minor', { mode: 'number' }).notNull(),
+  currency: text('currency').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});

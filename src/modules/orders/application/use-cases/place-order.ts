@@ -9,6 +9,7 @@ import type { CartOwner } from '@/modules/cart/domain/cart';
 import type { CartRepository } from '@/modules/cart/application/ports/cart-repository';
 import type { ProductRepository } from '@/modules/catalog/application/ports/product-repository';
 import type { OrderRepository } from '@/modules/orders/application/ports/order-repository';
+import type { ShippingRateRepository } from '@/modules/shipping/application/ports/shipping-rate-repository';
 
 export interface PlaceOrderInput {
   owner: CartOwner;
@@ -27,6 +28,7 @@ export class PlaceOrder implements UseCase<PlaceOrderInput, Result<Order, PlaceO
     private readonly carts: CartRepository,
     private readonly products: ProductRepository,
     private readonly orders: OrderRepository,
+    private readonly shippingRates: ShippingRateRepository,
   ) {}
 
   async execute(input: PlaceOrderInput): Promise<Result<Order, PlaceOrderError>> {
@@ -50,6 +52,10 @@ export class PlaceOrder implements UseCase<PlaceOrderInput, Result<Order, PlaceO
       );
     }
 
+    // Snapshot the current global shipping rate — like line prices, never
+    // re-read live after the order is placed.
+    const shippingAmount = await this.shippingRates.get();
+
     const order = Order.create({
       id: randomUUID(),
       userId: input.owner.type === 'user' ? input.owner.userId : null,
@@ -59,6 +65,7 @@ export class PlaceOrder implements UseCase<PlaceOrderInput, Result<Order, PlaceO
       currency: input.currency,
       paymentStatus: 'pending',
       fulfillmentStatus: 'unfulfilled',
+      shippingAmount,
     });
 
     await this.orders.create(order);
