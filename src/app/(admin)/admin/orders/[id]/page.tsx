@@ -1,0 +1,37 @@
+import { notFound } from 'next/navigation';
+
+import { getContainer } from '@/composition/container';
+import { requireAdmin } from '@/app/lib/session';
+import { OrderDetailView } from '@/app/(storefront)/orders/OrderDetailView';
+import { RefundOrderButton } from './RefundOrderButton';
+
+export const dynamic = 'force-dynamic';
+
+interface AdminOrderDetailPageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function AdminOrderDetailPage({ params }: AdminOrderDetailPageProps) {
+  await requireAdmin();
+  const { id } = await params;
+
+  const { getOrderDetail, getShipmentsForOrder } = getContainer();
+
+  const order = await getOrderDetail.execute({ orderId: id });
+  if (!order) notFound();
+
+  const shipments = await getShipmentsForOrder.execute({ orderId: order.id });
+
+  return (
+    <>
+      <OrderDetailView
+        order={order}
+        shipments={shipments}
+        paymentSession={null}
+        backHref="/admin/orders"
+        backLabel="Back to orders"
+      />
+      <RefundOrderButton orderId={order.id} paymentStatus={order.paymentStatus} />
+    </>
+  );
+}

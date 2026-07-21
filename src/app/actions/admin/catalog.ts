@@ -520,3 +520,52 @@ export async function updateSupplierOfferCostAction(
   revalidatePath('/admin/products');
   return { message: 'Cost updated.' };
 }
+
+const ApplyMarkupSchema = z.object({
+  productIds: z.array(z.string().min(1)).min(1),
+  markupPercent: z.coerce.number(),
+});
+
+export interface ApplyMarkupActionResult {
+  message?: string;
+  error?: string;
+}
+
+/** Expands the selected product ids into their variant ids server-side,
+ * then applies the markup to all of them — bulk selection today is by
+ * product (the existing publish/unpublish/delete checkboxes), not variant. */
+export async function applyMarkupToProductsAction(
+  _prevState: ApplyMarkupActionResult | undefined,
+  formData: FormData,
+): Promise<ApplyMarkupActionResult> {
+  await requireAdmin();
+  const parsed = ApplyMarkupSchema.safeParse({
+    productIds: formData.getAll('productIds'),
+    markupPercent: formData.get('markupPercent'),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Select products and enter a markup percentage.' };
+  }
+
+  const { listAllProductsForAdmin, applyMarkupToVariants } = getContainer();
+  const allProducts = await listAllProductsForAdmin.execute();
+  const selectedIds = new Set(parsed.data.productIds);
+  const variantIds = allProducts
+    .filter((p) => selectedIds.has(p.id))
+    .flatMap((p) => p.variants.map((v) => v.id));
+
+  const result = await applyMarkupToVariants.execute({
+    variantIds,
+    markupPercent: parsed.data.markupPercent,
+  });
+
+  revalidatePath('/admin/products');
+  revalidatePath('/products');
+
+  if (result.failed > 0) {
+    return {
+      error: `Updated ${result.updated} variant${result.updated === 1 ? '' : 's'}, but ${result.failed} could not be updated.`,
+    };
+  }
+  return { message: `Applied markup to ${result.updated} variant${result.updated === 1 ? '' : 's'}.` };
+}

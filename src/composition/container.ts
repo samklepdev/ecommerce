@@ -9,17 +9,21 @@ import type { RateLimiter } from '@/shared/application/ports/rate-limiter';
 import { StartCheckout } from '@/modules/checkout/application/use-cases/start-checkout';
 import { ExpireStaleCheckouts } from '@/modules/checkout/application/use-cases/expire-stale-checkouts';
 import { ConfirmPayment } from '@/modules/orders/application/use-cases/confirm-payment';
+import { MarkOrderRefunded } from '@/modules/orders/application/use-cases/mark-order-refunded';
 import { MarkAwaitingConfirmation } from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
 import { PlaceOrder } from '@/modules/orders/application/use-cases/place-order';
 import { CreateSupplierOrdersForPaidOrder } from '@/modules/orders/application/use-cases/create-supplier-orders-for-paid-order';
 import { MarkSupplierOrderOrdered } from '@/modules/orders/application/use-cases/mark-supplier-order-ordered';
 import { MarkSupplierOrderShipped } from '@/modules/orders/application/use-cases/mark-supplier-order-shipped';
 import { CancelSupplierOrder } from '@/modules/orders/application/use-cases/cancel-supplier-order';
+import { UpdateSupplierOrderReference } from '@/modules/orders/application/use-cases/update-supplier-order-reference';
+import { UpdateSupplierOrderTrackingNumber } from '@/modules/orders/application/use-cases/update-supplier-order-tracking-number';
 import { ListSupplierOrdersByStatus } from '@/modules/orders/application/use-cases/list-supplier-orders-by-status';
 import { ListSupplierOrdersNeedingAction } from '@/modules/orders/application/use-cases/list-supplier-orders-needing-action';
 import { ListUnfulfillableOrderLines } from '@/modules/orders/application/use-cases/list-unfulfillable-order-lines';
 import { GetOrderSummary } from '@/modules/orders/application/use-cases/get-order-summary';
 import { ListOrdersForCustomer } from '@/modules/orders/application/use-cases/list-orders-for-customer';
+import { ListAllOrdersForAdmin } from '@/modules/orders/application/use-cases/list-all-orders-for-admin';
 import { GetOrderDetailForCustomer } from '@/modules/orders/application/use-cases/get-order-detail-for-customer';
 import { GetOrderDetail } from '@/modules/orders/application/use-cases/get-order-detail';
 import { GetShipmentsForOrder } from '@/modules/orders/application/use-cases/get-shipments-for-order';
@@ -47,6 +51,7 @@ import { GetProductBySlug } from '@/modules/catalog/application/use-cases/get-pr
 import { CreateProduct } from '@/modules/catalog/application/use-cases/create-product';
 import { CreateProductVariant } from '@/modules/catalog/application/use-cases/create-product-variant';
 import { UpdateVariantPrice } from '@/modules/catalog/application/use-cases/update-variant-price';
+import { ApplyMarkupToVariants } from '@/modules/catalog/application/use-cases/apply-markup-to-variants';
 import { ListAllProductsForAdmin } from '@/modules/catalog/application/use-cases/list-all-products-for-admin';
 import { DeleteProducts } from '@/modules/catalog/application/use-cases/delete-products';
 import { PublishProducts } from '@/modules/catalog/application/use-cases/publish-products';
@@ -71,6 +76,7 @@ import { LogOut } from '@/modules/identity/application/use-cases/log-out';
 import { GetCurrentUser } from '@/modules/identity/application/use-cases/get-current-user';
 import { ChangePassword } from '@/modules/identity/application/use-cases/change-password';
 import { PromoteUserToAdmin } from '@/modules/identity/application/use-cases/promote-user-to-admin';
+import { FindUserByEmailForAdmin } from '@/modules/identity/application/use-cases/find-user-by-email-for-admin';
 import { UpdateAvatar } from '@/modules/identity/application/use-cases/update-avatar';
 import { GetAccountProfile } from '@/modules/identity/application/use-cases/get-account-profile';
 
@@ -112,6 +118,7 @@ export interface Container {
   createProduct: CreateProduct;
   createProductVariant: CreateProductVariant;
   updateVariantPrice: UpdateVariantPrice;
+  applyMarkupToVariants: ApplyMarkupToVariants;
   listAllProductsForAdmin: ListAllProductsForAdmin;
   deleteProducts: DeleteProducts;
   publishProducts: PublishProducts;
@@ -133,6 +140,7 @@ export interface Container {
   getCurrentUser: GetCurrentUser;
   changePassword: ChangePassword;
   promoteUserToAdmin: PromoteUserToAdmin;
+  findUserByEmailForAdmin: FindUserByEmailForAdmin;
   updateAvatar: UpdateAvatar;
   getAccountProfile: GetAccountProfile;
   requestPasswordReset: RequestPasswordReset;
@@ -156,6 +164,7 @@ export interface Container {
   startCheckout: StartCheckout;
   expireStaleCheckouts: ExpireStaleCheckouts;
   confirmPayment: ConfirmPayment;
+  markOrderRefunded: MarkOrderRefunded;
   markAwaitingConfirmation: MarkAwaitingConfirmation;
   watchBitcoinPayments: WatchBitcoinPayments;
   getPaymentProgress: GetPaymentProgress;
@@ -164,11 +173,14 @@ export interface Container {
   markSupplierOrderOrdered: MarkSupplierOrderOrdered;
   markSupplierOrderShipped: MarkSupplierOrderShipped;
   cancelSupplierOrder: CancelSupplierOrder;
+  updateSupplierOrderReference: UpdateSupplierOrderReference;
+  updateSupplierOrderTrackingNumber: UpdateSupplierOrderTrackingNumber;
   listSupplierOrdersByStatus: ListSupplierOrdersByStatus;
   listSupplierOrdersNeedingAction: ListSupplierOrdersNeedingAction;
   listUnfulfillableOrderLines: ListUnfulfillableOrderLines;
   getOrderSummary: GetOrderSummary;
   listOrdersForCustomer: ListOrdersForCustomer;
+  listAllOrdersForAdmin: ListAllOrdersForAdmin;
   getOrderDetailForCustomer: GetOrderDetailForCustomer;
   getOrderDetail: GetOrderDetail;
   getShipmentsForOrder: GetShipmentsForOrder;
@@ -206,6 +218,7 @@ function build(): Container {
   const createProduct = new CreateProduct(products);
   const createProductVariant = new CreateProductVariant(products);
   const updateVariantPrice = new UpdateVariantPrice(products);
+  const applyMarkupToVariants = new ApplyMarkupToVariants(products);
   const listAllProductsForAdmin = new ListAllProductsForAdmin(products);
   const deleteProducts = new DeleteProducts(products);
   const publishProducts = new PublishProducts(products);
@@ -229,6 +242,7 @@ function build(): Container {
   const getCurrentUser = new GetCurrentUser(sessions, users);
   const changePassword = new ChangePassword(users);
   const promoteUserToAdmin = new PromoteUserToAdmin(users);
+  const findUserByEmailForAdmin = new FindUserByEmailForAdmin(users);
   const avatarImageStorage = new LocalFileImageStorage('avatars');
   const updateAvatar = new UpdateAvatar(users, avatarImageStorage);
   const getAccountProfile = new GetAccountProfile(users);
@@ -301,18 +315,22 @@ function build(): Container {
   );
   const markSupplierOrderOrdered = new MarkSupplierOrderOrdered(supplierOrders);
   const markSupplierOrderShipped = new MarkSupplierOrderShipped(supplierOrders, orders);
-  const cancelSupplierOrder = new CancelSupplierOrder(supplierOrders);
+  const cancelSupplierOrder = new CancelSupplierOrder(supplierOrders, orders);
+  const updateSupplierOrderReference = new UpdateSupplierOrderReference(supplierOrders);
+  const updateSupplierOrderTrackingNumber = new UpdateSupplierOrderTrackingNumber(supplierOrders);
   const listSupplierOrdersByStatus = new ListSupplierOrdersByStatus(supplierOrders);
   const listSupplierOrdersNeedingAction = new ListSupplierOrdersNeedingAction(supplierOrders);
   const listUnfulfillableOrderLines = new ListUnfulfillableOrderLines(orders);
   const getOrderSummary = new GetOrderSummary(orders);
   const listOrdersForCustomer = new ListOrdersForCustomer(orders);
+  const listAllOrdersForAdmin = new ListAllOrdersForAdmin(orders);
   const getOrderDetailForCustomer = new GetOrderDetailForCustomer(orders);
   const getOrderDetail = new GetOrderDetail(orders);
   const getShipmentsForOrder = new GetShipmentsForOrder(supplierOrders);
   const getPaymentSessionForOrder = new GetPaymentSessionForOrder(paymentStore);
 
   const confirmPayment = new ConfirmPayment(orders, processed, fulfillment, paymentConfirmationNotifier);
+  const markOrderRefunded = new MarkOrderRefunded(orders);
   const markAwaitingConfirmation = new MarkAwaitingConfirmation(orders);
   // One unified number for both the actual gate and the customer-facing
   // "X of Y confirmations" display — BTC_REQUIRED_CONFIRMATIONS stays the
@@ -338,6 +356,7 @@ function build(): Container {
     createProduct,
     createProductVariant,
     updateVariantPrice,
+    applyMarkupToVariants,
     listAllProductsForAdmin,
     deleteProducts,
     publishProducts,
@@ -357,6 +376,7 @@ function build(): Container {
     getCurrentUser,
     changePassword,
     promoteUserToAdmin,
+    findUserByEmailForAdmin,
     updateAvatar,
     getAccountProfile,
     requestPasswordReset,
@@ -378,6 +398,7 @@ function build(): Container {
     startCheckout,
     expireStaleCheckouts,
     confirmPayment,
+    markOrderRefunded,
     markAwaitingConfirmation,
     watchBitcoinPayments,
     getPaymentProgress,
@@ -385,11 +406,14 @@ function build(): Container {
     markSupplierOrderOrdered,
     markSupplierOrderShipped,
     cancelSupplierOrder,
+    updateSupplierOrderReference,
+    updateSupplierOrderTrackingNumber,
     listSupplierOrdersByStatus,
     listSupplierOrdersNeedingAction,
     listUnfulfillableOrderLines,
     getOrderSummary,
     listOrdersForCustomer,
+    listAllOrdersForAdmin,
     getOrderDetailForCustomer,
     getOrderDetail,
     getShipmentsForOrder,

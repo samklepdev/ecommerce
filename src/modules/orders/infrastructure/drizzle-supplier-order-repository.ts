@@ -140,6 +140,20 @@ export class DrizzleSupplierOrderRepository implements SupplierOrderRepository {
     return result.length > 0;
   }
 
+  async updateReference(supplierOrderId: string, reference: string): Promise<void> {
+    await this.db
+      .update(supplierOrders)
+      .set({ supplierOrderReference: reference, updatedAt: new Date() })
+      .where(eq(supplierOrders.id, supplierOrderId));
+  }
+
+  async updateTrackingNumber(supplierOrderId: string, trackingNumber: string): Promise<void> {
+    await this.db
+      .update(supplierOrders)
+      .set({ trackingNumber, updatedAt: new Date() })
+      .where(eq(supplierOrders.id, supplierOrderId));
+  }
+
   async cancel(supplierOrderId: string): Promise<boolean> {
     const result = await this.db
       .update(supplierOrders)
@@ -161,5 +175,14 @@ export class DrizzleSupplierOrderRepository implements SupplierOrderRepository {
     });
     if (rows.length === 0) return false;
     return rows.every((r) => r.status === 'shipped');
+  }
+
+  async allCancelledForOrder(orderId: string): Promise<boolean> {
+    const rows = await this.db.query.supplierOrders.findMany({
+      where: eq(supplierOrders.orderId, orderId),
+      columns: { status: true },
+    });
+    if (rows.length === 0) return false;
+    return rows.every((r) => r.status === 'cancelled');
   }
 }
