@@ -28,6 +28,20 @@
   font-weight: 500;
 }
 
+/* Reserves space for exactly two lines, whether this title actually wraps
+   or not — so the quick-add row below always starts at the same vertical
+   offset across every card in the grid, regardless of title length.
+   Anything longer than two lines truncates with an ellipsis instead of
+   pushing the row further down. */
+.title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.3;
+  min-height: calc(1.3em * 2);
+}
+
 .imageStack {
   position: relative;
   width: 100%;
