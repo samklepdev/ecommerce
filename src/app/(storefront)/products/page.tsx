@@ -52,29 +52,27 @@ export default async function ProductsPage() {
             {products.map((product) => {
               const quickAdd = quickAddByProductId.get(product.id) ?? null;
               return (
-                <div key={product.id} className={styles.productCard}>
+                <Card key={product.id} className={styles.productCard}>
                   <Link href={`/products/${product.slug.value}`} className={styles.mediaLink}>
-                    <Card className={styles.mediaCard}>
-                      {product.imageUrl ? (
-                        <div className={styles.imageStack}>
-                          {/* Supplier image hosts are dynamic/admin-added, not known at build time. */}
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={product.imageUrl} alt={product.name} className={styles.image} />
-                          {product.hoverImageUrl && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={product.hoverImageUrl}
-                              alt=""
-                              aria-hidden
-                              className={styles.hoverImage}
-                            />
-                          )}
-                        </div>
-                      ) : (
-                        <div className={styles.imagePlaceholder} aria-hidden />
-                      )}
-                      <span>{product.name}</span>
-                    </Card>
+                    {product.imageUrl ? (
+                      <div className={styles.imageStack}>
+                        {/* Supplier image hosts are dynamic/admin-added, not known at build time. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={product.imageUrl} alt={product.name} className={styles.image} />
+                        {product.hoverImageUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={product.hoverImageUrl}
+                            alt=""
+                            aria-hidden
+                            className={styles.hoverImage}
+                          />
+                        )}
+                      </div>
+                    ) : (
+                      <div className={styles.imagePlaceholder} aria-hidden />
+                    )}
+                    <span>{product.name}</span>
                   </Link>
                   {quickAdd && (
                     <AddToCartRow
@@ -83,7 +81,7 @@ export default async function ProductsPage() {
                       disabled={!quickAdd.isAvailable}
                     />
                   )}
-                </div>
+                </Card>
               );
             })}
           </div>
