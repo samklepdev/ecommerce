@@ -136,8 +136,21 @@
 
 .bulkActions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-2);
   margin-top: var(--space-3);
+}
+
+.markupGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.markupInput {
+  width: 6rem;
 }
 
 .pasteUrlBox {

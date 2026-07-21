@@ -8,6 +8,8 @@ import {
   markSupplierOrderShippedAction,
   cancelSupplierOrderAction,
 } from '@/app/actions/admin/fulfillment';
+import { SupplierOrderReferenceEditor } from './SupplierOrderReferenceEditor';
+import { SupplierOrderTrackingEditor } from './SupplierOrderTrackingEditor';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
 import { Card } from '@/components/ui/Card';
@@ -208,6 +210,14 @@ export default async function AdminFulfillmentPage({ searchParams }: AdminFulfil
                         </form>
                       )}
 
+                      {(so.status === 'ordered' || so.status === 'shipped') &&
+                        so.supplierOrderReference && (
+                          <SupplierOrderReferenceEditor
+                            supplierOrderId={so.id}
+                            reference={so.supplierOrderReference}
+                          />
+                        )}
+
                       {so.status === 'ordered' && (
                         <form action={markSupplierOrderShippedAction} className={styles.actionForm}>
                           <input type="hidden" name="supplierOrderId" value={so.id} />
@@ -228,6 +238,13 @@ export default async function AdminFulfillmentPage({ searchParams }: AdminFulfil
                         </form>
                       )}
 
+                      {so.status === 'shipped' && so.trackingNumber && (
+                        <SupplierOrderTrackingEditor
+                          supplierOrderId={so.id}
+                          trackingNumber={so.trackingNumber}
+                        />
+                      )}
+
                       {(so.status === 'needs_ordering' || so.status === 'ordered') && (
                         <div className={styles.cancelRow}>
                           {hasShippedSibling && (
@@ -237,6 +254,7 @@ export default async function AdminFulfillmentPage({ searchParams }: AdminFulfil
                           )}
                           <form action={cancelSupplierOrderAction}>
                             <input type="hidden" name="supplierOrderId" value={so.id} />
+                            <input type="hidden" name="orderId" value={so.orderId} />
                             <Button type="submit" variant="danger">
                               Cancel
                             </Button>

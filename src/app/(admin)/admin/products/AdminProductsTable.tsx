@@ -6,13 +6,16 @@ import {
   deleteProductsAction,
   publishProductsAction,
   unpublishProductsAction,
+  applyMarkupToProductsAction,
   type DeleteProductsActionResult,
   type PublishProductsActionResult,
   type UnpublishProductsActionResult,
+  type ApplyMarkupActionResult,
 } from '@/app/actions/admin/catalog';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
+import { Input } from '@/components/ui/Input';
 import { Stack } from '@/components/ui/Stack';
 import { ProductImagesManager } from './ProductImagesManager';
 import { VariantPriceEditor } from './VariantPriceEditor';
@@ -33,6 +36,7 @@ export interface AdminProductVariantRow {
   sku: string;
   priceAmountMinor: number;
   currency: string;
+  hasNoOffers: boolean;
   offers: AdminProductOfferRow[];
 }
 
@@ -54,6 +58,7 @@ interface AdminProductsTableProps {
 const deleteInitialState: DeleteProductsActionResult = {};
 const publishInitialState: PublishProductsActionResult = {};
 const unpublishInitialState: UnpublishProductsActionResult = {};
+const markupInitialState: ApplyMarkupActionResult = {};
 const BULK_FORM_ID = 'admin-products-bulk-actions';
 
 export function AdminProductsTable({ products, emptyMessage }: AdminProductsTableProps) {
@@ -69,7 +74,11 @@ export function AdminProductsTable({ products, emptyMessage }: AdminProductsTabl
     unpublishProductsAction,
     unpublishInitialState,
   );
-  const isPending = isDeletePending || isPublishPending || isUnpublishPending;
+  const [markupState, markupFormAction, isMarkupPending] = useActionState(
+    applyMarkupToProductsAction,
+    markupInitialState,
+  );
+  const isPending = isDeletePending || isPublishPending || isUnpublishPending || isMarkupPending;
 
   if (products.length === 0) {
     return <p className={styles.empty}>{emptyMessage}</p>;
@@ -85,6 +94,8 @@ export function AdminProductsTable({ products, emptyMessage }: AdminProductsTabl
       {unpublishState.message && <Alert tone="success">{unpublishState.message}</Alert>}
       {deleteState.error && <Alert tone="danger">{deleteState.error}</Alert>}
       {deleteState.message && <Alert tone="success">{deleteState.message}</Alert>}
+      {markupState.error && <Alert tone="danger">{markupState.error}</Alert>}
+      {markupState.message && <Alert tone="success">{markupState.message}</Alert>}
 
       <div className={styles.tableWrap}>
         <table className={styles.table}>
@@ -135,7 +146,14 @@ export function AdminProductsTable({ products, emptyMessage }: AdminProductsTabl
                   <Stack gap={3}>
                     {p.variants.map((v) => (
                       <div key={v.id} className={styles.variantBlock}>
-                        <p className={styles.variantHeading}>{v.sku}</p>
+                        <p className={styles.variantHeading}>
+                          {v.sku}
+                          {v.hasNoOffers && (
+                            <Badge tone="danger" className={styles.preferredBadge}>
+                              No supplier offer
+                            </Badge>
+                          )}
+                        </p>
                         <VariantPriceEditor
                           variantId={v.id}
                           priceAmountMinor={v.priceAmountMinor}
@@ -225,6 +243,26 @@ export function AdminProductsTable({ products, emptyMessage }: AdminProductsTabl
         <Button type="submit" form={BULK_FORM_ID} variant="danger" disabled={isPending}>
           Delete selected
         </Button>
+        <div className={styles.markupGroup}>
+          <Input
+            type="number"
+            name="markupPercent"
+            step="0.1"
+            placeholder="Markup %"
+            form={BULK_FORM_ID}
+            className={styles.markupInput}
+            aria-label="Markup percentage"
+          />
+          <Button
+            type="submit"
+            form={BULK_FORM_ID}
+            formAction={markupFormAction}
+            variant="secondary"
+            disabled={isPending}
+          >
+            Apply markup to selected
+          </Button>
+        </div>
       </div>
     </div>
   );

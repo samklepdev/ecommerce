@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, inArray, isNotNull, lt } from 'drizzle-orm';
+import { and, eq, ilike, inArray, isNotNull, lt } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { orderLines, orders } from '@/shared/infrastructure/db/schema';
@@ -233,14 +233,15 @@ export class DrizzleOrderRepository
       where: eq(orders.userId, userId),
       orderBy: (o, { desc }) => [desc(o.createdAt)],
     });
-    return rows.map((row) => ({
-      id: row.id,
-      createdAt: row.createdAt,
-      currency: row.currency,
-      amountMinor: row.amountMinor,
-      paymentStatus: row.paymentStatus as PaymentStatus,
-      fulfillmentStatus: row.fulfillmentStatus as FulfillmentStatus,
-    }));
+    return rows.map(toOrderListItem);
+  }
+
+  async listAllForAdmin(params?: { email?: string }): Promise<OrderListItem[]> {
+    const rows = await this.db.query.orders.findMany({
+      where: params?.email ? ilike(orders.customerEmail, `%${params.email}%`) : undefined,
+      orderBy: (o, { desc }) => [desc(o.createdAt)],
+    });
+    return rows.map(toOrderListItem);
   }
 
   async findDetailById(orderId: string, userId: string): Promise<OrderDetail | null> {
@@ -265,13 +266,7 @@ export class DrizzleOrderRepository
     });
 
     return {
-      id: row.id,
-      createdAt: row.createdAt,
-      currency: row.currency,
-      amountMinor: row.amountMinor,
-      paymentStatus: row.paymentStatus as PaymentStatus,
-      fulfillmentStatus: row.fulfillmentStatus as FulfillmentStatus,
-      customerEmail: row.customerEmail,
+      ...toOrderListItem(row),
       shippingAddress: row.shippingAddress,
       lines: lines.map((l) => ({
         sku: l.sku,
@@ -280,4 +275,16 @@ export class DrizzleOrderRepository
       })),
     };
   }
+}
+
+function toOrderListItem(row: typeof orders.$inferSelect): OrderListItem {
+  return {
+    id: row.id,
+    customerEmail: row.customerEmail,
+    createdAt: row.createdAt,
+    currency: row.currency,
+    amountMinor: row.amountMinor,
+    paymentStatus: row.paymentStatus as PaymentStatus,
+    fulfillmentStatus: row.fulfillmentStatus as FulfillmentStatus,
+  };
 }
