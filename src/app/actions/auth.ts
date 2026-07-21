@@ -47,6 +47,7 @@ async function establishSession(email: string, password: string): Promise<AuthAc
   cookieStore.set(SESSION_COOKIE, result.value.id, {
     httpOnly: true,
     sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
     path: '/',
     maxAge: env.SESSION_TTL_SECONDS,
   });

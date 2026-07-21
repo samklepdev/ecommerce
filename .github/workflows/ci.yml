@@ -27,12 +27,19 @@ jobs:
       - name: Test
         run: npm test
 
-      # No `next build` step here: `/products` has no `force-dynamic` and
-      # statically generates at build time, which calls a real Postgres
-      # query through the DI container — and the container also eagerly
-      # constructs a Redis client the moment it's imported. Making a build
-      # job green needs either real Postgres+Redis service containers with
-      # migrations applied, or a code change (make `/products` dynamic, or
-      # make the container's client construction lazy). Deliberately out of
-      # scope here — typecheck/lint/test need zero env vars and zero
-      # services, which is why they're what's covered.
+      # Every route in this app renders dynamically (something in the tree —
+      # the Header's session check — calls `cookies()`, which opts the whole
+      # route out of static generation), so `next build` never actually
+      # queries Postgres/Redis at build time. It only needs env vars
+      # well-formed enough to satisfy `src/config/env.ts`'s Zod schema:
+      # `BTC_ACCOUNT_XPUB` must be a real base58check-valid public extended
+      # key (any throwaway one derived from a random seed works — it's
+      # watch-only public data, not a secret), and the DB/Redis URLs just
+      # need to parse as URLs, not be reachable. Confirmed by building with
+      # these exact fake values and no services running at all.
+      - name: Build
+        run: npm run build
+        env:
+          DATABASE_URL: postgres://fake:fake@localhost:59999/fake
+          REDIS_URL: redis://localhost:59998
+          BTC_ACCOUNT_XPUB: tpubDDTyJEgNqk6uZKJ6vdM1HdNytMarfrTJBkQH1MGSiYrCnPrkXr1642ndLRb1FbDYBRbHzrq25w2MsGrRrEZziNj1v3BQcmxjYqAMc4iaVQ6
