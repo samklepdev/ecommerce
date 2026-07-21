@@ -72,7 +72,7 @@ export default async function ProductsPage() {
                     ) : (
                       <div className={styles.imagePlaceholder} aria-hidden />
                     )}
-                    <span>{product.name}</span>
+                    <span className={styles.title}>{product.name}</span>
                   </Link>
                   {quickAdd && (
                     <AddToCartRow
