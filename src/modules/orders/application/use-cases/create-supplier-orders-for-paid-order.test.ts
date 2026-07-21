@@ -31,12 +31,16 @@ function makeOffer(variantId: string, supplierId: string, costMinor: number) {
 }
 
 function makeFakeOrderLines(lines: PaidOrderLine[]) {
+  const flagged: { orderLineId: string; reason: string }[] = [];
   const repo: PaidOrderLinesRepository = {
     async getOrderLines() {
       return lines;
     },
+    async flagFulfillmentIssue(orderLineId, reason) {
+      flagged.push({ orderLineId, reason });
+    },
   };
-  return repo;
+  return { repo, flagged };
 }
 
 function makeFakeSupplierOffers(offersByVariantId: Map<string, SupplierOffer>) {
@@ -84,7 +88,7 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
       { id: 'line-b', variantId: variantB, quantity: 2 },
       { id: 'line-c', variantId: variantC, quantity: 1 },
     ];
-    const orders = makeFakeOrderLines(lines);
+    const { repo: orders } = makeFakeOrderLines(lines);
     const offers = makeFakeSupplierOffers(
       new Map([
         [variantA, makeOffer(variantA, 'supplier-1', 1000)],
@@ -113,7 +117,7 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
       { id: 'line-a', variantId: variantA, quantity: 1 },
       { id: 'line-b', variantId: variantNoOffer, quantity: 1 },
     ];
-    const orders = makeFakeOrderLines(lines);
+    const { repo: orders, flagged } = makeFakeOrderLines(lines);
     const offers = makeFakeSupplierOffers(new Map([[variantA, makeOffer(variantA, 'supplier-1', 1000)]]));
     const { repo: supplierOrders, created } = makeFakeSupplierOrders();
     const { repo: fulfillment } = makeFakeOrderFulfillment('paid', 'unfulfilled');
@@ -131,11 +135,14 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
       expect.objectContaining({ orderId: 'order-1', orderLineId: 'line-b', variantId: variantNoOffer }),
     );
     warnSpy.mockRestore();
+
+    // Durable record, not just a log line — an admin can query for this later.
+    expect(flagged).toEqual([{ orderLineId: 'line-b', reason: 'no_preferred_supplier_offer' }]);
   });
 
   it('advances the order to processing when it was unfulfilled', async () => {
     const variantA = randomUUID();
-    const orders = makeFakeOrderLines([{ id: 'line-a', variantId: variantA, quantity: 1 }]);
+    const { repo: orders } = makeFakeOrderLines([{ id: 'line-a', variantId: variantA, quantity: 1 }]);
     const offers = makeFakeSupplierOffers(new Map([[variantA, makeOffer(variantA, 'supplier-1', 1000)]]));
     const { repo: supplierOrders } = makeFakeSupplierOrders();
     const { repo: fulfillment, getFulfillment } = makeFakeOrderFulfillment('paid', 'unfulfilled');
@@ -148,7 +155,7 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
   });
 
   it('does nothing when the order has no lines (dev harness orders)', async () => {
-    const orders = makeFakeOrderLines([]);
+    const { repo: orders } = makeFakeOrderLines([]);
     const offers = makeFakeSupplierOffers(new Map());
     const { repo: supplierOrders, created } = makeFakeSupplierOrders();
     const { repo: fulfillment, getFulfillment } = makeFakeOrderFulfillment('paid', 'unfulfilled');
@@ -163,7 +170,7 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
 
   it('does nothing when no line has a preferred offer (no supplier orders created, no advancement)', async () => {
     const variantA = randomUUID();
-    const orders = makeFakeOrderLines([{ id: 'line-a', variantId: variantA, quantity: 1 }]);
+    const { repo: orders } = makeFakeOrderLines([{ id: 'line-a', variantId: variantA, quantity: 1 }]);
     const offers = makeFakeSupplierOffers(new Map()); // no offers at all
     const { repo: supplierOrders, created } = makeFakeSupplierOrders();
     const { repo: fulfillment, getFulfillment } = makeFakeOrderFulfillment('paid', 'unfulfilled');
@@ -178,7 +185,7 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
 
   it('does not re-advance an order that already moved past unfulfilled', async () => {
     const variantA = randomUUID();
-    const orders = makeFakeOrderLines([{ id: 'line-a', variantId: variantA, quantity: 1 }]);
+    const { repo: orders } = makeFakeOrderLines([{ id: 'line-a', variantId: variantA, quantity: 1 }]);
     const offers = makeFakeSupplierOffers(new Map([[variantA, makeOffer(variantA, 'supplier-1', 1000)]]));
     const { repo: supplierOrders } = makeFakeSupplierOrders();
     const { repo: fulfillment, getFulfillment } = makeFakeOrderFulfillment('paid', 'processing');

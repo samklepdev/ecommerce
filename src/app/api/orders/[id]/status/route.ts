@@ -39,5 +39,6 @@ export async function GET(
     confirmations: progress.confirmations,
     requiredConfirmations: progress.requiredConfirmations,
     underpaid: progress.underpaid,
+    overpaid: progress.overpaid,
   });
 }

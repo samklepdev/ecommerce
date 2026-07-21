@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 import { getContainer } from '@/composition/container';
 import { requireAdmin } from '@/app/lib/session';
 import { supplierOrderStatusTone } from '@/app/lib/status-tone';
@@ -57,7 +59,10 @@ export default async function AdminFulfillmentPage({ searchParams }: AdminFulfil
     listSuppliers,
     getOrderSummary,
     getShipmentsForOrder,
+    listUnfulfillableOrderLines,
   } = getContainer();
+
+  const unfulfillableLines = await listUnfulfillableOrderLines.execute();
 
   const supplierOrderList =
     statusParam === undefined
@@ -112,6 +117,24 @@ export default async function AdminFulfillmentPage({ searchParams }: AdminFulfil
           <h1>Fulfillment</h1>
           <StatusFilterSelect selectedStatus={statusParam} />
         </div>
+
+        {unfulfillableLines.length > 0 && (
+          <Card className={styles.attentionSection}>
+            <h2 className={styles.attentionTitle}>
+              Needs a supplier offer ({unfulfillableLines.length})
+            </h2>
+            <ul className={styles.lineList}>
+              {unfulfillableLines.map((line) => (
+                <li key={line.orderLineId} className={styles.lineItem}>
+                  <span>
+                    Order {line.orderId.slice(0, 8)} — {line.sku}
+                  </span>
+                  <Link href="/admin/products">Add supplier offer →</Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
 
         {allGroups.length === 0 && <p className={styles.empty}>Nothing here.</p>}
 

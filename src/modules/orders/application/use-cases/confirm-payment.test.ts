@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { ConfirmPayment, type FulfillmentQueue, type ProcessedEventStore } from './confirm-payment';
 import type { ConfirmPaymentOrderRepository } from '@/modules/orders/application/ports/order-repository';
 import type { PaymentStatus } from '@/modules/orders/domain/order-status';
 import type { PaymentConfirmationNotifier } from '@/modules/orders/application/ports/payment-confirmation-notifier';
+import { logger } from '@/shared/infrastructure/logger';
 
 function makeFakeOrders(initialStatus: PaymentStatus | null) {
   let status = initialStatus;
@@ -121,6 +122,25 @@ describe('ConfirmPayment', () => {
     await expect(
       confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-4', confirmedSats: 100000 }),
     ).rejects.toThrow();
+  });
+
+  it('recovers an order from expired to paid when the chain later confirms it, logging a distinct warning', async () => {
+    const { repo, getStatus } = makeFakeOrders('expired');
+    const processedEvents = makeFakeProcessedEvents();
+    const { queue, enqueued } = makeFakeFulfillment();
+    const { notifier } = makeFakeNotifier();
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    const confirmPayment = new ConfirmPayment(repo, processedEvents, queue, notifier);
+
+    await confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-6', confirmedSats: 100000 });
+
+    expect(getStatus()).toBe('paid');
+    expect(enqueued).toEqual(['order-1']);
+    expect(warnSpy).toHaveBeenCalledWith(
+      'confirm-payment: order recovered from expired to paid',
+      expect.objectContaining({ orderId: 'order-1' }),
+    );
+    warnSpy.mockRestore();
   });
 
   it('still marks the event processed and enqueues fulfillment even if the notifier throws', async () => {

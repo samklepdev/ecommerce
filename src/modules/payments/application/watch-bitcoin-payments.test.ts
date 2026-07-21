@@ -34,6 +34,7 @@ function makeFakeChain(status: AddressChainStatus): ChainDataProvider {
 interface Progress {
   confirmations: number;
   underpaid: boolean;
+  overpaid: boolean;
 }
 
 function makeFakePaymentStore(intent: BitcoinPaymentIntent) {
@@ -91,7 +92,7 @@ describe('WatchBitcoinPayments#runOnce', () => {
     await makeWatcher(store, chain, repo).runOnce();
 
     expect(getStatus()).toBe('awaiting_confirmation');
-    expect(getProgress()).toEqual({ confirmations: 0, underpaid: true });
+    expect(getProgress()).toEqual({ confirmations: 0, underpaid: true, overpaid: false });
     expect(wasConfirmed()).toBe(false);
   });
 
@@ -104,7 +105,7 @@ describe('WatchBitcoinPayments#runOnce', () => {
     await makeWatcher(store, chain, repo).runOnce();
 
     expect(getStatus()).toBe('awaiting_confirmation');
-    expect(getProgress()).toEqual({ confirmations: 1, underpaid: false });
+    expect(getProgress()).toEqual({ confirmations: 1, underpaid: false, overpaid: false });
     expect(wasConfirmed()).toBe(false);
   });
 
@@ -121,7 +122,32 @@ describe('WatchBitcoinPayments#runOnce', () => {
     await makeWatcher(store, chain, repo).runOnce();
 
     expect(getStatus()).toBe('paid');
-    expect(getProgress()).toEqual({ confirmations: REQUIRED_CONFIRMATIONS, underpaid: false });
+    expect(getProgress()).toEqual({
+      confirmations: REQUIRED_CONFIRMATIONS,
+      underpaid: false,
+      overpaid: false,
+    });
+    expect(wasConfirmed()).toBe(true);
+  });
+
+  it('confirms payment normally when overpaid — excess sats never withhold fulfillment', async () => {
+    const { repo, getStatus } = makeFakeOrders('awaiting_confirmation');
+    const intent = makeIntent({ expectedSats: 100000 });
+    const { store, getProgress, wasConfirmed } = makeFakePaymentStore(intent);
+    const chain = makeFakeChain({
+      address: intent.address,
+      confirmedSats: 250000, // more than double what was expected
+      confirmations: REQUIRED_CONFIRMATIONS,
+    });
+
+    await makeWatcher(store, chain, repo).runOnce();
+
+    expect(getStatus()).toBe('paid');
+    expect(getProgress()).toEqual({
+      confirmations: REQUIRED_CONFIRMATIONS,
+      underpaid: false,
+      overpaid: true,
+    });
     expect(wasConfirmed()).toBe(true);
   });
 
@@ -144,6 +170,10 @@ describe('WatchBitcoinPayments#runOnce', () => {
     await makeWatcher(store, fullChain, repo).runOnce();
 
     expect(getStatus()).toBe('paid');
-    expect(getProgress()).toEqual({ confirmations: REQUIRED_CONFIRMATIONS, underpaid: false });
+    expect(getProgress()).toEqual({
+      confirmations: REQUIRED_CONFIRMATIONS,
+      underpaid: false,
+      overpaid: false,
+    });
   });
 });

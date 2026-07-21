@@ -16,6 +16,7 @@ interface StatusResponse {
   confirmations: number;
   requiredConfirmations: number;
   underpaid: boolean;
+  overpaid: boolean;
 }
 
 interface BitcoinCheckoutProps {
@@ -72,6 +73,7 @@ const initialProgress: StatusResponse = {
   confirmations: 0,
   requiredConfirmations: 0,
   underpaid: false,
+  overpaid: false,
 };
 
 export function BitcoinCheckout({
@@ -127,7 +129,15 @@ export function BitcoinCheckout({
       </div>
 
       {status === 'paid' && (
-        <p className={styles.message}>Payment confirmed. Thank you for your order!</p>
+        <div className={styles.stack}>
+          <p className={styles.message}>Payment confirmed. Thank you for your order!</p>
+          {progress.overpaid && (
+            <p className={styles.message}>
+              We received more than the expected amount — contact support with your order id
+              about a refund of the difference.
+            </p>
+          )}
+        </div>
       )}
 
       {status === 'refunded' && (
@@ -166,6 +176,13 @@ export function BitcoinCheckout({
               {status === 'confirming'
                 ? `Payment seen, waiting for confirmations… (${progress.confirmations} of ${progress.requiredConfirmations})`
                 : 'Send exactly this amount to the address below.'}
+            </p>
+          )}
+
+          {status === 'confirming' && progress.overpaid && (
+            <p className={styles.message}>
+              We received more than the expected amount — contact support with your order id
+              about a refund of the difference.
             </p>
           )}
 

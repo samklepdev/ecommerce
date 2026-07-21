@@ -30,7 +30,13 @@ const PAYMENT_TRANSITIONS: Record<PaymentStatus, readonly PaymentStatus[]> = {
   awaiting_confirmation: ['paid', 'failed', 'expired'],
   paid: ['refunded'],
   failed: [],
-  expired: [],
+  // Narrow recovery path: the chain-watcher's polling grace window and the
+  // order-expiry check's window are kept in sync (see PAYMENT_EXPIRY_GRACE_MS)
+  // specifically to avoid needing this, but it stays as a safety net — the
+  // chain is the source of truth, not our own expiry bookkeeping, so a
+  // pass that discovers a genuinely confirmed payment for an
+  // already-expired order must still be able to record it.
+  expired: ['paid'],
   refunded: [],
 };
 

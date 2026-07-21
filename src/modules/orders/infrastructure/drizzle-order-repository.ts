@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, inArray, lt } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, lt } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { orderLines, orders } from '@/shared/infrastructure/db/schema';
 import { Money } from '@/shared/domain/money';
+import { PAYMENT_EXPIRY_GRACE_MS } from '@/shared/domain/payment-expiry-grace';
 import type { Order } from '@/modules/orders/domain/order';
 import type { FulfillmentStatus, PaymentStatus } from '@/modules/orders/domain/order-status';
 import type { CheckoutOrderRepository } from '@/modules/checkout/application/ports/checkout-order-repository';
@@ -26,6 +27,10 @@ import type {
   OrderHistoryRepository,
   OrderListItem,
 } from '@/modules/orders/application/ports/order-history-repository';
+import type {
+  UnfulfillableOrderLine,
+  UnfulfillableOrderLinesRepository,
+} from '@/modules/orders/application/ports/unfulfillable-order-lines-repository';
 
 /**
  * One repository satisfies the place-order, checkout-side, confirm-side,
@@ -41,7 +46,8 @@ export class DrizzleOrderRepository
     OrderFulfillmentRepository,
     PaidOrderLinesRepository,
     OrderSummaryRepository,
-    OrderHistoryRepository
+    OrderHistoryRepository,
+    UnfulfillableOrderLinesRepository
 {
   constructor(private readonly db: DB) {}
 
@@ -120,11 +126,35 @@ export class DrizzleOrderRepository
     return rows.map((r) => ({ id: r.id, variantId: r.variantId, quantity: r.quantity }));
   }
 
+  async flagFulfillmentIssue(orderLineId: string, reason: string): Promise<void> {
+    await this.db
+      .update(orderLines)
+      .set({ fulfillmentIssue: reason })
+      .where(eq(orderLines.id, orderLineId));
+  }
+
+  async listUnfulfillableLines(): Promise<UnfulfillableOrderLine[]> {
+    const rows = await this.db.query.orderLines.findMany({
+      where: isNotNull(orderLines.fulfillmentIssue),
+    });
+    return rows.map((r) => ({
+      orderLineId: r.id,
+      orderId: r.orderId,
+      sku: r.sku,
+      variantId: r.variantId,
+      reason: r.fulfillmentIssue!,
+    }));
+  }
+
   async findExpiredAwaitingOrderIds(now: Date): Promise<string[]> {
+    // Same grace period as DrizzleBitcoinPaymentStore.listWatchable's
+    // continued-polling window — an order must never be expired while its
+    // payment intent might still be found by the watcher.
+    const cutoff = new Date(now.getTime() - PAYMENT_EXPIRY_GRACE_MS);
     const rows = await this.db.query.orders.findMany({
       where: and(
         inArray(orders.paymentStatus, ['pending', 'awaiting_payment']),
-        lt(orders.paymentWindowExpiresAt, now),
+        lt(orders.paymentWindowExpiresAt, cutoff),
       ),
       columns: { id: true },
     });

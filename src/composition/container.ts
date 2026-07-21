@@ -17,6 +17,7 @@ import { MarkSupplierOrderShipped } from '@/modules/orders/application/use-cases
 import { CancelSupplierOrder } from '@/modules/orders/application/use-cases/cancel-supplier-order';
 import { ListSupplierOrdersByStatus } from '@/modules/orders/application/use-cases/list-supplier-orders-by-status';
 import { ListSupplierOrdersNeedingAction } from '@/modules/orders/application/use-cases/list-supplier-orders-needing-action';
+import { ListUnfulfillableOrderLines } from '@/modules/orders/application/use-cases/list-unfulfillable-order-lines';
 import { GetOrderSummary } from '@/modules/orders/application/use-cases/get-order-summary';
 import { ListOrdersForCustomer } from '@/modules/orders/application/use-cases/list-orders-for-customer';
 import { GetOrderDetailForCustomer } from '@/modules/orders/application/use-cases/get-order-detail-for-customer';
@@ -165,6 +166,7 @@ export interface Container {
   cancelSupplierOrder: CancelSupplierOrder;
   listSupplierOrdersByStatus: ListSupplierOrdersByStatus;
   listSupplierOrdersNeedingAction: ListSupplierOrdersNeedingAction;
+  listUnfulfillableOrderLines: ListUnfulfillableOrderLines;
   getOrderSummary: GetOrderSummary;
   listOrdersForCustomer: ListOrdersForCustomer;
   getOrderDetailForCustomer: GetOrderDetailForCustomer;
@@ -193,6 +195,7 @@ function build(): Container {
     indexAllocator,
     rates,
     paymentStore,
+    env.QUOTE_TTL_SECONDS,
   );
   const gateways = new PaymentGatewayRegistry([btcGateway]);
 
@@ -301,6 +304,7 @@ function build(): Container {
   const cancelSupplierOrder = new CancelSupplierOrder(supplierOrders);
   const listSupplierOrdersByStatus = new ListSupplierOrdersByStatus(supplierOrders);
   const listSupplierOrdersNeedingAction = new ListSupplierOrdersNeedingAction(supplierOrders);
+  const listUnfulfillableOrderLines = new ListUnfulfillableOrderLines(orders);
   const getOrderSummary = new GetOrderSummary(orders);
   const listOrdersForCustomer = new ListOrdersForCustomer(orders);
   const getOrderDetailForCustomer = new GetOrderDetailForCustomer(orders);
@@ -310,14 +314,21 @@ function build(): Container {
 
   const confirmPayment = new ConfirmPayment(orders, processed, fulfillment, paymentConfirmationNotifier);
   const markAwaitingConfirmation = new MarkAwaitingConfirmation(orders);
+  // One unified number for both the actual gate and the customer-facing
+  // "X of Y confirmations" display — BTC_REQUIRED_CONFIRMATIONS stays the
+  // documented/nominal requirement, BTC_SETTLEMENT_BUFFER_CONFIRMATIONS is
+  // the extra reorg-safety margin layered on top. Never thread the bare
+  // env.BTC_REQUIRED_CONFIRMATIONS through on its own below this point.
+  const effectiveRequiredConfirmations =
+    env.BTC_REQUIRED_CONFIRMATIONS + env.BTC_SETTLEMENT_BUFFER_CONFIRMATIONS;
   const watchBitcoinPayments = new WatchBitcoinPayments(
     paymentStore,
     chain,
     confirmPayment,
     markAwaitingConfirmation,
-    env.BTC_REQUIRED_CONFIRMATIONS,
+    effectiveRequiredConfirmations,
   );
-  const getPaymentProgress = new GetPaymentProgress(orders, paymentStore, env.BTC_REQUIRED_CONFIRMATIONS);
+  const getPaymentProgress = new GetPaymentProgress(orders, paymentStore, effectiveRequiredConfirmations);
 
   return {
     db,
@@ -376,6 +387,7 @@ function build(): Container {
     cancelSupplierOrder,
     listSupplierOrdersByStatus,
     listSupplierOrdersNeedingAction,
+    listUnfulfillableOrderLines,
     getOrderSummary,
     listOrdersForCustomer,
     getOrderDetailForCustomer,

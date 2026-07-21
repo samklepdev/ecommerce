@@ -232,6 +232,10 @@ export const orderLines = pgTable(
     sku: text('sku').notNull(),
     quantity: integer('quantity').notNull(),
     unitAmountMinor: bigint('unit_amount_minor', { mode: 'number' }).notNull(),
+    // Set when CreateSupplierOrdersForPaidOrder can't source this line (no
+    // preferred supplier offer) — durable admin-visible flag, not just a
+    // log line. Null means no issue.
+    fulfillmentIssue: text('fulfillment_issue'),
   },
   (t) => ({
     orderIdx: index('order_lines_order_id_idx').on(t.orderId),
@@ -308,6 +312,7 @@ export const bitcoinPaymentIntents = pgTable(
     // transition itself.
     confirmations: integer('confirmations').notNull().default(0),
     underpaid: boolean('underpaid').notNull().default(false),
+    overpaid: boolean('overpaid').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({

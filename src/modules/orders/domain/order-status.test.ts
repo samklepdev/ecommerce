@@ -23,7 +23,10 @@ const LEGAL_PAYMENT_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]> = {
   awaiting_confirmation: ['paid', 'failed', 'expired'],
   paid: ['refunded'],
   failed: [],
-  expired: [],
+  // Narrow recovery path: a chain-watcher pass can discover a genuinely
+  // confirmed payment for an order that was already (mistakenly) expired —
+  // the chain is the source of truth, not our own expiry bookkeeping.
+  expired: ['paid'],
   refunded: [],
 };
 

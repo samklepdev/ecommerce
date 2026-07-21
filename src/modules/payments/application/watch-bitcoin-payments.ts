@@ -30,6 +30,11 @@ export class WatchBitcoinPayments {
       try {
         const status = await this.chain.getStatus(intent.address);
         const underpaid = status.confirmedSats < intent.expectedSats - DUST_TOLERANCE_SATS;
+        // Not a gate like underpaid — they paid at least what was expected,
+        // so fulfillment proceeds normally. Just a flag for admin/customer
+        // visibility; the excess is an ops/refund concern, not a reason to
+        // withhold shipping.
+        const overpaid = status.confirmedSats > intent.expectedSats + DUST_TOLERANCE_SATS;
 
         // Persisted every pass (all 3 branches below), not just the
         // underpaid one — otherwise a later top-up that goes straight to
@@ -37,6 +42,7 @@ export class WatchBitcoinPayments {
         await this.paymentStore.recordProgress(intent.orderId, {
           confirmations: status.confirmations,
           underpaid,
+          overpaid,
         });
 
         // Underpayment is not payment — stays awaiting_confirmation for

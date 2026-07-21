@@ -10,6 +10,16 @@
   gap: var(--space-3);
 }
 
+.attentionSection {
+  border-color: var(--color-warning);
+}
+
+.attentionTitle {
+  font-size: 1rem;
+  color: var(--color-warning);
+  margin-bottom: var(--space-3);
+}
+
 .orderHeading {
   font-size: 1rem;
   color: var(--color-muted);
