@@ -28,6 +28,10 @@ export interface OrderDetailLine {
   sku: string;
   quantity: number;
   unitAmountMinor: number;
+  /** The product's primary image at read time — not snapshotted, so it
+   * reflects the current product image, not what it looked like when the
+   * order was placed. Null if the product has no image or was deleted. */
+  imageUrl: string | null;
 }
 
 export interface OrderDetail extends OrderListItem {
