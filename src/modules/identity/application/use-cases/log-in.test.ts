@@ -22,6 +22,9 @@ function makeFakeUsers(user: User | null) {
     async findProfileById() {
       return null;
     },
+    async updateEmail() {},
+    async markEmailVerified() {},
+    async delete() {},
   };
   return repo;
 }

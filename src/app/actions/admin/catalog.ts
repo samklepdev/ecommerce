@@ -42,6 +42,7 @@ const CreateProductSchema = z.object({
   slug: z.string().min(1),
   name: z.string().min(1),
   description: z.string().optional(),
+  category: z.string().optional(),
   sku: z.string().min(1),
   unitAmountMinor: z.coerce.number().int().positive(),
   currency: z.string().length(3),
@@ -66,6 +67,7 @@ export async function createProductWithOfferAction(
     slug: formData.get('slug'),
     name: formData.get('name'),
     description: formData.get('description') || undefined,
+    category: formData.get('category') || undefined,
     sku: formData.get('sku'),
     unitAmountMinor: formData.get('unitAmountMinor'),
     currency: formData.get('currency') || 'USD',
@@ -84,6 +86,7 @@ export async function createProductWithOfferAction(
     slug: parsed.data.slug,
     name: parsed.data.name,
     description: parsed.data.description ?? null,
+    category: parsed.data.category ?? null,
   });
 
   const variant = await createProductVariant.execute({
@@ -482,6 +485,38 @@ export async function updateVariantPriceAction(
   revalidatePath('/admin/products');
   revalidatePath('/products');
   return { message: 'Price updated.' };
+}
+
+const UpdateProductCategorySchema = z.object({
+  productId: z.string().min(1),
+  category: z.string().optional(),
+});
+
+export interface UpdateProductCategoryActionResult {
+  message?: string;
+  error?: string;
+}
+
+export async function updateProductCategoryAction(
+  _prevState: UpdateProductCategoryActionResult | undefined,
+  formData: FormData,
+): Promise<UpdateProductCategoryActionResult> {
+  await requireAdmin();
+  const parsed = UpdateProductCategorySchema.safeParse({
+    productId: formData.get('productId'),
+    category: formData.get('category') || undefined,
+  });
+  if (!parsed.success) return { error: 'Missing product.' };
+
+  const { updateProductCategory } = getContainer();
+  await updateProductCategory.execute({
+    productId: parsed.data.productId,
+    category: parsed.data.category ?? null,
+  });
+
+  revalidatePath('/admin/products');
+  revalidatePath('/products');
+  return { message: 'Category updated.' };
 }
 
 const UpdateSupplierOfferCostSchema = z.object({

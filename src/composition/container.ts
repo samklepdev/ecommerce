@@ -10,6 +10,7 @@ import { StartCheckout } from '@/modules/checkout/application/use-cases/start-ch
 import { ExpireStaleCheckouts } from '@/modules/checkout/application/use-cases/expire-stale-checkouts';
 import { ConfirmPayment } from '@/modules/orders/application/use-cases/confirm-payment';
 import { MarkOrderRefunded } from '@/modules/orders/application/use-cases/mark-order-refunded';
+import { CancelOrder } from '@/modules/orders/application/use-cases/cancel-order';
 import { MarkAwaitingConfirmation } from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
 import { PlaceOrder } from '@/modules/orders/application/use-cases/place-order';
 import { CreateSupplierOrdersForPaidOrder } from '@/modules/orders/application/use-cases/create-supplier-orders-for-paid-order';
@@ -47,6 +48,8 @@ import { EmailPaymentConfirmationNotifier } from '@/modules/orders/infrastructur
 
 import { DrizzleProductRepository } from '@/modules/catalog/infrastructure/drizzle-product-repository';
 import { ListProducts } from '@/modules/catalog/application/use-cases/list-products';
+import { ListProductCategories } from '@/modules/catalog/application/use-cases/list-product-categories';
+import { UpdateProductCategory } from '@/modules/catalog/application/use-cases/update-product-category';
 import { GetProductBySlug } from '@/modules/catalog/application/use-cases/get-product-by-slug';
 import { CreateProduct } from '@/modules/catalog/application/use-cases/create-product';
 import { CreateProductVariant } from '@/modules/catalog/application/use-cases/create-product-variant';
@@ -79,6 +82,11 @@ import { PromoteUserToAdmin } from '@/modules/identity/application/use-cases/pro
 import { FindUserByEmailForAdmin } from '@/modules/identity/application/use-cases/find-user-by-email-for-admin';
 import { UpdateAvatar } from '@/modules/identity/application/use-cases/update-avatar';
 import { GetAccountProfile } from '@/modules/identity/application/use-cases/get-account-profile';
+import { ChangeEmail } from '@/modules/identity/application/use-cases/change-email';
+import { DeleteAccount } from '@/modules/identity/application/use-cases/delete-account';
+import { RequestEmailVerification } from '@/modules/identity/application/use-cases/request-email-verification';
+import { VerifyEmail } from '@/modules/identity/application/use-cases/verify-email';
+import { DrizzleEmailVerificationRepository } from '@/modules/identity/infrastructure/drizzle-email-verification-repository';
 
 import { DrizzleWelcomeEmailRepository } from '@/modules/notifications/infrastructure/drizzle-welcome-email-repository';
 import { ConsoleEmailSender } from '@/modules/notifications/infrastructure/console-email-sender';
@@ -118,6 +126,8 @@ export interface Container {
   rateLimiter: RateLimiter;
 
   listProducts: ListProducts;
+  listProductCategories: ListProductCategories;
+  updateProductCategory: UpdateProductCategory;
   getProductBySlug: GetProductBySlug;
   createProduct: CreateProduct;
   createProductVariant: CreateProductVariant;
@@ -147,6 +157,10 @@ export interface Container {
   findUserByEmailForAdmin: FindUserByEmailForAdmin;
   updateAvatar: UpdateAvatar;
   getAccountProfile: GetAccountProfile;
+  changeEmail: ChangeEmail;
+  deleteAccount: DeleteAccount;
+  requestEmailVerification: RequestEmailVerification;
+  verifyEmail: VerifyEmail;
   requestPasswordReset: RequestPasswordReset;
   resetPassword: ResetPassword;
   sendWelcomeEmail: SendWelcomeEmail;
@@ -172,6 +186,7 @@ export interface Container {
   expireStaleCheckouts: ExpireStaleCheckouts;
   confirmPayment: ConfirmPayment;
   markOrderRefunded: MarkOrderRefunded;
+  cancelOrder: CancelOrder;
   markAwaitingConfirmation: MarkAwaitingConfirmation;
   watchBitcoinPayments: WatchBitcoinPayments;
   getPaymentProgress: GetPaymentProgress;
@@ -221,6 +236,8 @@ function build(): Container {
   // --- catalog ---
   const products = new DrizzleProductRepository(db);
   const listProducts = new ListProducts(products);
+  const listProductCategories = new ListProductCategories(products);
+  const updateProductCategory = new UpdateProductCategory(products);
   const getProductBySlug = new GetProductBySlug(products);
   const createProduct = new CreateProduct(products);
   const createProductVariant = new CreateProductVariant(products);
@@ -253,6 +270,8 @@ function build(): Container {
   const avatarImageStorage = new LocalFileImageStorage('avatars');
   const updateAvatar = new UpdateAvatar(users, avatarImageStorage);
   const getAccountProfile = new GetAccountProfile(users);
+  const changeEmail = new ChangeEmail(users);
+  const deleteAccount = new DeleteAccount(users);
 
   // --- notifications ---
   const welcomeEmails = new DrizzleWelcomeEmailRepository(db);
@@ -271,6 +290,16 @@ function build(): Container {
     env.APP_URL,
     env.PASSWORD_RESET_TTL_SECONDS,
   );
+
+  // --- email verification (identity — same email-sender reuse) ---
+  const emailVerificationRepository = new DrizzleEmailVerificationRepository(db);
+  const requestEmailVerification = new RequestEmailVerification(
+    emailVerificationRepository,
+    consoleEmailSender,
+    env.APP_URL,
+    env.EMAIL_VERIFICATION_TTL_SECONDS,
+  );
+  const verifyEmail = new VerifyEmail(users, emailVerificationRepository);
   const resetPassword = new ResetPassword(users, passwordResetRepository);
 
   // --- sourcing ---
@@ -343,6 +372,7 @@ function build(): Container {
 
   const confirmPayment = new ConfirmPayment(orders, processed, fulfillment, paymentConfirmationNotifier);
   const markOrderRefunded = new MarkOrderRefunded(orders);
+  const cancelOrder = new CancelOrder(orders);
   const markAwaitingConfirmation = new MarkAwaitingConfirmation(orders);
   // One unified number for both the actual gate and the customer-facing
   // "X of Y confirmations" display — BTC_REQUIRED_CONFIRMATIONS stays the
@@ -364,6 +394,8 @@ function build(): Container {
     db,
     rateLimiter,
     listProducts,
+    listProductCategories,
+    updateProductCategory,
     getProductBySlug,
     createProduct,
     createProductVariant,
@@ -391,6 +423,10 @@ function build(): Container {
     findUserByEmailForAdmin,
     updateAvatar,
     getAccountProfile,
+    changeEmail,
+    deleteAccount,
+    requestEmailVerification,
+    verifyEmail,
     requestPasswordReset,
     resetPassword,
     sendWelcomeEmail,
@@ -413,6 +449,7 @@ function build(): Container {
     expireStaleCheckouts,
     confirmPayment,
     markOrderRefunded,
+    cancelOrder,
     markAwaitingConfirmation,
     watchBitcoinPayments,
     getPaymentProgress,

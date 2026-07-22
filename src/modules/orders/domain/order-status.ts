@@ -5,6 +5,7 @@ export type PaymentStatus =
   | 'paid'
   | 'failed'
   | 'expired'
+  | 'cancelled'
   | 'refunded';
 
 export type FulfillmentStatus =
@@ -22,11 +23,13 @@ export class IllegalStatusTransitionError extends Error {
 }
 
 const PAYMENT_TRANSITIONS: Record<PaymentStatus, readonly PaymentStatus[]> = {
-  pending: ['awaiting_payment', 'failed', 'expired'],
+  pending: ['awaiting_payment', 'failed', 'expired', 'cancelled'],
   // `paid` is reachable directly too: confirmations can already meet the
   // threshold the first time a watcher pass observes the address, without an
   // intermediate awaiting_confirmation pass ever having been recorded.
-  awaiting_payment: ['awaiting_confirmation', 'paid', 'failed', 'expired'],
+  awaiting_payment: ['awaiting_confirmation', 'paid', 'failed', 'expired', 'cancelled'],
+  // No `cancelled` here — once the chain has seen something, a customer can
+  // no longer cancel (see UI gating in OrderDetailView).
   awaiting_confirmation: ['paid', 'failed', 'expired'],
   paid: ['refunded'],
   failed: [],
@@ -37,6 +40,10 @@ const PAYMENT_TRANSITIONS: Record<PaymentStatus, readonly PaymentStatus[]> = {
   // pass that discovers a genuinely confirmed payment for an
   // already-expired order must still be able to record it.
   expired: ['paid'],
+  // Same rationale as `expired`: a customer can cancel before paying, but the
+  // BTC address was already derived and handed out — if a payment shows up
+  // anyway, it must still be recordable rather than stranded.
+  cancelled: ['paid'],
   refunded: [],
 };
 

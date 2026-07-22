@@ -24,4 +24,22 @@ describe('User.create', () => {
     const user = User.create({ id: '1', email: 'a@example.com', passwordHash: 'hash', role: 'admin' });
     expect(user.isAdmin).toBe(true);
   });
+
+  it('defaults emailVerifiedAt to null and isEmailVerified to false', () => {
+    const user = User.create({ id: '1', email: 'a@example.com', passwordHash: 'hash' });
+    expect(user.emailVerifiedAt).toBeNull();
+    expect(user.isEmailVerified).toBe(false);
+  });
+
+  it('is verified once emailVerifiedAt is set', () => {
+    const verifiedAt = new Date();
+    const user = User.create({
+      id: '1',
+      email: 'a@example.com',
+      passwordHash: 'hash',
+      emailVerifiedAt: verifiedAt,
+    });
+    expect(user.isEmailVerified).toBe(true);
+    expect(user.emailVerifiedAt).toBe(verifiedAt);
+  });
 });

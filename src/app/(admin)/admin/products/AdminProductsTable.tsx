@@ -18,6 +18,7 @@ import { Alert } from '@/components/ui/Alert';
 import { Input } from '@/components/ui/Input';
 import { Stack } from '@/components/ui/Stack';
 import { ProductImagesManager } from './ProductImagesManager';
+import { ProductCategoryEditor } from './ProductCategoryEditor';
 import { VariantPriceEditor } from './VariantPriceEditor';
 import { SupplierOfferCostEditor } from './SupplierOfferCostEditor';
 import styles from './page.module.css';
@@ -45,6 +46,7 @@ export interface AdminProductRow {
   name: string;
   slug: string;
   status: string;
+  category: string | null;
   imageUrl: string | null;
   additionalImages: { id: string; url: string }[];
   variants: AdminProductVariantRow[];
@@ -129,6 +131,7 @@ export function AdminProductsTable({ products, emptyMessage }: AdminProductsTabl
                   <div>
                     <div>{p.name}</div>
                     <span className={styles.slug}>{p.slug}</span>
+                    <ProductCategoryEditor productId={p.id} category={p.category} />
                   </div>
                 </td>
                 <td>

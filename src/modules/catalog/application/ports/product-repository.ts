@@ -1,15 +1,29 @@
 import type { Product, ProductStatus } from '@/modules/catalog/domain/product';
 import type { ProductVariant } from '@/modules/catalog/domain/product-variant';
 
+export interface ListProductsParams {
+  search?: string;
+  category?: string;
+  limit?: number;
+  offset?: number;
+}
+
 export interface ProductRepository {
   findBySlug(slug: string): Promise<Product | null>;
-  list(params?: { limit?: number; offset?: number }): Promise<Product[]>;
+  list(params?: ListProductsParams): Promise<Product[]>;
+  /** Total matching `search`/`category` (ignores `limit`/`offset`) — for
+   * pagination. */
+  count(params?: Pick<ListProductsParams, 'search' | 'category'>): Promise<number>;
+  /** Distinct, non-null categories among active products — the filter
+   * dropdown's options. */
+  listCategories(): Promise<string[]>;
   findVariantById(variantId: string): Promise<ProductVariant | null>;
   /** Admin-only — includes draft/archived products, not just active ones. */
   listAllForAdmin(): Promise<Product[]>;
   createProduct(product: Product): Promise<void>;
   createVariant(variant: ProductVariant): Promise<void>;
   updateVariantPrice(variantId: string, amountMinor: number, currency: string): Promise<void>;
+  updateCategory(productId: string, category: string | null): Promise<void>;
   updateImageUrl(productId: string, imageUrl: string): Promise<void>;
   /** Sets the product's primary image if it doesn't have one yet; otherwise
    * appends an additional (e.g. hover) image at the next position. */

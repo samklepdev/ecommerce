@@ -31,6 +31,9 @@ function makeFakeUsers(existing?: User) {
     async findProfileById() {
       return null;
     },
+    async updateEmail() {},
+    async markEmailVerified() {},
+    async delete() {},
   };
   return { users, roleByUserId };
 }

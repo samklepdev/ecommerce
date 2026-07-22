@@ -15,4 +15,7 @@ export interface UserRepository {
   updateAvatarUrl(userId: string, avatarUrl: string): Promise<void>;
   updateRole(userId: string, role: UserRole): Promise<void>;
   findProfileById(userId: string): Promise<UserProfile | null>;
+  updateEmail(userId: string, email: string): Promise<void>;
+  markEmailVerified(userId: string, verifiedAt: Date): Promise<void>;
+  delete(userId: string): Promise<void>;
 }

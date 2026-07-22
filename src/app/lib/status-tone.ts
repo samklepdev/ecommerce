@@ -8,6 +8,7 @@ export function paymentStatusTone(status: PaymentStatus): BadgeTone {
       return 'success';
     case 'failed':
     case 'expired':
+    case 'cancelled':
       return 'danger';
     case 'refunded':
       return 'warning';

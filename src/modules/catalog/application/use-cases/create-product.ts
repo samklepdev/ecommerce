@@ -11,6 +11,7 @@ export interface CreateProductInput {
   description?: string | null;
   status?: ProductStatus;
   source?: ProductSource;
+  category?: string | null;
 }
 
 export class CreateProduct implements UseCase<CreateProductInput, Product> {
@@ -24,6 +25,7 @@ export class CreateProduct implements UseCase<CreateProductInput, Product> {
       description: input.description ?? null,
       status: input.status ?? 'active',
       source: input.source ?? 'manual',
+      category: input.category ?? null,
       variants: [],
     });
     await this.products.createProduct(product);

@@ -22,6 +22,7 @@ export interface ProductProps {
   additionalImages?: ProductImage[];
   status: ProductStatus;
   source?: ProductSource;
+  category?: string | null;
   variants: ProductVariant[];
 }
 
@@ -33,6 +34,7 @@ export class Product extends AggregateRoot<string> {
   readonly additionalImages: ProductImage[];
   readonly status: ProductStatus;
   readonly source: ProductSource;
+  readonly category: string | null;
   readonly variants: ProductVariant[];
 
   private constructor(props: ProductProps) {
@@ -44,6 +46,7 @@ export class Product extends AggregateRoot<string> {
     this.additionalImages = props.additionalImages ?? [];
     this.status = props.status;
     this.source = props.source ?? 'manual';
+    this.category = props.category ?? null;
     this.variants = props.variants;
   }
 

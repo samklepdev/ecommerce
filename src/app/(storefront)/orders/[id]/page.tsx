@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 
 import { getContainer } from '@/composition/container';
+import { cancelOrderByIdAction } from '@/app/actions/orders';
 import { OrderDetailView } from '../OrderDetailView';
 
 export const dynamic = 'force-dynamic';
@@ -39,6 +40,7 @@ export default async function PublicOrderDetailPage({ params }: PublicOrderDetai
       paymentSession={paymentSession}
       backHref="/"
       backLabel="Back to store"
+      cancelAction={cancelOrderByIdAction}
     />
   );
 }

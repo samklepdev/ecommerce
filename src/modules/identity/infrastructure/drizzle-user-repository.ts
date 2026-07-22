@@ -17,6 +17,7 @@ function toUser(row: UserRow): User {
     passwordHash: row.passwordHash,
     role: row.role as UserRole,
     avatarUrl: row.avatarUrl,
+    emailVerifiedAt: row.emailVerifiedAt,
   });
 }
 
@@ -55,6 +56,20 @@ export class DrizzleUserRepository implements UserRepository {
 
   async updateRole(userId: string, role: UserRole): Promise<void> {
     await this.db.update(users).set({ role }).where(eq(users.id, userId));
+  }
+
+  /** Also resets emailVerifiedAt — changing the address always requires
+   * re-verifying the new one. */
+  async updateEmail(userId: string, email: string): Promise<void> {
+    await this.db.update(users).set({ email, emailVerifiedAt: null }).where(eq(users.id, userId));
+  }
+
+  async markEmailVerified(userId: string, verifiedAt: Date): Promise<void> {
+    await this.db.update(users).set({ emailVerifiedAt: verifiedAt }).where(eq(users.id, userId));
+  }
+
+  async delete(userId: string): Promise<void> {
+    await this.db.delete(users).where(eq(users.id, userId));
   }
 
   async findProfileById(userId: string): Promise<UserProfile | null> {

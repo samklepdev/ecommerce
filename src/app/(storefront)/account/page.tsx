@@ -7,8 +7,12 @@ import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { Alert } from '@/components/ui/Alert';
 import { AccountAvatarUploader } from './AccountAvatarUploader';
 import { ChangePasswordForm } from './ChangePasswordForm';
+import { ChangeEmailForm } from './ChangeEmailForm';
+import { DeleteAccountForm } from './DeleteAccountForm';
+import { ResendVerificationButton } from './ResendVerificationButton';
 import styles from './page.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +31,13 @@ export default async function AccountPage() {
     <PageContainer>
       <Stack gap={5}>
         <h1>Account</h1>
+
+        {!user.isEmailVerified && (
+          <Card className={styles.section}>
+            <Alert tone="neutral">Please verify your email address.</Alert>
+            <ResendVerificationButton />
+          </Card>
+        )}
 
         <Card className={styles.section}>
           <h2 className={styles.sectionTitle}>Profile</h2>
@@ -53,6 +64,11 @@ export default async function AccountPage() {
         </Card>
 
         <Card className={styles.section}>
+          <h2 className={styles.sectionTitle}>Change email</h2>
+          <ChangeEmailForm />
+        </Card>
+
+        <Card className={styles.section}>
           <h2 className={styles.sectionTitle}>Change password</h2>
           <ChangePasswordForm />
         </Card>
@@ -60,6 +76,15 @@ export default async function AccountPage() {
         <Card className={styles.section}>
           <h2 className={styles.sectionTitle}>Orders</h2>
           <Link href="/account/orders">View order history →</Link>
+        </Card>
+
+        <Card className={styles.section}>
+          <h2 className={styles.sectionTitle}>Delete account</h2>
+          <p className={styles.meta}>
+            This permanently deletes your account. Your past orders are kept for records but are no
+            longer linked to an account.
+          </p>
+          <DeleteAccountForm />
         </Card>
       </Stack>
     </PageContainer>

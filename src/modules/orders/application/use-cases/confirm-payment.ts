@@ -53,6 +53,15 @@ export class ConfirmPayment implements UseCase<ConfirmPaymentInput, void> {
         eventId: input.eventId,
       });
     }
+    if (status === 'cancelled') {
+      // A customer cancelled before paying, but the BTC address was already
+      // derived and handed out — if payment shows up anyway, it must still
+      // be recorded, not stranded. Worth an admin's attention.
+      logger.warn('confirm-payment: order recovered from cancelled to paid', {
+        orderId: input.orderId,
+        eventId: input.eventId,
+      });
+    }
     await this.orders.setPaymentStatus(input.orderId, 'paid');
 
     await this.fulfillment.enqueueOrderPaid(input.orderId);

@@ -28,6 +28,9 @@ function makeFakeUsers(existing?: User): UserRepository {
     async findProfileById() {
       return null;
     },
+    async updateEmail() {},
+    async markEmailVerified() {},
+    async delete() {},
   };
 }
 

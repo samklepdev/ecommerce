@@ -11,6 +11,7 @@ import { Stack } from '@/components/ui/Stack';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { BitcoinCheckout } from '../checkout/BitcoinCheckout';
+import { CancelOrderButton, type CancelOrderButtonProps } from './CancelOrderButton';
 import styles from './OrderDetailView.module.css';
 
 interface OrderDetailViewProps {
@@ -19,7 +20,12 @@ interface OrderDetailViewProps {
   paymentSession: PaymentSession | null;
   backHref: string;
   backLabel: string;
+  /** Only passed by callers that offer cancellation (both storefront order
+   * pages); omitted entirely on the admin order-detail page. */
+  cancelAction?: CancelOrderButtonProps['action'];
 }
+
+const CANCELLABLE_STATUSES = new Set(['pending', 'awaiting_payment']);
 
 export function OrderDetailView({
   order,
@@ -27,6 +33,7 @@ export function OrderDetailView({
   paymentSession,
   backHref,
   backLabel,
+  cancelAction,
 }: OrderDetailViewProps) {
   const subtotal = order.lines.reduce(
     (sum, line) => sum.add(Money.of(line.unitAmountMinor, order.currency).multiply(line.quantity)),
@@ -52,6 +59,9 @@ export function OrderDetailView({
             </Badge>
           </div>
           <p className={styles.empty}>Placed {order.createdAt.toLocaleString()}</p>
+          {cancelAction && CANCELLABLE_STATUSES.has(order.paymentStatus) && (
+            <CancelOrderButton orderId={order.id} action={cancelAction} />
+          )}
         </Card>
 
         {paymentSession && (

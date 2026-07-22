@@ -37,6 +37,7 @@ export const users = pgTable(
     passwordHash: text('password_hash').notNull(),
     role: text('role').notNull().default('customer'), // customer | admin
     avatarUrl: text('avatar_url'),
+    emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -85,6 +86,25 @@ export const passwordResetTokens = pgTable(
   }),
 );
 
+export const emailVerificationTokens = pgTable(
+  'email_verification_tokens',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    // Same "only a hash is stored" rationale as password_reset_tokens.
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    tokenHashUnique: uniqueIndex('email_verification_tokens_token_hash_unique').on(t.tokenHash),
+    userIdIdx: index('email_verification_tokens_user_id_idx').on(t.userId),
+  }),
+);
+
 export const products = pgTable(
   'products',
   {
@@ -93,6 +113,7 @@ export const products = pgTable(
     name: text('name').notNull(),
     description: text('description'),
     imageUrl: text('image_url'),
+    category: text('category'), // free-text tag; null means uncategorized
     status: text('status').notNull().default('draft'), // draft | active | archived
     source: text('source').notNull().default('manual'), // manual | feed_import
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

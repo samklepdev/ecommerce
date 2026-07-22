@@ -6,12 +6,12 @@ import type { PaymentStatus } from '@/modules/orders/domain/order-status';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Domain payment status -> the 6 states BitcoinCheckout renders. `failed`
+/** Domain payment status -> the states BitcoinCheckout renders. `failed`
  * and `refunded` each get their own state — collapsing them into `expired`
  * would tell a refunded customer their payment window merely expired. */
 const WIDGET_STATUS: Record<
   PaymentStatus,
-  'awaiting' | 'confirming' | 'paid' | 'failed' | 'expired' | 'refunded'
+  'awaiting' | 'confirming' | 'paid' | 'failed' | 'expired' | 'cancelled' | 'refunded'
 > = {
   pending: 'awaiting',
   awaiting_payment: 'awaiting',
@@ -19,6 +19,7 @@ const WIDGET_STATUS: Record<
   paid: 'paid',
   failed: 'failed',
   expired: 'expired',
+  cancelled: 'cancelled',
   refunded: 'refunded',
 };
 

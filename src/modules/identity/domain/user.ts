@@ -8,6 +8,7 @@ export interface UserProps {
   passwordHash: string;
   role?: UserRole;
   avatarUrl?: string | null;
+  emailVerifiedAt?: Date | null;
 }
 
 export class User extends AggregateRoot<string> {
@@ -15,6 +16,7 @@ export class User extends AggregateRoot<string> {
   readonly passwordHash: string;
   readonly role: UserRole;
   readonly avatarUrl: string | null;
+  readonly emailVerifiedAt: Date | null;
 
   private constructor(props: UserProps) {
     super(props.id);
@@ -22,6 +24,7 @@ export class User extends AggregateRoot<string> {
     this.passwordHash = props.passwordHash;
     this.role = props.role ?? 'customer';
     this.avatarUrl = props.avatarUrl ?? null;
+    this.emailVerifiedAt = props.emailVerifiedAt ?? null;
   }
 
   static create(props: UserProps): User {
@@ -31,5 +34,9 @@ export class User extends AggregateRoot<string> {
 
   get isAdmin(): boolean {
     return this.role === 'admin';
+  }
+
+  get isEmailVerified(): boolean {
+    return this.emailVerifiedAt !== null;
   }
 }

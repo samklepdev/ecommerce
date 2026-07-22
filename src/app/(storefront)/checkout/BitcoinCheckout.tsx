@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import styles from './BitcoinCheckout.module.css';
 
-type WidgetStatus = 'awaiting' | 'confirming' | 'paid' | 'failed' | 'expired' | 'refunded';
+type WidgetStatus = 'awaiting' | 'confirming' | 'paid' | 'failed' | 'expired' | 'cancelled' | 'refunded';
 
 interface StatusResponse {
   status: WidgetStatus;
@@ -34,6 +34,7 @@ const STATUS_LABEL: Record<WidgetStatus, string> = {
   paid: 'Paid',
   failed: 'Failed',
   expired: 'Expired',
+  cancelled: 'Cancelled',
   refunded: 'Refunded',
 };
 
@@ -43,6 +44,7 @@ const STATUS_TONE: Record<WidgetStatus, 'accent' | 'success' | 'danger'> = {
   paid: 'success',
   failed: 'danger',
   expired: 'danger',
+  cancelled: 'danger',
   refunded: 'danger',
 };
 
@@ -162,6 +164,10 @@ export function BitcoinCheckout({
             <Button variant="secondary">Back to cart</Button>
           </Link>
         </div>
+      )}
+
+      {status === 'cancelled' && (
+        <p className={styles.message}>This order was cancelled.</p>
       )}
 
       {(status === 'awaiting' || status === 'confirming') && (

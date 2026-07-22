@@ -67,6 +67,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
     name: p.name,
     slug: p.slug.value,
     status: p.status,
+    category: p.category,
     imageUrl: p.imageUrl,
     additionalImages: p.additionalImages,
     variants: p.variants.map((v) => ({
