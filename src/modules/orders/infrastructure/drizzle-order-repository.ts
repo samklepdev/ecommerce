@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, ilike, inArray, isNotNull, lt } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
-import { orderLines, orders } from '@/shared/infrastructure/db/schema';
+import { orderLines, orders, productVariants, products } from '@/shared/infrastructure/db/schema';
 import { Money } from '@/shared/domain/money';
 import { PAYMENT_EXPIRY_GRACE_MS } from '@/shared/domain/payment-expiry-grace';
 import type { Order } from '@/modules/orders/domain/order';
@@ -294,6 +294,17 @@ export class DrizzleOrderRepository
       where: eq(orderLines.orderId, row.id),
     });
 
+    const variantIds = lines.map((l) => l.variantId);
+    const imageRows =
+      variantIds.length > 0
+        ? await this.db
+            .select({ variantId: productVariants.id, imageUrl: products.imageUrl })
+            .from(productVariants)
+            .innerJoin(products, eq(products.id, productVariants.productId))
+            .where(inArray(productVariants.id, variantIds))
+        : [];
+    const imageUrlByVariantId = new Map(imageRows.map((r) => [r.variantId, r.imageUrl]));
+
     return {
       ...toOrderListItem(row),
       shippingAddress: row.shippingAddress,
@@ -303,6 +314,7 @@ export class DrizzleOrderRepository
         sku: l.sku,
         quantity: l.quantity,
         unitAmountMinor: l.unitAmountMinor,
+        imageUrl: imageUrlByVariantId.get(l.variantId) ?? null,
       })),
     };
   }

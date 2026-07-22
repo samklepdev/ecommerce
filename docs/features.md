@@ -47,7 +47,9 @@ feature" checklist).
   cancellation is no longer offered. A "Reorder" button re-adds the
   order's items to the current cart, re-priced from the live catalog
   (skipping and reporting any item no longer available) — the way back
-  if a cart got cleared by a since-expired or cancelled checkout.
+  if a cart got cleared by a since-expired or cancelled checkout. Small
+  product thumbnails are shown next to the shipping address, so it's
+  obvious at a glance what's being sent where.
 - **Account** (`/account`) — profile, avatar upload, change password,
   change email (re-triggers verification), delete account (password
   confirmation required; past orders are kept but unlinked from the

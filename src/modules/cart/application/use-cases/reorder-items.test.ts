@@ -85,7 +85,7 @@ describe('ReorderItems', () => {
   it('adds every reorderable line to a fresh cart, re-priced from the catalog', async () => {
     const variantId = randomUUID();
     const order = makeOrderDetail({
-      lines: [{ variantId, sku: 'OLD-SKU', quantity: 2, unitAmountMinor: 1 }], // stale price on purpose
+      lines: [{ variantId, sku: 'OLD-SKU', quantity: 2, unitAmountMinor: 1, imageUrl: null }], // stale price on purpose
     });
     const { repo: orders } = makeFakeOrderHistory(order);
     const { repo: carts, saved } = makeFakeCarts(null);
@@ -111,7 +111,7 @@ describe('ReorderItems', () => {
     const variantId = randomUUID();
     const existingVariantId = randomUUID();
     const order = makeOrderDetail({
-      lines: [{ variantId, sku: 'SKU-A', quantity: 1, unitAmountMinor: 500 }],
+      lines: [{ variantId, sku: 'SKU-A', quantity: 1, unitAmountMinor: 500, imageUrl: null }],
     });
     const { repo: orders } = makeFakeOrderHistory(order);
     const existingCart = Cart.create({
@@ -137,7 +137,7 @@ describe('ReorderItems', () => {
   it('skips lines whose variant no longer exists, reporting them rather than failing', async () => {
     const goneVariantId = randomUUID();
     const order = makeOrderDetail({
-      lines: [{ variantId: goneVariantId, sku: 'GONE-SKU', quantity: 1, unitAmountMinor: 100 }],
+      lines: [{ variantId: goneVariantId, sku: 'GONE-SKU', quantity: 1, unitAmountMinor: 100, imageUrl: null }],
     });
     const { repo: orders } = makeFakeOrderHistory(order);
     const { repo: carts, saved } = makeFakeCarts(null);
