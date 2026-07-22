@@ -6,6 +6,7 @@ import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ProductGallery } from './ProductGallery';
 import { AddToCartButton } from './AddToCartButton';
 import styles from './page.module.css';
@@ -49,6 +50,15 @@ export default async function ProductPage({ params }: ProductPageProps) {
   return (
     <PageContainer>
       <Stack gap={5}>
+        {product.category && (
+          <Breadcrumb
+            items={[
+              { label: 'Home', href: '/products' },
+              { label: product.category, href: `/products?category=${encodeURIComponent(product.category)}` },
+              { label: product.name },
+            ]}
+          />
+        )}
         <ProductGallery images={images} productName={product.name} />
 
         <div>
