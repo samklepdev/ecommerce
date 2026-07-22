@@ -4,6 +4,7 @@ import type { SupplierOrderRepository } from '@/modules/orders/application/ports
 export interface UpdateSupplierOrderTrackingNumberInput {
   supplierOrderId: string;
   trackingNumber: string;
+  carrier?: string | null;
 }
 
 /** Edits an already-set tracking number — distinct from
@@ -14,6 +15,6 @@ export class UpdateSupplierOrderTrackingNumber
   constructor(private readonly supplierOrders: SupplierOrderRepository) {}
 
   async execute(input: UpdateSupplierOrderTrackingNumberInput): Promise<void> {
-    await this.supplierOrders.updateTrackingNumber(input.supplierOrderId, input.trackingNumber);
+    await this.supplierOrders.updateTrackingNumber(input.supplierOrderId, input.trackingNumber, input.carrier);
   }
 }

@@ -7,6 +7,7 @@ export interface MarkSupplierOrderShippedInput {
   supplierOrderId: string;
   orderId: string;
   trackingNumber: string;
+  carrier?: string | null;
 }
 
 /**
@@ -25,6 +26,7 @@ export class MarkSupplierOrderShipped implements UseCase<MarkSupplierOrderShippe
     const shipped = await this.supplierOrders.markShipped(
       input.supplierOrderId,
       input.trackingNumber,
+      input.carrier,
     );
     if (!shipped) return false;
 

@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 
 import { getContainer } from '@/composition/container';
 import { getSessionUser } from '@/app/lib/session';
-import { cancelOwnOrderAction } from '@/app/actions/orders';
+import { cancelOwnOrderAction, reorderOwnOrderAction } from '@/app/actions/orders';
 import { OrderDetailView } from '../../../orders/OrderDetailView';
 
 export const dynamic = 'force-dynamic';
@@ -39,6 +39,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
       backHref="/account/orders"
       backLabel="Back to orders"
       cancelAction={cancelOwnOrderAction}
+      reorderAction={reorderOwnOrderAction}
     />
   );
 }

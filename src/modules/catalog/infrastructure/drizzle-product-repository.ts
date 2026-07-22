@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { and, count as countRows, eq, ilike, inArray, isNotNull } from 'drizzle-orm';
+import { and, asc, count as countRows, desc, eq, ilike, inArray, isNotNull, sql } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { products, productVariants, productImages } from '@/shared/infrastructure/db/schema';
@@ -16,6 +16,7 @@ import { Slug } from '@/modules/catalog/domain/slug';
 import type {
   ListProductsParams,
   ProductRepository,
+  ProductSort,
 } from '@/modules/catalog/application/ports/product-repository';
 
 type ProductRow = typeof products.$inferSelect;
@@ -63,6 +64,26 @@ function buildListFilter(params?: Pick<ListProductsParams, 'search' | 'category'
   );
 }
 
+// `Product` has no single canonical price (only variants[].price) — price
+// sort uses the cheapest variant's price, via a LEFT JOIN + GROUP BY (see
+// `listOrderedIds`), since today's catalog only ever has one variant per
+// product in practice.
+function buildOrderBy(sort: ProductSort | undefined) {
+  switch (sort) {
+    case 'name_asc':
+      return [asc(products.name)];
+    case 'name_desc':
+      return [desc(products.name)];
+    case 'price_asc':
+      return [sql`MIN(${productVariants.unitAmountMinor}) ASC`];
+    case 'price_desc':
+      return [sql`MIN(${productVariants.unitAmountMinor}) DESC`];
+    case 'newest':
+    default:
+      return [desc(products.createdAt)];
+  }
+}
+
 export class DrizzleProductRepository implements ProductRepository {
   constructor(private readonly db: DB) {}
 
@@ -77,18 +98,35 @@ export class DrizzleProductRepository implements ProductRepository {
   }
 
   async list(params?: ListProductsParams): Promise<Product[]> {
-    const rows = await this.db.query.products.findMany({
-      where: buildListFilter(params),
-      limit: params?.limit ?? 50,
-      offset: params?.offset ?? 0,
-    });
-    const [variantsByProduct, imagesByProduct] = await Promise.all([
-      this.variantsFor(rows.map((r) => r.id)),
-      this.imagesFor(rows.map((r) => r.id)),
+    // A plain LEFT JOIN + GROUP BY (rather than the relational query API's
+    // `orderBy`) is needed for price sort, since it orders by an aggregate
+    // over the joined product_variants rows — this determines the page of
+    // ids/order; the actual product rows are still hydrated via the
+    // existing relational-query path below, just re-ordered to match.
+    const idRows = await this.db
+      .select({ id: products.id })
+      .from(products)
+      .leftJoin(productVariants, eq(productVariants.productId, products.id))
+      .where(buildListFilter(params))
+      .groupBy(products.id)
+      .orderBy(...buildOrderBy(params?.sort))
+      .limit(params?.limit ?? 50)
+      .offset(params?.offset ?? 0);
+
+    const ids = idRows.map((r) => r.id);
+    if (ids.length === 0) return [];
+
+    const [rows, variantsByProduct, imagesByProduct] = await Promise.all([
+      this.db.query.products.findMany({ where: inArray(products.id, ids) }),
+      this.variantsFor(ids),
+      this.imagesFor(ids),
     ]);
-    return rows.map((row) =>
-      toProduct(row, variantsByProduct.get(row.id) ?? [], imagesByProduct.get(row.id) ?? []),
-    );
+    const rowsById = new Map(rows.map((r) => [r.id, r]));
+
+    return ids
+      .map((id) => rowsById.get(id))
+      .filter((row): row is ProductRow => row !== undefined)
+      .map((row) => toProduct(row, variantsByProduct.get(row.id) ?? [], imagesByProduct.get(row.id) ?? []));
   }
 
   async count(params?: Pick<ListProductsParams, 'search' | 'category'>): Promise<number> {

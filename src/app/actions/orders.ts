@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 import { isErr } from '@/shared/domain/result';
 import { getContainer } from '@/composition/container';
-import { requireUser } from '@/app/lib/session';
+import { requireUser, resolveCartOwner } from '@/app/lib/session';
 
 const CancelOrderSchema = z.object({
   orderId: z.string().min(1),
@@ -54,4 +54,56 @@ export async function cancelOrderByIdAction(
 
   revalidatePath(`/orders/${parsed.data.orderId}`);
   return { message: 'Order cancelled.' };
+}
+
+const ReorderSchema = z.object({
+  orderId: z.string().min(1),
+});
+
+export interface ReorderActionResult {
+  message?: string;
+  error?: string;
+}
+
+function reorderResultMessage(addedCount: number, unavailableSkus: string[]): string {
+  if (addedCount === 0) return 'None of the items in that order are available anymore.';
+  if (unavailableSkus.length === 0) return `Added ${addedCount} item(s) to your cart.`;
+  return `Added ${addedCount} item(s) to your cart. ${unavailableSkus.length} item(s) are no longer available (${unavailableSkus.join(', ')}).`;
+}
+
+/** Account-scoped path — mirrors cancelOwnOrderAction. Always resolves
+ * the cart via resolveCartOwner() (the visitor's own current cart), which
+ * is independent of the order's ownership. */
+export async function reorderOwnOrderAction(
+  _prevState: ReorderActionResult | undefined,
+  formData: FormData,
+): Promise<ReorderActionResult> {
+  const user = await requireUser();
+  const parsed = ReorderSchema.safeParse({ orderId: formData.get('orderId') });
+  if (!parsed.success) return { error: 'Missing order.' };
+
+  const owner = await resolveCartOwner();
+  const { reorderItems } = getContainer();
+  const result = await reorderItems.execute({ owner, orderId: parsed.data.orderId, ownerUserId: user.id });
+  if (isErr(result)) return { error: 'That order could not be found.' };
+
+  revalidatePath('/cart');
+  return { message: reorderResultMessage(result.value.addedCount, result.value.unavailableSkus) };
+}
+
+/** Guest/id-only path — mirrors cancelOrderByIdAction, no auth check. */
+export async function reorderOrderByIdAction(
+  _prevState: ReorderActionResult | undefined,
+  formData: FormData,
+): Promise<ReorderActionResult> {
+  const parsed = ReorderSchema.safeParse({ orderId: formData.get('orderId') });
+  if (!parsed.success) return { error: 'Missing order.' };
+
+  const owner = await resolveCartOwner();
+  const { reorderItems } = getContainer();
+  const result = await reorderItems.execute({ owner, orderId: parsed.data.orderId, ownerUserId: null });
+  if (isErr(result)) return { error: 'That order could not be found.' };
+
+  revalidatePath('/cart');
+  return { message: reorderResultMessage(result.value.addedCount, result.value.unavailableSkus) };
 }

@@ -1,9 +1,12 @@
 import type { Product, ProductStatus } from '@/modules/catalog/domain/product';
 import type { ProductVariant } from '@/modules/catalog/domain/product-variant';
 
+export type ProductSort = 'newest' | 'name_asc' | 'name_desc' | 'price_asc' | 'price_desc';
+
 export interface ListProductsParams {
   search?: string;
   category?: string;
+  sort?: ProductSort;
   limit?: number;
   offset?: number;
 }

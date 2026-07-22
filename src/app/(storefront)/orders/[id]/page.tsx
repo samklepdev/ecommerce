@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 
 import { getContainer } from '@/composition/container';
-import { cancelOrderByIdAction } from '@/app/actions/orders';
+import { cancelOrderByIdAction, reorderOrderByIdAction } from '@/app/actions/orders';
 import { OrderDetailView } from '../OrderDetailView';
 
 export const dynamic = 'force-dynamic';
@@ -41,6 +41,7 @@ export default async function PublicOrderDetailPage({ params }: PublicOrderDetai
       backHref="/"
       backLabel="Back to store"
       cancelAction={cancelOrderByIdAction}
+      reorderAction={reorderOrderByIdAction}
     />
   );
 }
