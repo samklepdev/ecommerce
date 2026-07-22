@@ -226,6 +226,13 @@ export class DrizzleOrderRepository
       .where(eq(orders.id, orderId));
   }
 
+  async recordPaymentRecovery(orderId: string, from: 'expired' | 'cancelled'): Promise<void> {
+    await this.db
+      .update(orders)
+      .set({ paymentRecoveredFrom: from, updatedAt: new Date() })
+      .where(eq(orders.id, orderId));
+  }
+
   async getFulfillmentStatus(orderId: string): Promise<FulfillmentStatus | null> {
     const row = await this.db.query.orders.findFirst({
       where: eq(orders.id, orderId),
@@ -309,5 +316,6 @@ function toOrderListItem(row: typeof orders.$inferSelect): OrderListItem {
     amountMinor: row.amountMinor,
     paymentStatus: row.paymentStatus as PaymentStatus,
     fulfillmentStatus: row.fulfillmentStatus as FulfillmentStatus,
+    paymentRecoveredFrom: row.paymentRecoveredFrom as 'expired' | 'cancelled' | null,
   };
 }

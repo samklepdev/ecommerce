@@ -372,7 +372,7 @@ function build(): Container {
 
   const confirmPayment = new ConfirmPayment(orders, processed, fulfillment, paymentConfirmationNotifier);
   const markOrderRefunded = new MarkOrderRefunded(orders);
-  const cancelOrder = new CancelOrder(orders);
+  const cancelOrder = new CancelOrder(orders, paymentStore);
   const markAwaitingConfirmation = new MarkAwaitingConfirmation(orders);
   // One unified number for both the actual gate and the customer-facing
   // "X of Y confirmations" display — BTC_REQUIRED_CONFIRMATIONS stays the

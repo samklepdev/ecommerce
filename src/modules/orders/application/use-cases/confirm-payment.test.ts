@@ -8,6 +8,7 @@ import { logger } from '@/shared/infrastructure/logger';
 
 function makeFakeOrders(initialStatus: PaymentStatus | null) {
   let status = initialStatus;
+  const recoveries: { orderId: string; from: 'expired' | 'cancelled' }[] = [];
   const repo: ConfirmPaymentOrderRepository = {
     async getPaymentStatus() {
       return status;
@@ -15,8 +16,11 @@ function makeFakeOrders(initialStatus: PaymentStatus | null) {
     async setPaymentStatus(_orderId, next) {
       status = next;
     },
+    async recordPaymentRecovery(orderId, from) {
+      recoveries.push({ orderId, from });
+    },
   };
-  return { repo, getStatus: () => status };
+  return { repo, getStatus: () => status, recoveries };
 }
 
 function makeFakeProcessedEvents() {
@@ -124,8 +128,8 @@ describe('ConfirmPayment', () => {
     ).rejects.toThrow();
   });
 
-  it('recovers an order from expired to paid when the chain later confirms it, logging a distinct warning', async () => {
-    const { repo, getStatus } = makeFakeOrders('expired');
+  it('recovers an order from expired to paid when the chain later confirms it, logging a distinct warning and recording it durably', async () => {
+    const { repo, getStatus, recoveries } = makeFakeOrders('expired');
     const processedEvents = makeFakeProcessedEvents();
     const { queue, enqueued } = makeFakeFulfillment();
     const { notifier } = makeFakeNotifier();
@@ -140,6 +144,27 @@ describe('ConfirmPayment', () => {
       'confirm-payment: order recovered from expired to paid',
       expect.objectContaining({ orderId: 'order-1' }),
     );
+    expect(recoveries).toEqual([{ orderId: 'order-1', from: 'expired' }]);
+    warnSpy.mockRestore();
+  });
+
+  it('recovers an order from cancelled to paid when the chain later confirms it, logging a distinct warning and recording it durably', async () => {
+    const { repo, getStatus, recoveries } = makeFakeOrders('cancelled');
+    const processedEvents = makeFakeProcessedEvents();
+    const { queue, enqueued } = makeFakeFulfillment();
+    const { notifier } = makeFakeNotifier();
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    const confirmPayment = new ConfirmPayment(repo, processedEvents, queue, notifier);
+
+    await confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-7', confirmedSats: 100000 });
+
+    expect(getStatus()).toBe('paid');
+    expect(enqueued).toEqual(['order-1']);
+    expect(warnSpy).toHaveBeenCalledWith(
+      'confirm-payment: order recovered from cancelled to paid',
+      expect.objectContaining({ orderId: 'order-1' }),
+    );
+    expect(recoveries).toEqual([{ orderId: 'order-1', from: 'cancelled' }]);
     warnSpy.mockRestore();
   });
 

@@ -52,6 +52,7 @@ function makeFakeStoreThatLosesTheRace(winningIntent: BitcoinPaymentIntent): Bit
     },
     async markConfirmed() {},
     async markExpired() {},
+    async markCancelled() {},
     async recordProgress() {},
   };
 }
@@ -70,6 +71,7 @@ function makeFakeStoreEmpty(): { store: BitcoinPaymentStore; saved: BitcoinPayme
     },
     async markConfirmed() {},
     async markExpired() {},
+    async markCancelled() {},
     async recordProgress() {},
   };
   return { store, saved };

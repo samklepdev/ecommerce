@@ -13,6 +13,7 @@ function makeFakeOrders(initialStatus: PaymentStatus | null) {
     async setPaymentStatus(_orderId, next) {
       status = next;
     },
+    async recordPaymentRecovery() {},
   };
   return { repo, getStatus: () => status };
 }

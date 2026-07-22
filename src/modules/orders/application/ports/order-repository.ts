@@ -8,4 +8,7 @@ export interface OrderRepository {
 export interface ConfirmPaymentOrderRepository {
   getPaymentStatus(orderId: string): Promise<PaymentStatus | null>;
   setPaymentStatus(orderId: string, status: PaymentStatus): Promise<void>;
+  /** Durable, admin-visible trace of a cancelled/expired -> paid recovery —
+   * set once, never cleared. */
+  recordPaymentRecovery(orderId: string, from: 'expired' | 'cancelled'): Promise<void>;
 }

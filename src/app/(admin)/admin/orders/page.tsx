@@ -99,6 +99,7 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
                         className={`${styles.cellLink} ${styles.statusCell}`}
                       >
                         <Badge tone={paymentStatusTone(order.paymentStatus)}>{order.paymentStatus}</Badge>
+                        {order.paymentRecoveredFrom && <Badge tone="warning">Recovered</Badge>}
                       </Link>
                     </td>
                     <td>

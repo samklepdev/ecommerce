@@ -18,6 +18,9 @@ export interface OrderListItem {
   amountMinor: number;
   paymentStatus: PaymentStatus;
   fulfillmentStatus: FulfillmentStatus;
+  /** Set when ConfirmPayment recovered this order from expired/cancelled
+   * back to paid — admin-only signal, not shown on customer-facing pages. */
+  paymentRecoveredFrom: 'expired' | 'cancelled' | null;
 }
 
 export interface OrderDetailLine {

@@ -52,6 +52,7 @@ export class ConfirmPayment implements UseCase<ConfirmPaymentInput, void> {
         orderId: input.orderId,
         eventId: input.eventId,
       });
+      await this.orders.recordPaymentRecovery(input.orderId, 'expired');
     }
     if (status === 'cancelled') {
       // A customer cancelled before paying, but the BTC address was already
@@ -61,6 +62,7 @@ export class ConfirmPayment implements UseCase<ConfirmPaymentInput, void> {
         orderId: input.orderId,
         eventId: input.eventId,
       });
+      await this.orders.recordPaymentRecovery(input.orderId, 'cancelled');
     }
     await this.orders.setPaymentStatus(input.orderId, 'paid');
 

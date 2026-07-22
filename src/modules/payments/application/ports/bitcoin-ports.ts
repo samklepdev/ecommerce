@@ -3,7 +3,7 @@ export interface AddressIndexAllocator {
   seedFloor(minNextIndex: number): Promise<void>;
 }
 
-export type BitcoinPaymentIntentStatus = 'awaiting' | 'confirmed' | 'expired';
+export type BitcoinPaymentIntentStatus = 'awaiting' | 'confirmed' | 'expired' | 'cancelled';
 
 export interface BitcoinPaymentIntent {
   orderId: string;
@@ -29,6 +29,7 @@ export interface BitcoinPaymentStore {
   listWatchable(): Promise<BitcoinPaymentIntent[]>;
   markConfirmed(orderId: string): Promise<void>;
   markExpired(orderId: string): Promise<void>;
+  markCancelled(orderId: string): Promise<void>;
   /** Auxiliary telemetry for the customer-facing status widget — not a
    * status-enum transition, so it's a distinct method rather than folded
    * into `markConfirmed`/`markExpired`. */
