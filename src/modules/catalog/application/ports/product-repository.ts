@@ -21,6 +21,10 @@ export interface ProductRepository {
    * dropdown's options. */
   listCategories(): Promise<string[]>;
   findVariantById(variantId: string): Promise<ProductVariant | null>;
+  /** Active-only; ids that don't resolve (deleted/archived/never existed)
+   * are silently omitted, not errored. Returned order is not guaranteed to
+   * match `ids`' order — callers that need a specific order must re-sort. */
+  findByIds(ids: string[]): Promise<Product[]>;
   /** Admin-only — includes draft/archived products, not just active ones. */
   listAllForAdmin(): Promise<Product[]>;
   createProduct(product: Product): Promise<void>;
