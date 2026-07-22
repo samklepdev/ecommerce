@@ -6,7 +6,8 @@ import {
   updateSupplierOrderTrackingNumberAction,
   type UpdateSupplierOrderTrackingNumberActionResult,
 } from '@/app/actions/admin/fulfillment';
-import { Input } from '@/components/ui/Input';
+import { KNOWN_CARRIERS, carrierLabel } from '@/shared/domain/carrier-tracking';
+import { Input, Select } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import styles from './SupplierOrderReferenceEditor.module.css';
@@ -24,6 +25,7 @@ function useResultNonce(result: unknown): number {
 export interface SupplierOrderTrackingEditorProps {
   supplierOrderId: string;
   trackingNumber: string;
+  carrier: string | null;
 }
 
 /** Always-editable inline tracking-number field — once a supplier order
@@ -32,6 +34,7 @@ export interface SupplierOrderTrackingEditorProps {
 export function SupplierOrderTrackingEditor({
   supplierOrderId,
   trackingNumber,
+  carrier,
 }: SupplierOrderTrackingEditorProps) {
   const [state, formAction, isPending] = useActionState(
     updateSupplierOrderTrackingNumberAction,
@@ -49,6 +52,14 @@ export function SupplierOrderTrackingEditor({
         aria-label="Tracking number"
         className={styles.input}
       />
+      <Select name="carrier" defaultValue={carrier ?? ''} aria-label="Carrier">
+        <option value="">Unspecified</option>
+        {KNOWN_CARRIERS.map((c) => (
+          <option key={c} value={c}>
+            {carrierLabel(c)}
+          </option>
+        ))}
+      </Select>
       <Button type="submit" variant="ghost" disabled={isPending}>
         Save
       </Button>

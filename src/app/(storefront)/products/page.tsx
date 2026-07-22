@@ -9,8 +9,10 @@ import { Button } from '@/components/ui/Button';
 import { Pagination } from '@/components/ui/Pagination';
 import { DEFAULT_PAGE_SIZE, parsePage } from '@/components/ui/paginate';
 import type { Product } from '@/modules/catalog/domain/product';
+import type { ProductSort } from '@/modules/catalog/application/ports/product-repository';
 import { AddToCartRow } from './AddToCartRow';
 import { CategoryFilterSelect } from './CategoryFilterSelect';
+import { SortSelect } from './SortSelect';
 import styles from './page.module.css';
 
 // Dynamic, not ISR — search/category/page are query-param-driven per
@@ -20,7 +22,7 @@ import styles from './page.module.css';
 export const dynamic = 'force-dynamic';
 
 interface ProductsPageProps {
-  searchParams: Promise<{ q?: string; category?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; category?: string; sort?: ProductSort; page?: string }>;
 }
 
 /** Picks which variant the listing card's quick-add row targets: the first
@@ -42,7 +44,7 @@ async function resolveQuickAddVariant(
 }
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
-  const { q, category, page: pageParam } = await searchParams;
+  const { q, category, sort, page: pageParam } = await searchParams;
   const { listProducts, listProductCategories, getPreferredOfferForVariant } = getContainer();
 
   const categories = await listProductCategories.execute();
@@ -51,6 +53,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   let { items: pagedProducts, total } = await listProducts.execute({
     search: q,
     category,
+    sort,
     limit: DEFAULT_PAGE_SIZE,
     offset: (requestedPage - 1) * DEFAULT_PAGE_SIZE,
   });
@@ -65,6 +68,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     ({ items: pagedProducts, total } = await listProducts.execute({
       search: q,
       category,
+      sort,
       limit: DEFAULT_PAGE_SIZE,
       offset: (page - 1) * DEFAULT_PAGE_SIZE,
     }));
@@ -83,6 +87,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (category) params.set('category', category);
+    if (sort && sort !== 'newest') params.set('sort', sort);
     if (nextPage > 1) params.set('page', String(nextPage));
     const query = params.toString();
     return query ? `/products?${query}` : '/products';
@@ -103,6 +108,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           {categories.length > 0 && (
             <CategoryFilterSelect categories={categories} selectedCategory={category} />
           )}
+          <SortSelect selectedSort={sort} />
         </div>
 
         {pagedProducts.length === 0 ? (

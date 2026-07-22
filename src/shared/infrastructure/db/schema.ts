@@ -105,6 +105,28 @@ export const emailVerificationTokens = pgTable(
   }),
 );
 
+export const savedAddresses = pgTable(
+  'saved_addresses',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    line1: text('line1').notNull(),
+    line2: text('line2'),
+    city: text('city').notNull(),
+    region: text('region').notNull(),
+    postalCode: text('postal_code').notNull(),
+    country: text('country').notNull(),
+    isDefault: boolean('is_default').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userIdIdx: index('saved_addresses_user_id_idx').on(t.userId),
+  }),
+);
+
 export const products = pgTable(
   'products',
   {
@@ -290,6 +312,9 @@ export const supplierOrders = pgTable(
     costTotalMinor: bigint('cost_total_minor', { mode: 'number' }).notNull(),
     costCurrency: text('cost_currency').notNull(),
     trackingNumber: text('tracking_number'),
+    // One of KNOWN_CARRIERS (src/shared/domain/carrier-tracking.ts) or null
+    // — unset/unrecognized just means no tracking link, never breaks display.
+    carrier: text('carrier'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

@@ -10,12 +10,13 @@ import {
 } from '@/app/actions/admin/fulfillment';
 import { SupplierOrderReferenceEditor } from './SupplierOrderReferenceEditor';
 import { SupplierOrderTrackingEditor } from './SupplierOrderTrackingEditor';
+import { KNOWN_CARRIERS, carrierLabel } from '@/shared/domain/carrier-tracking';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Field } from '@/components/ui/Field';
-import { Input } from '@/components/ui/Input';
+import { Input, Select } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Pagination } from '@/components/ui/Pagination';
 import { paginate, parsePage, DEFAULT_PAGE_SIZE } from '@/components/ui/paginate';
@@ -234,6 +235,20 @@ export default async function AdminFulfillmentPage({ searchParams }: AdminFulfil
                               required
                             />
                           </Field>
+                          <Field
+                            label="Carrier"
+                            htmlFor={`carrier-${so.id}`}
+                            className={styles.actionField}
+                          >
+                            <Select id={`carrier-${so.id}`} name="carrier" defaultValue="">
+                              <option value="">Unspecified</option>
+                              {KNOWN_CARRIERS.map((c) => (
+                                <option key={c} value={c}>
+                                  {carrierLabel(c)}
+                                </option>
+                              ))}
+                            </Select>
+                          </Field>
                           <Button type="submit">Mark shipped</Button>
                         </form>
                       )}
@@ -242,6 +257,7 @@ export default async function AdminFulfillmentPage({ searchParams }: AdminFulfil
                         <SupplierOrderTrackingEditor
                           supplierOrderId={so.id}
                           trackingNumber={so.trackingNumber}
+                          carrier={so.carrier}
                         />
                       )}
 

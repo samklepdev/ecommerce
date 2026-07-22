@@ -299,6 +299,7 @@ export class DrizzleOrderRepository
       shippingAddress: row.shippingAddress,
       shippingAmountMinor: row.shippingAmountMinor,
       lines: lines.map((l) => ({
+        variantId: l.variantId,
         sku: l.sku,
         quantity: l.quantity,
         unitAmountMinor: l.unitAmountMinor,

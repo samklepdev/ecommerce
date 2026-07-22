@@ -70,6 +70,7 @@ import { RemoveFromCart } from '@/modules/cart/application/use-cases/remove-from
 import { UpdateCartLineQuantity } from '@/modules/cart/application/use-cases/update-cart-line-quantity';
 import { RepriceCart } from '@/modules/cart/application/use-cases/reprice-cart';
 import { MergeGuestCart } from '@/modules/cart/application/use-cases/merge-guest-cart';
+import { ReorderItems } from '@/modules/cart/application/use-cases/reorder-items';
 
 import { DrizzleUserRepository } from '@/modules/identity/infrastructure/drizzle-user-repository';
 import { RedisSessionStore } from '@/modules/identity/infrastructure/redis-session-store';
@@ -83,6 +84,11 @@ import { FindUserByEmailForAdmin } from '@/modules/identity/application/use-case
 import { UpdateAvatar } from '@/modules/identity/application/use-cases/update-avatar';
 import { GetAccountProfile } from '@/modules/identity/application/use-cases/get-account-profile';
 import { ChangeEmail } from '@/modules/identity/application/use-cases/change-email';
+import { DrizzleSavedAddressRepository } from '@/modules/addresses/infrastructure/drizzle-saved-address-repository';
+import { ListSavedAddresses } from '@/modules/addresses/application/use-cases/list-saved-addresses';
+import { AddSavedAddress } from '@/modules/addresses/application/use-cases/add-saved-address';
+import { DeleteSavedAddress } from '@/modules/addresses/application/use-cases/delete-saved-address';
+import { SetDefaultSavedAddress } from '@/modules/addresses/application/use-cases/set-default-saved-address';
 import { DeleteAccount } from '@/modules/identity/application/use-cases/delete-account';
 import { RequestEmailVerification } from '@/modules/identity/application/use-cases/request-email-verification';
 import { VerifyEmail } from '@/modules/identity/application/use-cases/verify-email';
@@ -147,6 +153,7 @@ export interface Container {
   updateCartLineQuantity: UpdateCartLineQuantity;
   repriceCart: RepriceCart;
   mergeGuestCart: MergeGuestCart;
+  reorderItems: ReorderItems;
 
   signUp: SignUp;
   logIn: LogIn;
@@ -158,6 +165,10 @@ export interface Container {
   updateAvatar: UpdateAvatar;
   getAccountProfile: GetAccountProfile;
   changeEmail: ChangeEmail;
+  listSavedAddresses: ListSavedAddresses;
+  addSavedAddress: AddSavedAddress;
+  deleteSavedAddress: DeleteSavedAddress;
+  setDefaultSavedAddress: SetDefaultSavedAddress;
   deleteAccount: DeleteAccount;
   requestEmailVerification: RequestEmailVerification;
   verifyEmail: VerifyEmail;
@@ -271,6 +282,11 @@ function build(): Container {
   const updateAvatar = new UpdateAvatar(users, avatarImageStorage);
   const getAccountProfile = new GetAccountProfile(users);
   const changeEmail = new ChangeEmail(users);
+  const savedAddresses = new DrizzleSavedAddressRepository(db);
+  const listSavedAddresses = new ListSavedAddresses(savedAddresses);
+  const addSavedAddress = new AddSavedAddress(savedAddresses);
+  const deleteSavedAddress = new DeleteSavedAddress(savedAddresses);
+  const setDefaultSavedAddress = new SetDefaultSavedAddress(savedAddresses);
   const deleteAccount = new DeleteAccount(users);
 
   // --- notifications ---
@@ -339,6 +355,7 @@ function build(): Container {
   const processed = new RedisProcessedEventStore(redis);
 
   const placeOrder = new PlaceOrder(carts, products, orders, shippingRates);
+  const reorderItems = new ReorderItems(orders, carts, products);
   const startCheckout = new StartCheckout(orders, gateways, env.QUOTE_TTL_SECONDS);
   const expireStaleCheckouts = new ExpireStaleCheckouts(orders);
 
@@ -414,6 +431,7 @@ function build(): Container {
     updateCartLineQuantity,
     repriceCart,
     mergeGuestCart,
+    reorderItems,
     signUp,
     logIn,
     logOut,
@@ -424,6 +442,10 @@ function build(): Container {
     updateAvatar,
     getAccountProfile,
     changeEmail,
+    listSavedAddresses,
+    addSavedAddress,
+    deleteSavedAddress,
+    setDefaultSavedAddress,
     deleteAccount,
     requestEmailVerification,
     verifyEmail,

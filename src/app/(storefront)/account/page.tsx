@@ -13,6 +13,8 @@ import { ChangePasswordForm } from './ChangePasswordForm';
 import { ChangeEmailForm } from './ChangeEmailForm';
 import { DeleteAccountForm } from './DeleteAccountForm';
 import { ResendVerificationButton } from './ResendVerificationButton';
+import { SavedAddressCard } from './SavedAddressCard';
+import { AddSavedAddressForm } from './AddSavedAddressForm';
 import styles from './page.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -21,10 +23,11 @@ export default async function AccountPage() {
   const user = await getSessionUser();
   if (!user) redirect('/login');
 
-  const { getAccountProfile, getWelcomeEmailStatus } = getContainer();
-  const [profile, welcomeEmail] = await Promise.all([
+  const { getAccountProfile, getWelcomeEmailStatus, listSavedAddresses } = getContainer();
+  const [profile, welcomeEmail, savedAddresses] = await Promise.all([
     getAccountProfile.execute({ userId: user.id }),
     getWelcomeEmailStatus.execute({ userId: user.id }),
+    listSavedAddresses.execute({ userId: user.id }),
   ]);
 
   return (
@@ -71,6 +74,29 @@ export default async function AccountPage() {
         <Card className={styles.section}>
           <h2 className={styles.sectionTitle}>Change password</h2>
           <ChangePasswordForm />
+        </Card>
+
+        <Card className={styles.section}>
+          <h2 className={styles.sectionTitle}>Addresses</h2>
+          {savedAddresses.length === 0 ? (
+            <p className={styles.meta}>No saved addresses yet.</p>
+          ) : (
+            savedAddresses.map((a) => (
+              <SavedAddressCard
+                key={a.id}
+                id={a.id}
+                name={a.name}
+                line1={a.line1}
+                line2={a.line2}
+                city={a.city}
+                region={a.region}
+                postalCode={a.postalCode}
+                country={a.country}
+                isDefault={a.isDefault}
+              />
+            ))
+          )}
+          <AddSavedAddressForm />
         </Card>
 
         <Card className={styles.section}>

@@ -23,6 +23,7 @@ function toSummary(row: SupplierOrderRow, lines: SupplierOrderSummaryLine[]): Su
     costTotalMinor: row.costTotalMinor,
     costCurrency: row.costCurrency,
     trackingNumber: row.trackingNumber,
+    carrier: row.carrier,
     createdAt: row.createdAt,
     lines,
   };
@@ -131,10 +132,14 @@ export class DrizzleSupplierOrderRepository implements SupplierOrderRepository {
     return result.length > 0;
   }
 
-  async markShipped(supplierOrderId: string, trackingNumber: string): Promise<boolean> {
+  async markShipped(
+    supplierOrderId: string,
+    trackingNumber: string,
+    carrier?: string | null,
+  ): Promise<boolean> {
     const result = await this.db
       .update(supplierOrders)
-      .set({ status: 'shipped', trackingNumber, updatedAt: new Date() })
+      .set({ status: 'shipped', trackingNumber, carrier: carrier ?? null, updatedAt: new Date() })
       .where(and(eq(supplierOrders.id, supplierOrderId), eq(supplierOrders.status, 'ordered')))
       .returning({ id: supplierOrders.id });
     return result.length > 0;
@@ -147,10 +152,20 @@ export class DrizzleSupplierOrderRepository implements SupplierOrderRepository {
       .where(eq(supplierOrders.id, supplierOrderId));
   }
 
-  async updateTrackingNumber(supplierOrderId: string, trackingNumber: string): Promise<void> {
+  async updateTrackingNumber(
+    supplierOrderId: string,
+    trackingNumber: string,
+    carrier?: string | null,
+  ): Promise<void> {
+    // `carrier` is only written when explicitly passed — omitting it (vs.
+    // passing null) must not silently wipe a carrier set earlier.
     await this.db
       .update(supplierOrders)
-      .set({ trackingNumber, updatedAt: new Date() })
+      .set({
+        trackingNumber,
+        updatedAt: new Date(),
+        ...(carrier !== undefined ? { carrier } : {}),
+      })
       .where(eq(supplierOrders.id, supplierOrderId));
   }
 

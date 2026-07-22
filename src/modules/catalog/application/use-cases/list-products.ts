@@ -1,10 +1,11 @@
 import type { UseCase } from '@/shared/application/use-case';
 import type { Product } from '@/modules/catalog/domain/product';
-import type { ProductRepository } from '@/modules/catalog/application/ports/product-repository';
+import type { ProductRepository, ProductSort } from '@/modules/catalog/application/ports/product-repository';
 
 export interface ListProductsInput {
   search?: string;
   category?: string;
+  sort?: ProductSort;
   limit?: number;
   offset?: number;
 }

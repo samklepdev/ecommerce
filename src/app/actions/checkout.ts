@@ -7,7 +7,7 @@ import { env } from '@/config/env';
 import { getContainer } from '@/composition/container';
 import { isErr } from '@/shared/domain/result';
 import { logger } from '@/shared/infrastructure/logger';
-import { resolveCartOwner } from '@/app/lib/session';
+import { getSessionUser, resolveCartOwner } from '@/app/lib/session';
 import { checkRateLimit, getClientIp, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
 
 const StartCheckoutSchema = z.object({
@@ -19,6 +19,7 @@ const StartCheckoutSchema = z.object({
   shippingRegion: z.string().min(1),
   shippingPostalCode: z.string().min(1),
   shippingCountry: z.string().min(1),
+  saveAddress: z.string().optional(),
 });
 
 export interface StartCheckoutActionResult {
@@ -38,6 +39,7 @@ export async function startCheckoutAction(
     shippingRegion: formData.get('shippingRegion'),
     shippingPostalCode: formData.get('shippingPostalCode'),
     shippingCountry: formData.get('shippingCountry'),
+    saveAddress: formData.get('saveAddress') || undefined,
   });
   if (!parsed.success) return { error: 'Please fill in a valid email and shipping address.' };
 
@@ -48,7 +50,7 @@ export async function startCheckoutAction(
   }
 
   const owner = await resolveCartOwner();
-  const { placeOrder, startCheckout, sendOrderConfirmationEmail } = getContainer();
+  const { placeOrder, startCheckout, sendOrderConfirmationEmail, addSavedAddress } = getContainer();
 
   const placed = await placeOrder.execute({
     owner,
@@ -71,6 +73,30 @@ export async function startCheckoutAction(
           ? 'Your cart is empty.'
           : 'An item in your cart is no longer available.',
     };
+  }
+
+  // Only logged-in visitors have an account to attach a saved address to —
+  // guests can still check the box, it's just silently a no-op for them.
+  if (parsed.data.saveAddress) {
+    const user = await getSessionUser();
+    if (user) {
+      try {
+        await addSavedAddress.execute({
+          userId: user.id,
+          name: parsed.data.shippingName,
+          line1: parsed.data.shippingLine1,
+          line2: parsed.data.shippingLine2,
+          city: parsed.data.shippingCity,
+          region: parsed.data.shippingRegion,
+          postalCode: parsed.data.shippingPostalCode,
+          country: parsed.data.shippingCountry,
+        });
+      } catch (e) {
+        logger.warn('checkout: saving address failed', {
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
   }
 
   const result = await startCheckout.execute({

@@ -92,6 +92,13 @@
       "when": 1784718276029,
       "tag": "0012_nostalgic_gorgon",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1784752019725,
+      "tag": "0013_illegal_strong_guy",
+      "breakpoints": true
     }
   ]
 }

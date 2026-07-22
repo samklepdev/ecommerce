@@ -28,6 +28,7 @@ const MarkShippedSchema = z.object({
   supplierOrderId: z.string().min(1),
   orderId: z.string().min(1),
   trackingNumber: z.string().min(1),
+  carrier: z.string().optional(),
 });
 
 export async function markSupplierOrderShippedAction(formData: FormData): Promise<void> {
@@ -36,6 +37,7 @@ export async function markSupplierOrderShippedAction(formData: FormData): Promis
     supplierOrderId: formData.get('supplierOrderId'),
     orderId: formData.get('orderId'),
     trackingNumber: formData.get('trackingNumber'),
+    carrier: formData.get('carrier') || undefined,
   });
   if (!parsed.success) return;
 
@@ -92,6 +94,7 @@ export async function updateSupplierOrderReferenceAction(
 const UpdateTrackingNumberSchema = z.object({
   supplierOrderId: z.string().min(1),
   trackingNumber: z.string().min(1),
+  carrier: z.string().optional(),
 });
 
 export interface UpdateSupplierOrderTrackingNumberActionResult {
@@ -107,6 +110,7 @@ export async function updateSupplierOrderTrackingNumberAction(
   const parsed = UpdateTrackingNumberSchema.safeParse({
     supplierOrderId: formData.get('supplierOrderId'),
     trackingNumber: formData.get('trackingNumber'),
+    carrier: formData.get('carrier') || undefined,
   });
   if (!parsed.success) return { error: 'Enter a tracking number.' };
 

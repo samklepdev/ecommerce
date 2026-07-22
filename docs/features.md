@@ -12,7 +12,8 @@ feature" checklist).
 ## Storefront (customers)
 
 - **Browse products** (`/products`) — grid of published products, with
-  text search (by name), an optional category filter, and page-based
+  text search (by name), an optional category filter, a sort control
+  (newest, name A-Z/Z-A, price low-high/high-low), and page-based
   navigation. Each card has a quantity stepper, decimal price, and an
   inline "Add to cart" button (no need to open the product page first).
   Targets whichever variant has a preferred supplier offer configured.
@@ -28,7 +29,9 @@ feature" checklist).
   repricing (never trusts the cart's stored price), creates a unique BTC
   receive address for the order, redirects to a real bookmarkable
   order-status URL. Shows a subtotal/shipping/total summary before the
-  customer submits.
+  customer submits; redirects back to the cart if it's empty. A logged-in
+  customer can pick a saved address to autofill the form, or check a box
+  to save the address they just entered.
 - **Shipping** — a single flat-rate fee, admin-configurable, added once per
   order (not per item). Shown on product pages, the cart, and checkout, and
   snapshotted onto the order at placement so a later rate change never
@@ -41,13 +44,17 @@ feature" checklist).
   count, and clear messaging for underpaid or overpaid amounts. A
   customer can cancel the order themselves any time before the chain has
   seen a payment (`pending`/`awaiting_payment`) — once BTC is in flight,
-  cancellation is no longer offered.
+  cancellation is no longer offered. A "Reorder" button re-adds the
+  order's items to the current cart, re-priced from the live catalog
+  (skipping and reporting any item no longer available) — the way back
+  if a cart got cleared by a since-expired or cancelled checkout.
 - **Account** (`/account`) — profile, avatar upload, change password,
   change email (re-triggers verification), delete account (password
   confirmation required; past orders are kept but unlinked from the
-  account); a banner + resend button while the email is unverified;
-  (`/account/orders`) — order history list and detail (same view as the
-  guest order page, plus the login wall).
+  account); a banner + resend button while the email is unverified; a
+  saved-address book (add, delete, set default — used to autofill
+  checkout); (`/account/orders`) — order history list and detail (same
+  view as the guest order page, plus the login wall).
 - **Auth** (`/signup`, `/login`, `/forgot-password`, `/reset-password/[token]`,
   `/verify-email/[token]`) — email/password accounts, rate-limited login
   and signup, password reset via emailed one-time token (doesn't reveal
@@ -73,18 +80,21 @@ feature" checklist).
 - **Fulfillment** (`/admin/fulfillment`) — the ops queue of supplier
   orders (one per supplier per customer order), grouped by customer
   order. Mark a supplier order "ordered" (recording a reference) or
-  "shipped" (recording a tracking number); both are editable afterward if
-  mistyped. Cancel a supplier order — once every supplier order on a
-  customer order is cancelled, the order itself is marked cancelled
-  automatically. A banner surfaces any paid order line that couldn't be
-  sourced (no supplier offer exists for that variant) so it doesn't
-  silently vanish. Filter by status.
+  "shipped" (recording a tracking number + carrier — USPS/UPS/FedEx/DHL,
+  which turns into a clickable tracking link on the customer-facing order
+  page); both are editable afterward if mistyped. Cancel a supplier
+  order — once every supplier order on a customer order is cancelled, the
+  order itself is marked cancelled automatically. A banner surfaces any
+  paid order line that couldn't be sourced (no supplier offer exists for
+  that variant) so it doesn't silently vanish. Filter by status.
 - **Orders** (`/admin/orders`) — every order in the store, searchable by
   customer email; (`/admin/orders/[id]`) — full detail (same view
   customers see) plus a "Mark refunded" action for orders that have
   already had a manual on-chain refund sent (refunds themselves are
   always a manual, out-of-band BTC send — this just records that it
-  happened).
+  happened). A "Recovered" badge flags any order where a late on-chain
+  payment arrived after the order had already been cancelled or expired —
+  worth a manual look, since it's a rare edge case by design.
 - **Users** (`/admin/users`) — look up an account by its exact email, see
   their profile and order history, promote them to admin. (Promoting the
   very first admin, before any admin account exists, is a one-time CLI

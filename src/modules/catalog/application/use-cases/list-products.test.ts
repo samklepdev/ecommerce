@@ -24,18 +24,21 @@ function makeFakeProducts(items: Product[], total: number) {
 }
 
 describe('ListProducts', () => {
-  it('returns items and total, forwarding search/category/limit/offset to the repository', async () => {
+  it('returns items and total, forwarding search/category/sort/limit/offset to the repository', async () => {
     const { repo, listCalls, countCalls } = makeFakeProducts([], 42);
 
     const result = await new ListProducts(repo).execute({
       search: 'widget',
       category: 'gadgets',
+      sort: 'price_asc',
       limit: 10,
       offset: 20,
     });
 
     expect(result.total).toBe(42);
-    expect(listCalls).toEqual([{ search: 'widget', category: 'gadgets', limit: 10, offset: 20 }]);
+    expect(listCalls).toEqual([
+      { search: 'widget', category: 'gadgets', sort: 'price_asc', limit: 10, offset: 20 },
+    ]);
     expect(countCalls).toEqual([{ search: 'widget', category: 'gadgets' }]);
   });
 

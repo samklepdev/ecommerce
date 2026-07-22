@@ -24,6 +24,7 @@ export interface OrderListItem {
 }
 
 export interface OrderDetailLine {
+  variantId: string;
   sku: string;
   quantity: number;
   unitAmountMinor: number;

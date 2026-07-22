@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { paymentStatusTone, fulfillmentStatusTone } from '@/app/lib/status-tone';
 import { Money } from '@/shared/domain/money';
 import { satsToBtcString } from '@/modules/payments/domain/bip21';
+import { buildCarrierTrackingUrl, carrierLabel } from '@/shared/domain/carrier-tracking';
 import type { OrderDetail } from '@/modules/orders/application/ports/order-history-repository';
 import type { SupplierOrderSummary } from '@/modules/orders/application/ports/supplier-order-repository';
 import type { PaymentSession } from '@/modules/payments/application/use-cases/get-payment-session-for-order';
@@ -12,6 +13,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { BitcoinCheckout } from '../checkout/BitcoinCheckout';
 import { CancelOrderButton, type CancelOrderButtonProps } from './CancelOrderButton';
+import { ReorderButton, type ReorderButtonProps } from './ReorderButton';
 import styles from './OrderDetailView.module.css';
 
 interface OrderDetailViewProps {
@@ -23,6 +25,8 @@ interface OrderDetailViewProps {
   /** Only passed by callers that offer cancellation (both storefront order
    * pages); omitted entirely on the admin order-detail page. */
   cancelAction?: CancelOrderButtonProps['action'];
+  /** Same split as cancelAction — omitted on the admin order-detail page. */
+  reorderAction?: ReorderButtonProps['action'];
 }
 
 const CANCELLABLE_STATUSES = new Set(['pending', 'awaiting_payment']);
@@ -34,6 +38,7 @@ export function OrderDetailView({
   backHref,
   backLabel,
   cancelAction,
+  reorderAction,
 }: OrderDetailViewProps) {
   const subtotal = order.lines.reduce(
     (sum, line) => sum.add(Money.of(line.unitAmountMinor, order.currency).multiply(line.quantity)),
@@ -76,7 +81,10 @@ export function OrderDetailView({
         )}
 
         <Card className={styles.section}>
-          <h2 className={styles.sectionTitle}>Items</h2>
+          <div className={styles.sectionHeaderRow}>
+            <h2 className={styles.sectionTitle}>Items</h2>
+            {reorderAction && <ReorderButton orderId={order.id} action={reorderAction} />}
+          </div>
           <ul className={styles.lineList}>
             {order.lines.map((line, i) => (
               <li key={i} className={styles.lineRow}>
@@ -119,12 +127,24 @@ export function OrderDetailView({
         {trackedShipments.length > 0 && (
           <Card className={styles.section}>
             <h2 className={styles.sectionTitle}>Tracking</h2>
-            {trackedShipments.map((s) => (
-              <div key={s.id} className={styles.trackingRow}>
-                <span>{s.lines.map((l) => l.sku).join(', ')}</span>
-                <span>{s.trackingNumber}</span>
-              </div>
-            ))}
+            {trackedShipments.map((s) => {
+              const trackingUrl = buildCarrierTrackingUrl(s.carrier, s.trackingNumber!);
+              const label = carrierLabel(s.carrier);
+              return (
+                <div key={s.id} className={styles.trackingRow}>
+                  <span>{s.lines.map((l) => l.sku).join(', ')}</span>
+                  <span>
+                    {trackingUrl ? (
+                      <a href={trackingUrl} target="_blank" rel="noreferrer">
+                        {label} {s.trackingNumber}
+                      </a>
+                    ) : (
+                      s.trackingNumber
+                    )}
+                  </span>
+                </div>
+              );
+            })}
           </Card>
         )}
       </Stack>
