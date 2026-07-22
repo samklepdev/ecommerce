@@ -223,14 +223,23 @@ export async function deleteProductsAction(
   _prevState: DeleteProductsActionResult | undefined,
   formData: FormData,
 ): Promise<DeleteProductsActionResult> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const parsed = DeleteProductsSchema.safeParse({
     productIds: formData.getAll('productIds'),
   });
   if (!parsed.success) return { error: 'Select at least one product to delete.' };
 
-  const { deleteProducts } = getContainer();
+  const { deleteProducts, recordAuditLogEntry } = getContainer();
   const result = await deleteProducts.execute(parsed.data);
+
+  await recordAuditLogEntry.execute({
+    actorUserId: admin.id,
+    actorEmail: admin.email,
+    action: 'products.deleted',
+    targetType: 'product',
+    targetId: parsed.data.productIds.join(','),
+    metadata: { deleted: result.deleted, failed: result.failed },
+  });
 
   revalidatePath('/admin/products');
   revalidatePath('/products');
@@ -464,7 +473,7 @@ export async function updateVariantPriceAction(
   _prevState: UpdateVariantPriceActionResult | undefined,
   formData: FormData,
 ): Promise<UpdateVariantPriceActionResult> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const parsed = UpdateVariantPriceSchema.safeParse({
     variantId: formData.get('variantId'),
     price: formData.get('price'),
@@ -475,11 +484,20 @@ export async function updateVariantPriceAction(
   const amountMinor = parseDecimalToMinorUnits(parsed.data.price);
   if (amountMinor === null || amountMinor <= 0) return { error: 'Enter a valid price.' };
 
-  const { updateVariantPrice } = getContainer();
+  const { updateVariantPrice, recordAuditLogEntry } = getContainer();
   await updateVariantPrice.execute({
     variantId: parsed.data.variantId,
     amountMinor,
     currency: parsed.data.currency,
+  });
+
+  await recordAuditLogEntry.execute({
+    actorUserId: admin.id,
+    actorEmail: admin.email,
+    action: 'variant.price_changed',
+    targetType: 'variant',
+    targetId: parsed.data.variantId,
+    metadata: { amountMinor, currency: parsed.data.currency },
   });
 
   revalidatePath('/admin/products');
@@ -573,7 +591,7 @@ export async function applyMarkupToProductsAction(
   _prevState: ApplyMarkupActionResult | undefined,
   formData: FormData,
 ): Promise<ApplyMarkupActionResult> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const parsed = ApplyMarkupSchema.safeParse({
     productIds: formData.getAll('productIds'),
     markupPercent: formData.get('markupPercent'),
@@ -582,7 +600,7 @@ export async function applyMarkupToProductsAction(
     return { error: parsed.error.issues[0]?.message ?? 'Select products and enter a markup percentage.' };
   }
 
-  const { listAllProductsForAdmin, applyMarkupToVariants } = getContainer();
+  const { listAllProductsForAdmin, applyMarkupToVariants, recordAuditLogEntry } = getContainer();
   const allProducts = await listAllProductsForAdmin.execute();
   const selectedIds = new Set(parsed.data.productIds);
   const variantIds = allProducts
@@ -594,6 +612,15 @@ export async function applyMarkupToProductsAction(
     markupPercent: parsed.data.markupPercent,
   });
 
+  await recordAuditLogEntry.execute({
+    actorUserId: admin.id,
+    actorEmail: admin.email,
+    action: 'products.bulk_markup',
+    targetType: 'product',
+    targetId: parsed.data.productIds.join(','),
+    metadata: { markupPercent: parsed.data.markupPercent, updated: result.updated, failed: result.failed },
+  });
+
   revalidatePath('/admin/products');
   revalidatePath('/products');
 
@@ -603,4 +630,81 @@ export async function applyMarkupToProductsAction(
     };
   }
   return { message: `Applied markup to ${result.updated} variant${result.updated === 1 ? '' : 's'}.` };
+}
+
+const AssignCategorySchema = z.object({
+  productIds: z.array(z.string().min(1)).min(1),
+  category: z.string().optional(),
+});
+
+export interface AssignCategoryActionResult {
+  message?: string;
+  error?: string;
+}
+
+export async function assignCategoryToProductsAction(
+  _prevState: AssignCategoryActionResult | undefined,
+  formData: FormData,
+): Promise<AssignCategoryActionResult> {
+  await requireAdmin();
+  const parsed = AssignCategorySchema.safeParse({
+    productIds: formData.getAll('productIds'),
+    category: formData.get('category') || undefined,
+  });
+  if (!parsed.success) return { error: 'Select at least one product.' };
+
+  const { bulkAssignCategory } = getContainer();
+  const result = await bulkAssignCategory.execute({
+    productIds: parsed.data.productIds,
+    category: parsed.data.category ?? null,
+  });
+
+  revalidatePath('/admin/products');
+  revalidatePath('/products');
+
+  if (result.failed > 0) {
+    return {
+      error: `Updated ${result.updated}, but ${result.failed} could not be updated.`,
+    };
+  }
+  return { message: `Assigned category to ${result.updated} product${result.updated === 1 ? '' : 's'}.` };
+}
+
+const CreateProductVariantSchema = z.object({
+  productId: z.string().min(1),
+  sku: z.string().min(1),
+  name: z.string().min(1),
+  unitAmountMinor: z.coerce.number().int().positive(),
+  currency: z.string().length(3),
+});
+
+export interface CreateProductVariantActionResult {
+  message?: string;
+  error?: string;
+}
+
+/** Adds a further variant to an existing product — the same use case the
+ * initial "add product" form already uses for a product's first variant. */
+export async function createProductVariantAction(
+  _prevState: CreateProductVariantActionResult | undefined,
+  formData: FormData,
+): Promise<CreateProductVariantActionResult> {
+  await requireAdmin();
+  const parsed = CreateProductVariantSchema.safeParse({
+    productId: formData.get('productId'),
+    sku: formData.get('sku'),
+    name: formData.get('name'),
+    unitAmountMinor: formData.get('unitAmountMinor'),
+    currency: formData.get('currency') || 'USD',
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Fill in a name, SKU, and price.' };
+  }
+
+  const { createProductVariant } = getContainer();
+  await createProductVariant.execute(parsed.data);
+
+  revalidatePath('/admin/products');
+  revalidatePath('/products');
+  return { message: 'Variant added.' };
 }

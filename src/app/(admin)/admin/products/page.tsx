@@ -73,6 +73,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
     variants: p.variants.map((v) => ({
       id: v.id,
       sku: v.sku,
+      name: v.name,
       priceAmountMinor: v.price.amountMinor,
       currency: v.price.currency,
       hasNoOffers: (offersByVariant.get(v.id) ?? []).length === 0,

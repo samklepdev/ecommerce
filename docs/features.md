@@ -67,16 +67,23 @@ feature" checklist).
 
 ## Admin (`/admin/*`, requires an admin account)
 
+- **Dashboard** (`/admin`) — at-a-glance counts (unsourced order lines,
+  supplier orders needing action, orders awaiting confirmation, recovered
+  orders needing review), each linking to the relevant page, plus quick
+  links to every admin section.
 - **Products** (`/admin/products`) — create a product + its first variant
-  + a preferred supplier offer in one form; import a batch of products
-  from a supplier feed (URL, pasted JSON, or an uploaded spreadsheet); a
-  "paste a product URL" helper that scrapes and prefills the add-product
-  form; bulk publish/unpublish/delete; upload/manage product images;
-  per-variant sell-price editing; per-offer supplier-cost editing; bulk
-  "apply X% markup" across selected products' variants; a "No supplier
-  offer" badge on any variant that could never actually be fulfilled;
-  an editable category tag (free text) used by the storefront's category
-  filter; filter the list by supplier.
+  + a preferred supplier offer in one form; add further variants to an
+  existing product afterward (a new variant starts with no supplier
+  offer, same "No supplier offer" badge state as any other unsourced
+  variant); import a batch of products from a supplier feed (URL, pasted
+  JSON, or an uploaded spreadsheet); a "paste a product URL" helper that
+  scrapes and prefills the add-product form; bulk publish/unpublish/
+  delete/assign-category; upload/manage product images; per-variant
+  sell-price editing; per-offer supplier-cost editing; bulk "apply X%
+  markup" across selected products' variants; a "No supplier offer" badge
+  on any variant that could never actually be fulfilled; an editable
+  category tag (free text) used by the storefront's category filter and
+  assignable in bulk; filter the list by supplier.
 - **Fulfillment** (`/admin/fulfillment`) — the ops queue of supplier
   orders (one per supplier per customer order), grouped by customer
   order. Mark a supplier order "ordered" (recording a reference) or
@@ -103,6 +110,13 @@ feature" checklist).
 - **Settings** (`/admin/settings`) — the single global flat-rate shipping
   fee. Changing it only affects orders placed after the change; existing
   orders keep the rate they were placed under.
+- **Audit log** (`/admin/audit-log`) — a durable, searchable-by-scrolling
+  record of who did what and when, for the sensitive/destructive admin
+  actions: refunds, admin promotions, variant price changes, bulk markup,
+  supplier-order cancellations, product deletions, and shipping-rate
+  changes. Routine catalog edits (images, supplier-cost tweaks, etc.)
+  aren't logged — this is a curated trail of the actions worth a
+  who/when record, not a complete activity feed.
 
 ## Payments (non-custodial on-chain Bitcoin)
 

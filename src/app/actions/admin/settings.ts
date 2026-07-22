@@ -21,7 +21,7 @@ export async function updateShippingRateAction(
   _prevState: UpdateShippingRateActionResult | undefined,
   formData: FormData,
 ): Promise<UpdateShippingRateActionResult> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const parsed = UpdateShippingRateSchema.safeParse({
     price: formData.get('price'),
     currency: formData.get('currency'),
@@ -32,8 +32,17 @@ export async function updateShippingRateAction(
   // Zero is valid (free shipping) — only reject malformed/negative input.
   if (amountMinor === null || amountMinor < 0) return { error: 'Enter a valid price.' };
 
-  const { setShippingRate } = getContainer();
+  const { setShippingRate, recordAuditLogEntry } = getContainer();
   await setShippingRate.execute({ amountMinor, currency: parsed.data.currency });
+
+  await recordAuditLogEntry.execute({
+    actorUserId: admin.id,
+    actorEmail: admin.email,
+    action: 'shipping_rate.changed',
+    targetType: 'shipping_rate',
+    targetId: 'default',
+    metadata: { amountMinor, currency: parsed.data.currency },
+  });
 
   revalidatePath('/admin/settings');
   revalidatePath('/cart');

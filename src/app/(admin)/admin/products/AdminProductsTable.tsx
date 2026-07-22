@@ -7,10 +7,12 @@ import {
   publishProductsAction,
   unpublishProductsAction,
   applyMarkupToProductsAction,
+  assignCategoryToProductsAction,
   type DeleteProductsActionResult,
   type PublishProductsActionResult,
   type UnpublishProductsActionResult,
   type ApplyMarkupActionResult,
+  type AssignCategoryActionResult,
 } from '@/app/actions/admin/catalog';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -21,6 +23,7 @@ import { ProductImagesManager } from './ProductImagesManager';
 import { ProductCategoryEditor } from './ProductCategoryEditor';
 import { VariantPriceEditor } from './VariantPriceEditor';
 import { SupplierOfferCostEditor } from './SupplierOfferCostEditor';
+import { AddVariantForm } from './AddVariantForm';
 import styles from './page.module.css';
 
 export interface AdminProductOfferRow {
@@ -35,6 +38,7 @@ export interface AdminProductOfferRow {
 export interface AdminProductVariantRow {
   id: string;
   sku: string;
+  name: string;
   priceAmountMinor: number;
   currency: string;
   hasNoOffers: boolean;
@@ -61,6 +65,7 @@ const deleteInitialState: DeleteProductsActionResult = {};
 const publishInitialState: PublishProductsActionResult = {};
 const unpublishInitialState: UnpublishProductsActionResult = {};
 const markupInitialState: ApplyMarkupActionResult = {};
+const assignCategoryInitialState: AssignCategoryActionResult = {};
 const BULK_FORM_ID = 'admin-products-bulk-actions';
 
 export function AdminProductsTable({ products, emptyMessage }: AdminProductsTableProps) {
@@ -80,7 +85,12 @@ export function AdminProductsTable({ products, emptyMessage }: AdminProductsTabl
     applyMarkupToProductsAction,
     markupInitialState,
   );
-  const isPending = isDeletePending || isPublishPending || isUnpublishPending || isMarkupPending;
+  const [assignCategoryState, assignCategoryFormAction, isAssignCategoryPending] = useActionState(
+    assignCategoryToProductsAction,
+    assignCategoryInitialState,
+  );
+  const isPending =
+    isDeletePending || isPublishPending || isUnpublishPending || isMarkupPending || isAssignCategoryPending;
 
   if (products.length === 0) {
     return <p className={styles.empty}>{emptyMessage}</p>;
@@ -98,6 +108,8 @@ export function AdminProductsTable({ products, emptyMessage }: AdminProductsTabl
       {deleteState.message && <Alert tone="success">{deleteState.message}</Alert>}
       {markupState.error && <Alert tone="danger">{markupState.error}</Alert>}
       {markupState.message && <Alert tone="success">{markupState.message}</Alert>}
+      {assignCategoryState.error && <Alert tone="danger">{assignCategoryState.error}</Alert>}
+      {assignCategoryState.message && <Alert tone="success">{assignCategoryState.message}</Alert>}
 
       <div className={styles.tableWrap}>
         <table className={styles.table}>
@@ -150,7 +162,7 @@ export function AdminProductsTable({ products, emptyMessage }: AdminProductsTabl
                     {p.variants.map((v) => (
                       <div key={v.id} className={styles.variantBlock}>
                         <p className={styles.variantHeading}>
-                          {v.sku}
+                          {v.name} ({v.sku})
                           {v.hasNoOffers && (
                             <Badge tone="danger" className={styles.preferredBadge}>
                               No supplier offer
@@ -189,6 +201,7 @@ export function AdminProductsTable({ products, emptyMessage }: AdminProductsTabl
                         </ul>
                       </div>
                     ))}
+                    <AddVariantForm productId={p.id} />
                   </Stack>
                 </td>
                 <td className={styles.rowActions}>
@@ -264,6 +277,25 @@ export function AdminProductsTable({ products, emptyMessage }: AdminProductsTabl
             disabled={isPending}
           >
             Apply markup to selected
+          </Button>
+        </div>
+        <div className={styles.markupGroup}>
+          <Input
+            type="text"
+            name="category"
+            placeholder="Category"
+            form={BULK_FORM_ID}
+            className={styles.markupInput}
+            aria-label="Category"
+          />
+          <Button
+            type="submit"
+            form={BULK_FORM_ID}
+            formAction={assignCategoryFormAction}
+            variant="secondary"
+            disabled={isPending}
+          >
+            Assign category to selected
           </Button>
         </div>
       </div>

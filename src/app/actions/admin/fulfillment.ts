@@ -52,15 +52,25 @@ const CancelSupplierOrderSchema = z.object({
 });
 
 export async function cancelSupplierOrderAction(formData: FormData): Promise<void> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const parsed = CancelSupplierOrderSchema.safeParse({
     supplierOrderId: formData.get('supplierOrderId'),
     orderId: formData.get('orderId'),
   });
   if (!parsed.success) return;
 
-  const { cancelSupplierOrder } = getContainer();
+  const { cancelSupplierOrder, recordAuditLogEntry } = getContainer();
   await cancelSupplierOrder.execute(parsed.data);
+
+  await recordAuditLogEntry.execute({
+    actorUserId: admin.id,
+    actorEmail: admin.email,
+    action: 'supplier_order.cancelled',
+    targetType: 'supplier_order',
+    targetId: parsed.data.supplierOrderId,
+    metadata: { orderId: parsed.data.orderId },
+  });
+
   revalidatePath('/admin/fulfillment');
 }
 

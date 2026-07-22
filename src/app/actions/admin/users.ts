@@ -20,13 +20,21 @@ export async function promoteUserToAdminAction(
   _prevState: PromoteUserToAdminActionResult | undefined,
   formData: FormData,
 ): Promise<PromoteUserToAdminActionResult> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const parsed = PromoteUserToAdminSchema.safeParse({ email: formData.get('email') });
   if (!parsed.success) return { error: 'Missing user.' };
 
-  const { promoteUserToAdmin } = getContainer();
+  const { promoteUserToAdmin, recordAuditLogEntry } = getContainer();
   const result = await promoteUserToAdmin.execute({ email: parsed.data.email });
   if (isErr(result)) return { error: 'User not found.' };
+
+  await recordAuditLogEntry.execute({
+    actorUserId: admin.id,
+    actorEmail: admin.email,
+    action: 'user.promoted',
+    targetType: 'user',
+    targetId: parsed.data.email,
+  });
 
   revalidatePath('/admin/users');
   return { message: `${parsed.data.email} is now an admin.` };
