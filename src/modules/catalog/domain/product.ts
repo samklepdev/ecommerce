@@ -1,6 +1,7 @@
 import { AggregateRoot } from '@/shared/domain/entity';
 import type { Slug } from './slug';
 import type { ProductVariant } from './product-variant';
+import type { Money } from '@/shared/domain/money';
 
 export type ProductStatus = 'draft' | 'active' | 'archived';
 export type ProductSource = 'manual' | 'feed_import';
@@ -53,6 +54,16 @@ export class Product extends AggregateRoot<string> {
   /** The image to show on hover in a product grid, if one has been added. */
   get hoverImageUrl(): string | null {
     return this.additionalImages[0]?.url ?? null;
+  }
+
+  /** The lowest-priced variant's price — for display contexts with no
+   * specific variant selected yet (e.g. "You might also like" cards). Null
+   * only if the product has no variants at all. */
+  get cheapestVariantPrice(): Money | null {
+    if (this.variants.length === 0) return null;
+    return this.variants.reduce((min, v) =>
+      v.price.amountMinor < min.price.amountMinor ? v : min,
+    ).price;
   }
 
   static create(props: ProductProps): Product {
