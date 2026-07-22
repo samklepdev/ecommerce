@@ -81,7 +81,7 @@ export async function signUpAction(
   const signupLimit = await checkRateLimit(`signup:${ip}`, 3, 60 * 60);
   if (!signupLimit.allowed) return { error: tooManyAttemptsMessage(signupLimit.retryAfterSeconds) };
 
-  const { signUp, sendWelcomeEmail } = getContainer();
+  const { signUp, sendWelcomeEmail, requestEmailVerification } = getContainer();
   const result = await signUp.execute(parsed.data);
   if (isErr(result)) return { error: 'That email is already registered.' };
 
@@ -89,6 +89,14 @@ export async function signUpAction(
     await sendWelcomeEmail.execute({ userId: result.value.id, email: result.value.email });
   } catch (e) {
     logger.warn('signup: welcome email failed', {
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  try {
+    await requestEmailVerification.execute({ userId: result.value.id, email: result.value.email });
+  } catch (e) {
+    logger.warn('signup: verification email failed', {
       error: e instanceof Error ? e.message : String(e),
     });
   }
@@ -211,4 +219,28 @@ export async function resetPasswordAction(
   }
 
   redirect('/login?reset=success');
+}
+
+const VerifyEmailSchema = z.object({
+  token: z.string().min(1),
+});
+
+export interface VerifyEmailActionResult {
+  error?: string;
+}
+
+export async function verifyEmailAction(
+  _prevState: VerifyEmailActionResult | undefined,
+  formData: FormData,
+): Promise<VerifyEmailActionResult> {
+  const parsed = VerifyEmailSchema.safeParse({ token: formData.get('token') });
+  if (!parsed.success) return { error: 'Missing verification token.' };
+
+  const { verifyEmail } = getContainer();
+  const result = await verifyEmail.execute({ token: parsed.data.token });
+  if (isErr(result)) {
+    return { error: 'This verification link is invalid or has expired. Request a new one from your account page.' };
+  }
+
+  redirect('/account?verified=success');
 }

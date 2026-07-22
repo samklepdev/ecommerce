@@ -40,6 +40,20 @@ describe('CreateProduct', () => {
     expect(product.source).toBe('feed_import');
   });
 
+  it('accepts an optional category, defaulting to null', async () => {
+    const { repo } = makeFakeProducts();
+
+    const withCategory = await new CreateProduct(repo).execute({
+      slug: 'widget-z',
+      name: 'Widget Z',
+      category: 'Widgets',
+    });
+    expect(withCategory.category).toBe('Widgets');
+
+    const withoutCategory = await new CreateProduct(repo).execute({ slug: 'widget-w', name: 'Widget W' });
+    expect(withoutCategory.category).toBeNull();
+  });
+
   it('throws on an invalid slug', async () => {
     const { repo, created } = makeFakeProducts();
 

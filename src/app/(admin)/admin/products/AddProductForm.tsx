@@ -124,6 +124,9 @@ export function AddProductForm({ suppliers, onSuccess }: AddProductFormProps) {
         <Field label="Description" htmlFor="description" hint="Optional">
           <Input type="text" id="description" name="description" ref={descriptionRef} />
         </Field>
+        <Field label="Category" htmlFor="category" hint="Optional — used for the storefront filter">
+          <Input type="text" id="category" name="category" />
+        </Field>
 
         <div className={styles.row}>
           <Field label="SKU" htmlFor="sku" className={styles.rowField}>

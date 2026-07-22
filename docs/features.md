@@ -11,10 +11,11 @@ feature" checklist).
 
 ## Storefront (customers)
 
-- **Browse products** (`/products`) — grid of published products. Each
-  card has a quantity stepper, decimal price, and an inline "Add to cart"
-  button (no need to open the product page first). Targets whichever
-  variant has a preferred supplier offer configured.
+- **Browse products** (`/products`) — grid of published products, with
+  text search (by name), an optional category filter, and page-based
+  navigation. Each card has a quantity stepper, decimal price, and an
+  inline "Add to cart" button (no need to open the product page first).
+  Targets whichever variant has a preferred supplier offer configured.
 - **Product detail** (`/products/[slug]`) — image gallery, all variants
   with price and availability, add to cart. "Out of stock" means the
   supplier marked it unavailable, not a quantity count — this store holds
@@ -37,17 +38,25 @@ feature" checklist).
   payment/fulfillment status, line items, shipping address, tracking
   numbers, and — while payment is pending — a live-updating BTC payment
   widget: QR code, BIP21 URI, countdown to quote expiry, confirmation
-  count, and clear messaging for underpaid or overpaid amounts.
-- **Account** (`/account`) — profile, avatar upload, change password;
+  count, and clear messaging for underpaid or overpaid amounts. A
+  customer can cancel the order themselves any time before the chain has
+  seen a payment (`pending`/`awaiting_payment`) — once BTC is in flight,
+  cancellation is no longer offered.
+- **Account** (`/account`) — profile, avatar upload, change password,
+  change email (re-triggers verification), delete account (password
+  confirmation required; past orders are kept but unlinked from the
+  account); a banner + resend button while the email is unverified;
   (`/account/orders`) — order history list and detail (same view as the
   guest order page, plus the login wall).
-- **Auth** (`/signup`, `/login`, `/forgot-password`, `/reset-password/[token]`)
-  — email/password accounts, rate-limited login and signup, password
-  reset via emailed one-time token (doesn't reveal whether an email is
-  registered).
-- **Emails** — welcome email (with open-tracking), order-confirmation
-  email, payment-confirmed email. Sent via a console-log stub in
-  dev/local; nothing is wired to a real provider yet.
+- **Auth** (`/signup`, `/login`, `/forgot-password`, `/reset-password/[token]`,
+  `/verify-email/[token]`) — email/password accounts, rate-limited login
+  and signup, password reset via emailed one-time token (doesn't reveal
+  whether an email is registered), email verification via a similar
+  emailed link (soft — unverified accounts can still log in and shop;
+  it's just a reminder banner, not a login gate).
+- **Emails** — welcome email (with open-tracking), verification email,
+  order-confirmation email, payment-confirmed email. Sent via a
+  console-log stub in dev/local; nothing is wired to a real provider yet.
 
 ## Admin (`/admin/*`, requires an admin account)
 
@@ -59,7 +68,8 @@ feature" checklist).
   per-variant sell-price editing; per-offer supplier-cost editing; bulk
   "apply X% markup" across selected products' variants; a "No supplier
   offer" badge on any variant that could never actually be fulfilled;
-  filter the list by supplier.
+  an editable category tag (free text) used by the storefront's category
+  filter; filter the list by supplier.
 - **Fulfillment** (`/admin/fulfillment`) — the ops queue of supplier
   orders (one per supplier per customer order), grouped by customer
   order. Mark a supplier order "ordered" (recording a reference) or

@@ -14,12 +14,15 @@ const PAYMENT_STATUSES: PaymentStatus[] = [
   'paid',
   'failed',
   'expired',
+  'cancelled',
   'refunded',
 ];
 
 const LEGAL_PAYMENT_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]> = {
-  pending: ['awaiting_payment', 'failed', 'expired'],
-  awaiting_payment: ['awaiting_confirmation', 'paid', 'failed', 'expired'],
+  pending: ['awaiting_payment', 'failed', 'expired', 'cancelled'],
+  awaiting_payment: ['awaiting_confirmation', 'paid', 'failed', 'expired', 'cancelled'],
+  // No `cancelled` here — once the chain has seen something, a customer can
+  // no longer cancel.
   awaiting_confirmation: ['paid', 'failed', 'expired'],
   paid: ['refunded'],
   failed: [],
@@ -27,6 +30,9 @@ const LEGAL_PAYMENT_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]> = {
   // confirmed payment for an order that was already (mistakenly) expired —
   // the chain is the source of truth, not our own expiry bookkeeping.
   expired: ['paid'],
+  // Same rationale as `expired` — a customer-cancelled order's BTC address
+  // was already handed out, so a late payment must still be recordable.
+  cancelled: ['paid'],
   refunded: [],
 };
 

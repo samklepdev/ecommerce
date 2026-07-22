@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { eq, inArray } from 'drizzle-orm';
+import { and, count as countRows, eq, ilike, inArray, isNotNull } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { products, productVariants, productImages } from '@/shared/infrastructure/db/schema';
@@ -13,7 +13,10 @@ import {
 } from '@/modules/catalog/domain/product';
 import { ProductVariant } from '@/modules/catalog/domain/product-variant';
 import { Slug } from '@/modules/catalog/domain/slug';
-import type { ProductRepository } from '@/modules/catalog/application/ports/product-repository';
+import type {
+  ListProductsParams,
+  ProductRepository,
+} from '@/modules/catalog/application/ports/product-repository';
 
 type ProductRow = typeof products.$inferSelect;
 type VariantRow = typeof productVariants.$inferSelect;
@@ -47,8 +50,17 @@ function toProduct(
     additionalImages,
     status: row.status as ProductStatus,
     source: row.source as ProductSource,
+    category: row.category,
     variants,
   });
+}
+
+function buildListFilter(params?: Pick<ListProductsParams, 'search' | 'category'>) {
+  return and(
+    eq(products.status, 'active'),
+    params?.search ? ilike(products.name, `%${params.search}%`) : undefined,
+    params?.category ? eq(products.category, params.category) : undefined,
+  );
 }
 
 export class DrizzleProductRepository implements ProductRepository {
@@ -64,9 +76,9 @@ export class DrizzleProductRepository implements ProductRepository {
     return toProduct(row, variants.get(row.id) ?? [], images.get(row.id) ?? []);
   }
 
-  async list(params?: { limit?: number; offset?: number }): Promise<Product[]> {
+  async list(params?: ListProductsParams): Promise<Product[]> {
     const rows = await this.db.query.products.findMany({
-      where: eq(products.status, 'active'),
+      where: buildListFilter(params),
       limit: params?.limit ?? 50,
       offset: params?.offset ?? 0,
     });
@@ -77,6 +89,22 @@ export class DrizzleProductRepository implements ProductRepository {
     return rows.map((row) =>
       toProduct(row, variantsByProduct.get(row.id) ?? [], imagesByProduct.get(row.id) ?? []),
     );
+  }
+
+  async count(params?: Pick<ListProductsParams, 'search' | 'category'>): Promise<number> {
+    const [row] = await this.db
+      .select({ value: countRows() })
+      .from(products)
+      .where(buildListFilter(params));
+    return row?.value ?? 0;
+  }
+
+  async listCategories(): Promise<string[]> {
+    const rows = await this.db
+      .selectDistinct({ category: products.category })
+      .from(products)
+      .where(and(eq(products.status, 'active'), isNotNull(products.category)));
+    return rows.map((r) => r.category).filter((c): c is string => c !== null).sort();
   }
 
   async findVariantById(variantId: string): Promise<ProductVariant | null> {
@@ -107,7 +135,15 @@ export class DrizzleProductRepository implements ProductRepository {
       description: product.description,
       status: product.status,
       source: product.source,
+      category: product.category,
     });
+  }
+
+  async updateCategory(productId: string, category: string | null): Promise<void> {
+    await this.db
+      .update(products)
+      .set({ category, updatedAt: new Date() })
+      .where(eq(products.id, productId));
   }
 
   async createVariant(variant: ProductVariant): Promise<void> {

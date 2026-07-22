@@ -31,6 +31,7 @@ import type {
   UnfulfillableOrderLine,
   UnfulfillableOrderLinesRepository,
 } from '@/modules/orders/application/ports/unfulfillable-order-lines-repository';
+import type { CancelOrderRepository } from '@/modules/orders/application/ports/cancel-order-repository';
 
 /**
  * One repository satisfies the place-order, checkout-side, confirm-side,
@@ -47,7 +48,8 @@ export class DrizzleOrderRepository
     PaidOrderLinesRepository,
     OrderSummaryRepository,
     OrderHistoryRepository,
-    UnfulfillableOrderLinesRepository
+    UnfulfillableOrderLinesRepository,
+    CancelOrderRepository
 {
   constructor(private readonly db: DB) {}
 
@@ -170,6 +172,24 @@ export class DrizzleOrderRepository
       .set({ paymentStatus: 'expired', updatedAt: new Date() })
       .where(
         and(eq(orders.id, orderId), inArray(orders.paymentStatus, ['pending', 'awaiting_payment'])),
+      )
+      .returning({ id: orders.id });
+    return result.length > 0;
+  }
+
+  /** Guarded, idempotent, same shape as `tryExpire` — `ownerUserId: null`
+   * skips the ownership filter entirely (the guest order page's existing
+   * trust model: order id alone is the access capability). */
+  async cancelOrder(orderId: string, ownerUserId: string | null): Promise<boolean> {
+    const result = await this.db
+      .update(orders)
+      .set({ paymentStatus: 'cancelled', updatedAt: new Date() })
+      .where(
+        and(
+          eq(orders.id, orderId),
+          inArray(orders.paymentStatus, ['pending', 'awaiting_payment']),
+          ownerUserId === null ? undefined : eq(orders.userId, ownerUserId),
+        ),
       )
       .returning({ id: orders.id });
     return result.length > 0;

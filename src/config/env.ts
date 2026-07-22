@@ -45,6 +45,7 @@ const envSchema = z.object({
   APP_URL: z.string().url().default('http://localhost:3000'),
 
   PASSWORD_RESET_TTL_SECONDS: z.coerce.number().int().positive().default(3600),
+  EMAIL_VERIFICATION_TTL_SECONDS: z.coerce.number().int().positive().default(86_400),
 });
 
 export const env = envSchema.parse(process.env);
