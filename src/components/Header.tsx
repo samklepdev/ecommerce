@@ -43,9 +43,13 @@ export async function Header() {
               {user.isAdmin && (
                 <>
                   <DropdownDivider />
+                  <DropdownItem href="/admin">Dashboard</DropdownItem>
                   <DropdownItem href="/admin/products">Products</DropdownItem>
                   <DropdownItem href="/admin/fulfillment">Fulfillment</DropdownItem>
+                  <DropdownItem href="/admin/orders">Orders</DropdownItem>
+                  <DropdownItem href="/admin/users">Users</DropdownItem>
                   <DropdownItem href="/admin/settings">Settings</DropdownItem>
+                  <DropdownItem href="/admin/audit-log">Audit log</DropdownItem>
                 </>
               )}
               <DropdownDivider />

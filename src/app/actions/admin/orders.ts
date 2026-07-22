@@ -20,11 +20,11 @@ export async function markOrderRefundedAction(
   _prevState: MarkOrderRefundedActionResult | undefined,
   formData: FormData,
 ): Promise<MarkOrderRefundedActionResult> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const parsed = MarkOrderRefundedSchema.safeParse({ orderId: formData.get('orderId') });
   if (!parsed.success) return { error: 'Missing order.' };
 
-  const { markOrderRefunded } = getContainer();
+  const { markOrderRefunded, recordAuditLogEntry } = getContainer();
   const result = await markOrderRefunded.execute({ orderId: parsed.data.orderId });
   if (isErr(result)) {
     return {
@@ -34,6 +34,14 @@ export async function markOrderRefundedAction(
           : 'This order cannot be marked refunded from its current status.',
     };
   }
+
+  await recordAuditLogEntry.execute({
+    actorUserId: admin.id,
+    actorEmail: admin.email,
+    action: 'order.refunded',
+    targetType: 'order',
+    targetId: parsed.data.orderId,
+  });
 
   revalidatePath(`/admin/orders/${parsed.data.orderId}`);
   revalidatePath('/admin/orders');

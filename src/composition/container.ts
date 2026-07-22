@@ -55,6 +55,10 @@ import { CreateProduct } from '@/modules/catalog/application/use-cases/create-pr
 import { CreateProductVariant } from '@/modules/catalog/application/use-cases/create-product-variant';
 import { UpdateVariantPrice } from '@/modules/catalog/application/use-cases/update-variant-price';
 import { ApplyMarkupToVariants } from '@/modules/catalog/application/use-cases/apply-markup-to-variants';
+import { BulkAssignCategory } from '@/modules/catalog/application/use-cases/bulk-assign-category';
+import { DrizzleAuditLogRepository } from '@/modules/audit/infrastructure/drizzle-audit-log-repository';
+import { RecordAuditLogEntry } from '@/modules/audit/application/use-cases/record-audit-log-entry';
+import { ListAuditLogEntries } from '@/modules/audit/application/use-cases/list-audit-log-entries';
 import { ListAllProductsForAdmin } from '@/modules/catalog/application/use-cases/list-all-products-for-admin';
 import { DeleteProducts } from '@/modules/catalog/application/use-cases/delete-products';
 import { PublishProducts } from '@/modules/catalog/application/use-cases/publish-products';
@@ -139,6 +143,9 @@ export interface Container {
   createProductVariant: CreateProductVariant;
   updateVariantPrice: UpdateVariantPrice;
   applyMarkupToVariants: ApplyMarkupToVariants;
+  bulkAssignCategory: BulkAssignCategory;
+  recordAuditLogEntry: RecordAuditLogEntry;
+  listAuditLogEntries: ListAuditLogEntries;
   listAllProductsForAdmin: ListAllProductsForAdmin;
   deleteProducts: DeleteProducts;
   publishProducts: PublishProducts;
@@ -254,6 +261,10 @@ function build(): Container {
   const createProductVariant = new CreateProductVariant(products);
   const updateVariantPrice = new UpdateVariantPrice(products);
   const applyMarkupToVariants = new ApplyMarkupToVariants(products);
+  const bulkAssignCategory = new BulkAssignCategory(products);
+  const auditLogRepository = new DrizzleAuditLogRepository(db);
+  const recordAuditLogEntry = new RecordAuditLogEntry(auditLogRepository);
+  const listAuditLogEntries = new ListAuditLogEntries(auditLogRepository);
   const listAllProductsForAdmin = new ListAllProductsForAdmin(products);
   const deleteProducts = new DeleteProducts(products);
   const publishProducts = new PublishProducts(products);
@@ -418,6 +429,9 @@ function build(): Container {
     createProductVariant,
     updateVariantPrice,
     applyMarkupToVariants,
+    bulkAssignCategory,
+    recordAuditLogEntry,
+    listAuditLogEntries,
     listAllProductsForAdmin,
     deleteProducts,
     publishProducts,

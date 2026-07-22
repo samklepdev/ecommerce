@@ -127,6 +127,27 @@ export const savedAddresses = pgTable(
   }),
 );
 
+export const auditLog = pgTable(
+  'audit_log',
+  {
+    id: text('id').primaryKey(),
+    // set null (not cascade) — an audit entry must outlive the actor's
+    // account, same rationale as orders.user_id.
+    actorUserId: text('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+    // Denormalized snapshot — survives even if the actor account is later
+    // deleted or its email changes.
+    actorEmail: text('actor_email').notNull(),
+    action: text('action').notNull(), // e.g. 'order.refunded'
+    targetType: text('target_type').notNull(), // e.g. 'order'
+    targetId: text('target_id').notNull(),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    createdAtIdx: index('audit_log_created_at_idx').on(t.createdAt),
+  }),
+);
+
 export const products = pgTable(
   'products',
   {
