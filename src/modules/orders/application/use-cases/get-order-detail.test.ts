@@ -23,6 +23,7 @@ function makeOrderDetail(id: string): OrderDetail {
     customerEmail: 'guest@example.com',
     shippingAddress: null,
     shippingAmountMinor: 0,
+    paymentRecoveredFrom: null,
     lines: [],
   };
 }

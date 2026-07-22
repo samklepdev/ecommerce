@@ -62,6 +62,13 @@ export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore {
       .where(eq(bitcoinPaymentIntents.orderId, orderId));
   }
 
+  async markCancelled(orderId: string): Promise<void> {
+    await this.db
+      .update(bitcoinPaymentIntents)
+      .set({ status: 'cancelled' })
+      .where(eq(bitcoinPaymentIntents.orderId, orderId));
+  }
+
   async recordProgress(
     orderId: string,
     progress: { confirmations: number; underpaid: boolean; overpaid: boolean },

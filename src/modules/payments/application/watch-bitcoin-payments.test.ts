@@ -23,6 +23,7 @@ function makeFakeOrders(initialStatus: PaymentStatus) {
     async setPaymentStatus(_orderId, next) {
       status = next;
     },
+    async recordPaymentRecovery() {},
   };
   return { repo, getStatus: () => status };
 }
@@ -52,6 +53,7 @@ function makeFakePaymentStore(intent: BitcoinPaymentIntent) {
       confirmedCalled = true;
     },
     async markExpired() {},
+    async markCancelled() {},
     async recordProgress(orderId, progress) {
       progressByOrderId.set(orderId, progress);
     },

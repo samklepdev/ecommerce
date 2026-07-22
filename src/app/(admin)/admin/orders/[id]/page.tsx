@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getContainer } from '@/composition/container';
 import { requireAdmin } from '@/app/lib/session';
 import { OrderDetailView } from '@/app/(storefront)/orders/OrderDetailView';
+import { Badge } from '@/components/ui/Badge';
 import { RefundOrderButton } from './RefundOrderButton';
 
 export const dynamic = 'force-dynamic';
@@ -31,6 +32,9 @@ export default async function AdminOrderDetailPage({ params }: AdminOrderDetailP
         backHref="/admin/orders"
         backLabel="Back to orders"
       />
+      {order.paymentRecoveredFrom && (
+        <Badge tone="warning">Recovered from {order.paymentRecoveredFrom}</Badge>
+      )}
       <RefundOrderButton orderId={order.id} paymentStatus={order.paymentStatus} />
     </>
   );

@@ -222,6 +222,10 @@ export const orders = pgTable(
     // re-read live, so a later admin change doesn't alter historical orders.
     shippingAmountMinor: bigint('shipping_amount_minor', { mode: 'number' }).notNull().default(0),
     paymentStatus: text('payment_status').notNull().default('pending'),
+    // Set once, never cleared, when ConfirmPayment recovers an order from
+    // expired/cancelled back to paid — durable trace for admin follow-up,
+    // not just a log line (mirrors order_lines.fulfillment_issue).
+    paymentRecoveredFrom: text('payment_recovered_from'),
     fulfillmentStatus: text('fulfillment_status').notNull().default('unfulfilled'),
     // For on-chain BTC this is the order's unique receive address.
     paymentReference: text('payment_reference'),

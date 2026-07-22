@@ -12,6 +12,7 @@ function makeOrder(overrides: Partial<OrderListItem> = {}): OrderListItem {
     amountMinor: 1999,
     paymentStatus: 'paid',
     fulfillmentStatus: 'unfulfilled',
+    paymentRecoveredFrom: null,
     ...overrides,
   };
 }
