@@ -51,6 +51,7 @@ import { ListProducts } from '@/modules/catalog/application/use-cases/list-produ
 import { ListProductCategories } from '@/modules/catalog/application/use-cases/list-product-categories';
 import { UpdateProductCategory } from '@/modules/catalog/application/use-cases/update-product-category';
 import { GetProductBySlug } from '@/modules/catalog/application/use-cases/get-product-by-slug';
+import { GetProductsByIds } from '@/modules/catalog/application/use-cases/get-products-by-ids';
 import { CreateProduct } from '@/modules/catalog/application/use-cases/create-product';
 import { CreateProductVariant } from '@/modules/catalog/application/use-cases/create-product-variant';
 import { UpdateVariantPrice } from '@/modules/catalog/application/use-cases/update-variant-price';
@@ -139,6 +140,7 @@ export interface Container {
   listProductCategories: ListProductCategories;
   updateProductCategory: UpdateProductCategory;
   getProductBySlug: GetProductBySlug;
+  getProductsByIds: GetProductsByIds;
   createProduct: CreateProduct;
   createProductVariant: CreateProductVariant;
   updateVariantPrice: UpdateVariantPrice;
@@ -257,6 +259,7 @@ function build(): Container {
   const listProductCategories = new ListProductCategories(products);
   const updateProductCategory = new UpdateProductCategory(products);
   const getProductBySlug = new GetProductBySlug(products);
+  const getProductsByIds = new GetProductsByIds(products);
   const createProduct = new CreateProduct(products);
   const createProductVariant = new CreateProductVariant(products);
   const updateVariantPrice = new UpdateVariantPrice(products);
@@ -425,6 +428,7 @@ function build(): Container {
     listProductCategories,
     updateProductCategory,
     getProductBySlug,
+    getProductsByIds,
     createProduct,
     createProductVariant,
     updateVariantPrice,
