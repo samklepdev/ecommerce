@@ -47,3 +47,14 @@
   color: var(--color-muted);
   font-size: 0.875rem;
 }
+
+.sectionTitle {
+  font-size: 1.125rem;
+  margin-bottom: var(--space-3);
+}
+
+.relatedGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-4);
+}
