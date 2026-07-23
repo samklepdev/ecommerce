@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ProductGallery } from './ProductGallery';
 import { AddToCartButton } from './AddToCartButton';
+import { RecentlyViewed } from './RecentlyViewed';
 import styles from './page.module.css';
 import type { Product } from '@/modules/catalog/domain/product';
 import { ProductCardMini, toProductCardSummary } from '../ProductCardMini';
@@ -140,6 +141,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
             </div>
           </div>
         )}
+        <RecentlyViewed currentProductId={product.id} />
       </Stack>
     </PageContainer>
   );
