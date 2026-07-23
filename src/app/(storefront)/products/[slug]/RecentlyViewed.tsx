@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { getRecentlyViewedProductsAction } from '@/app/actions/products';
 import { ProductCardMini, type ProductCardSummary } from '../ProductCardMini';
 import cardStyles from '../ProductCardMini.module.css';
+import { cx } from '@/components/ui/cx';
 import styles from './page.module.css';
 
 const STORAGE_KEY = 'recentlyViewed';
@@ -61,7 +62,7 @@ export function RecentlyViewed({ currentProductId }: RecentlyViewedProps) {
   return (
     <div>
       <h2 className={styles.sectionTitle}>Recently viewed</h2>
-      <div className={styles.relatedGrid}>
+      <div className={cx(styles.relatedGrid, products.length === 1 && styles.single)}>
         {products.map((product) => (
           <ProductCardMini key={product.id} product={product}>
             {product.priceDisplay && (
