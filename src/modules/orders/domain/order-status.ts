@@ -56,6 +56,15 @@ const FULFILLMENT_TRANSITIONS: Record<FulfillmentStatus, readonly FulfillmentSta
   cancelled: [],
 };
 
+/** Only pre-payment orders can be cancelled by the customer — once the
+ * chain has seen anything (`awaiting_confirmation` onward), cancellation
+ * is no longer offered (see PAYMENT_TRANSITIONS above: no `cancelled`
+ * transition exists past `awaiting_payment`). Shared by every UI surface
+ * that offers a cancel action, so the rule can't drift between them. */
+export function isOrderCancellable(status: PaymentStatus): boolean {
+  return status === 'pending' || status === 'awaiting_payment';
+}
+
 export function assertPaymentTransition(from: PaymentStatus, to: PaymentStatus): void {
   if (!PAYMENT_TRANSITIONS[from].includes(to)) {
     throw new IllegalStatusTransitionError('payment', from, to);

@@ -64,7 +64,10 @@ feature" checklist).
   account); a banner + resend button while the email is unverified; a
   saved-address book (add, delete, set default — used to autofill
   checkout); (`/account/orders`) — order history list and detail (same
-  view as the guest order page, plus the login wall).
+  view as the guest order page, plus the login wall). Orders that are
+  still pre-payment (`pending`/`awaiting_payment`) can be cancelled right
+  from the list, not just the detail page — once BTC is in flight,
+  cancellation is no longer offered anywhere.
 - **Auth** (`/signup`, `/login`, `/forgot-password`, `/reset-password/[token]`,
   `/verify-email/[token]`) — email/password accounts, rate-limited login
   and signup, password reset via emailed one-time token (doesn't reveal

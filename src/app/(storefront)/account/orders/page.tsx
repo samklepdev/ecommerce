@@ -4,12 +4,15 @@ import { redirect } from 'next/navigation';
 import { getContainer } from '@/composition/container';
 import { getSessionUser } from '@/app/lib/session';
 import { paymentStatusTone, fulfillmentStatusTone } from '@/app/lib/status-tone';
+import { isOrderCancellable } from '@/modules/orders/domain/order-status';
 import { Money } from '@/shared/domain/money';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
 import { Badge } from '@/components/ui/Badge';
 import { Pagination } from '@/components/ui/Pagination';
 import { paginate, parsePage, DEFAULT_PAGE_SIZE } from '@/components/ui/paginate';
+import { cancelOwnOrderAction } from '@/app/actions/orders';
+import { CancelOrderButton } from '../../orders/CancelOrderButton';
 import styles from './page.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -53,6 +56,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
                     <th>Date</th>
                     <th>Total</th>
                     <th>Status</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -85,6 +89,11 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
                             {order.fulfillmentStatus}
                           </Badge>
                         </Link>
+                      </td>
+                      <td className={styles.actionsCell}>
+                        {isOrderCancellable(order.paymentStatus) && (
+                          <CancelOrderButton orderId={order.id} action={cancelOwnOrderAction} />
+                        )}
                       </td>
                     </tr>
                   ))}

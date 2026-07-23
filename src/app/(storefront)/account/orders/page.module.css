@@ -40,6 +40,10 @@
   text-decoration: none;
 }
 
+.actionsCell {
+  padding: var(--space-3);
+}
+
 .statusCell {
   display: flex;
   align-items: center;

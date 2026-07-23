@@ -4,6 +4,7 @@ import { paymentStatusTone, fulfillmentStatusTone } from '@/app/lib/status-tone'
 import { Money } from '@/shared/domain/money';
 import { satsToBtcString } from '@/modules/payments/domain/bip21';
 import { buildCarrierTrackingUrl, carrierLabel } from '@/shared/domain/carrier-tracking';
+import { isOrderCancellable } from '@/modules/orders/domain/order-status';
 import type { OrderDetail } from '@/modules/orders/application/ports/order-history-repository';
 import type { SupplierOrderSummary } from '@/modules/orders/application/ports/supplier-order-repository';
 import type { PaymentSession } from '@/modules/payments/application/use-cases/get-payment-session-for-order';
@@ -28,8 +29,6 @@ interface OrderDetailViewProps {
   /** Same split as cancelAction — omitted on the admin order-detail page. */
   reorderAction?: ReorderButtonProps['action'];
 }
-
-const CANCELLABLE_STATUSES = new Set(['pending', 'awaiting_payment']);
 
 export function OrderDetailView({
   order,
@@ -67,7 +66,7 @@ export function OrderDetailView({
               </div>
               <p className={styles.empty}>Placed {order.createdAt.toLocaleString()}</p>
             </div>
-            {cancelAction && CANCELLABLE_STATUSES.has(order.paymentStatus) && (
+            {cancelAction && isOrderCancellable(order.paymentStatus) && (
               <CancelOrderButton orderId={order.id} action={cancelAction} />
             )}
           </div>

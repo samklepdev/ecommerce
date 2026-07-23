@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   assertFulfillmentTransition,
   assertPaymentTransition,
+  isOrderCancellable,
   IllegalStatusTransitionError,
   type FulfillmentStatus,
   type PaymentStatus,
@@ -97,5 +98,21 @@ describe('assertFulfillmentTransition', () => {
     expect(() =>
       assertFulfillmentTransition('awaiting_payment', 'unfulfilled', 'cancelled'),
     ).not.toThrow();
+  });
+});
+
+describe('isOrderCancellable', () => {
+  it('is true before any money has been sent', () => {
+    expect(isOrderCancellable('pending')).toBe(true);
+    expect(isOrderCancellable('awaiting_payment')).toBe(true);
+  });
+
+  it('is false once the chain has seen anything, or in any terminal state', () => {
+    expect(isOrderCancellable('awaiting_confirmation')).toBe(false);
+    expect(isOrderCancellable('paid')).toBe(false);
+    expect(isOrderCancellable('failed')).toBe(false);
+    expect(isOrderCancellable('expired')).toBe(false);
+    expect(isOrderCancellable('cancelled')).toBe(false);
+    expect(isOrderCancellable('refunded')).toBe(false);
   });
 });
