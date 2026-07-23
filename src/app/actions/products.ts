@@ -15,5 +15,13 @@ export async function getRecentlyViewedProductsAction(
 
   const { getProductsByIds } = getContainer();
   const products = await getProductsByIds.execute({ productIds: parsed.data });
-  return products.map(toProductCardSummary);
+
+  // findByIds does not preserve input order — re-sort to match the
+  // caller's requested (most-recent-first) order.
+  const productsById = new Map(products.map((product) => [product.id, product]));
+  const ordered = parsed.data
+    .map((id) => productsById.get(id))
+    .filter((product): product is (typeof products)[number] => product !== undefined);
+
+  return ordered.map(toProductCardSummary);
 }
