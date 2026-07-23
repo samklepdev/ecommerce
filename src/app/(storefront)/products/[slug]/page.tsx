@@ -15,6 +15,7 @@ import styles from './page.module.css';
 import type { Product } from '@/modules/catalog/domain/product';
 import { ProductCardMini, toProductCardSummary } from '../ProductCardMini';
 import cardStyles from '../ProductCardMini.module.css';
+import { cx } from '@/components/ui/cx';
 
 export const revalidate = 3600;
 
@@ -127,7 +128,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         {relatedProducts.length > 0 && (
           <div>
             <h2 className={styles.sectionTitle}>You might also like</h2>
-            <div className={styles.relatedGrid}>
+            <div className={cx(styles.relatedGrid, relatedProducts.length === 1 && styles.single)}>
               {relatedProducts.map((related) => {
                 const summary = toProductCardSummary(related);
                 return (

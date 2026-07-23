@@ -58,3 +58,10 @@
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: var(--space-4);
 }
+
+/* A single card would otherwise stretch to fill the full row width via
+   the 1fr track above — cap it at a normal card width and center it. */
+.relatedGrid.single {
+  grid-template-columns: minmax(160px, 240px);
+  justify-content: center;
+}
