@@ -103,10 +103,12 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               Search
             </Button>
           </form>
-          {categories.length > 0 && (
-            <CategoryFilterSelect categories={categories} selectedCategory={category} />
-          )}
-          <SortSelect selectedSort={sort} />
+          <div className={styles.dropdownGroup}>
+            {categories.length > 0 && (
+              <CategoryFilterSelect categories={categories} selectedCategory={category} />
+            )}
+            <SortSelect selectedSort={sort} />
+          </div>
         </div>
 
         {pagedProducts.length === 0 ? (
