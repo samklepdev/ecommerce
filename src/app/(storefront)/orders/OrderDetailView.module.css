@@ -34,8 +34,23 @@
 
 .lineRow {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   font-size: 0.875rem;
+}
+
+.lineInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.lineThumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
 }
 
 .total {
@@ -46,18 +61,12 @@
   border-top: 1px solid var(--color-border);
 }
 
-.addressThumbs {
+.addressBlock {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
   display: flex;
+  flex-direction: column;
   gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
-.addressThumb {
-  width: 48px;
-  height: 48px;
-  object-fit: cover;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
 }
 
 .address {

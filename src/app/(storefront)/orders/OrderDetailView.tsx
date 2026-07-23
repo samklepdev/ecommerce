@@ -88,8 +88,15 @@ export function OrderDetailView({
           <ul className={styles.lineList}>
             {order.lines.map((line, i) => (
               <li key={i} className={styles.lineRow}>
-                <span>
-                  {line.sku} × {line.quantity}
+                <span className={styles.lineInfo}>
+                  {line.imageUrl && (
+                    // Supplier image hosts are dynamic/admin-added, not known at build time.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={line.imageUrl} alt={line.sku} className={styles.lineThumb} />
+                  )}
+                  <span>
+                    {line.sku} × {line.quantity}
+                  </span>
                 </span>
                 <span>
                   {Money.of(line.unitAmountMinor, order.currency).multiply(line.quantity).toDisplayString()}
@@ -105,40 +112,24 @@ export function OrderDetailView({
             <span>Total</span>
             <span>{total.toDisplayString()}</span>
           </div>
-        </Card>
 
-        {order.shippingAddress && (
-          <Card className={styles.section}>
-            <h2 className={styles.sectionTitle}>Shipping address</h2>
-            {order.lines.some((l) => l.imageUrl) && (
-              <div className={styles.addressThumbs}>
-                {order.lines
-                  .filter((l) => l.imageUrl)
-                  .map((l) => (
-                    // Supplier image hosts are dynamic/admin-added, not known at build time.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={l.variantId}
-                      src={l.imageUrl!}
-                      alt={l.sku}
-                      className={styles.addressThumb}
-                    />
-                  ))}
-              </div>
-            )}
-            <address className={styles.address}>
-              {order.shippingAddress.name}
-              <br />
-              {order.shippingAddress.line1}
-              {order.shippingAddress.line2 ? <>, {order.shippingAddress.line2}</> : null}
-              <br />
-              {order.shippingAddress.city}, {order.shippingAddress.region}{' '}
-              {order.shippingAddress.postalCode}
-              <br />
-              {order.shippingAddress.country}
-            </address>
-          </Card>
-        )}
+          {order.shippingAddress && (
+            <div className={styles.addressBlock}>
+              <h2 className={styles.sectionTitle}>Shipping address</h2>
+              <address className={styles.address}>
+                {order.shippingAddress.name}
+                <br />
+                {order.shippingAddress.line1}
+                {order.shippingAddress.line2 ? <>, {order.shippingAddress.line2}</> : null}
+                <br />
+                {order.shippingAddress.city}, {order.shippingAddress.region}{' '}
+                {order.shippingAddress.postalCode}
+                <br />
+                {order.shippingAddress.country}
+              </address>
+            </div>
+          )}
+        </Card>
 
         {trackedShipments.length > 0 && (
           <Card className={styles.section}>
