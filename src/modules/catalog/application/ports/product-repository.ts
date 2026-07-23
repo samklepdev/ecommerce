@@ -21,6 +21,10 @@ export interface ProductRepository {
    * dropdown's options. */
   listCategories(): Promise<string[]>;
   findVariantById(variantId: string): Promise<ProductVariant | null>;
+  /** The parent product of a variant — for display contexts that only have
+   * a variantId (e.g. the cart) and need the product's name/image. Null if
+   * the variant or its product no longer exists. */
+  findProductByVariantId(variantId: string): Promise<Product | null>;
   /** Active-only; ids that don't resolve (deleted/archived/never existed)
    * are silently omitted, not errored. Returned order is not guaranteed to
    * match `ids`' order — callers that need a specific order must re-sort. */

@@ -53,3 +53,7 @@
 .ghost:hover:not(:disabled) {
   background: var(--color-surface);
 }
+
+.iconOnly {
+  padding: var(--space-2);
+}
