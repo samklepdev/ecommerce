@@ -88,6 +88,9 @@ export async function reorderOwnOrderAction(
   if (isErr(result)) return { error: 'That order could not be found.' };
 
   revalidatePath('/cart');
+  // See cart.ts — the Header's cart-count badge lives in the root layout
+  // and needs an explicit revalidation whenever cart contents change.
+  revalidatePath('/', 'layout');
   return { message: reorderResultMessage(result.value.addedCount, result.value.unavailableSkus) };
 }
 
@@ -105,5 +108,8 @@ export async function reorderOrderByIdAction(
   if (isErr(result)) return { error: 'That order could not be found.' };
 
   revalidatePath('/cart');
+  // See cart.ts — the Header's cart-count badge lives in the root layout
+  // and needs an explicit revalidation whenever cart contents change.
+  revalidatePath('/', 'layout');
   return { message: reorderResultMessage(result.value.addedCount, result.value.unavailableSkus) };
 }

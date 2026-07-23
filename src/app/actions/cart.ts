@@ -33,6 +33,10 @@ export async function addToCartAction(
   if (isErr(result)) return { error: 'That item is no longer available.' };
 
   revalidatePath('/cart');
+  // The cart item-count badge lives in the root layout (Header), which the
+  // client router cache otherwise keeps stale across navigations until a
+  // full reload — revalidate it explicitly whenever cart contents change.
+  revalidatePath('/', 'layout');
   return { message: 'Added to cart.' };
 }
 
@@ -45,6 +49,10 @@ export async function removeFromCartAction(formData: FormData): Promise<void> {
   await removeFromCart.execute({ owner, variantId });
 
   revalidatePath('/cart');
+  // The cart item-count badge lives in the root layout (Header), which the
+  // client router cache otherwise keeps stale across navigations until a
+  // full reload — revalidate it explicitly whenever cart contents change.
+  revalidatePath('/', 'layout');
 }
 
 const UpdateCartLineQuantitySchema = z.object({
@@ -64,4 +72,8 @@ export async function updateCartLineQuantityAction(formData: FormData): Promise<
   await updateCartLineQuantity.execute({ owner, ...parsed.data });
 
   revalidatePath('/cart');
+  // The cart item-count badge lives in the root layout (Header), which the
+  // client router cache otherwise keeps stale across navigations until a
+  // full reload — revalidate it explicitly whenever cart contents change.
+  revalidatePath('/', 'layout');
 }

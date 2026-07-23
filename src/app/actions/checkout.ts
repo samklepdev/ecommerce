@@ -1,6 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { env } from '@/config/env';
@@ -108,6 +109,12 @@ export async function startCheckoutAction(
   if (isErr(result)) {
     return { error: 'Could not start checkout — try again.' };
   }
+
+  // Placing the order empties the cart — the Header's cart-count badge
+  // lives in the root layout and needs an explicit revalidation (see
+  // cart.ts) so the payment screen we're about to redirect to, and any
+  // later navigation, doesn't keep showing the pre-checkout count.
+  revalidatePath('/', 'layout');
 
   const orderUrl = `${env.APP_URL}/orders/${placed.value.id}`;
   try {
