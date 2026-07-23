@@ -1,0 +1,20 @@
+.nav {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  list-style: none;
+}
+
+.separator {
+  color: var(--color-muted);
+}
+
+.link {
+  color: inherit;
+}

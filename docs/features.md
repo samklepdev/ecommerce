@@ -20,7 +20,14 @@ feature" checklist).
 - **Product detail** (`/products/[slug]`) — image gallery, all variants
   with price and availability, add to cart. "Out of stock" means the
   supplier marked it unavailable, not a quantity count — this store holds
-  no inventory (dropship/arbitrage model).
+  no inventory (dropship/arbitrage model). A breadcrumb links back to the
+  product's category filter when it has one. The description supports
+  markdown (bold, lists, links), not just plain text. Below the variants,
+  a "You might also like" row shows other products from the same category
+  (falling back to the newest storewide products if the category is thin
+  or the product has none), and a "Recently viewed" row shows the last few
+  products the visitor looked at, remembered in their browser across
+  visits.
 - **Cart** (`/cart`) — line items with a quantity stepper (persists
   immediately, no separate save step), remove, running subtotal, link to
   checkout. Guest carts live in a cookie and merge into the account cart

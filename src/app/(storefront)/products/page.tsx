@@ -1,9 +1,6 @@
-import Link from 'next/link';
-
 import { getContainer } from '@/composition/container';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
-import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Pagination } from '@/components/ui/Pagination';
@@ -13,6 +10,7 @@ import type { ProductSort } from '@/modules/catalog/application/ports/product-re
 import { AddToCartRow } from './AddToCartRow';
 import { CategoryFilterSelect } from './CategoryFilterSelect';
 import { SortSelect } from './SortSelect';
+import { ProductCardMini, toProductCardSummary } from './ProductCardMini';
 import styles from './page.module.css';
 
 // Dynamic, not ISR — search/category/page are query-param-driven per
@@ -118,28 +116,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
             {pagedProducts.map((product) => {
               const quickAdd = quickAddByProductId.get(product.id) ?? null;
               return (
-                <Card key={product.id} className={styles.productCard}>
-                  <Link href={`/products/${product.slug.value}`} className={styles.mediaLink}>
-                    {product.imageUrl ? (
-                      <div className={styles.imageStack}>
-                        {/* Supplier image hosts are dynamic/admin-added, not known at build time. */}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={product.imageUrl} alt={product.name} className={styles.image} />
-                        {product.hoverImageUrl && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={product.hoverImageUrl}
-                            alt=""
-                            aria-hidden
-                            className={styles.hoverImage}
-                          />
-                        )}
-                      </div>
-                    ) : (
-                      <div className={styles.imagePlaceholder} aria-hidden />
-                    )}
-                    <span className={styles.title}>{product.name}</span>
-                  </Link>
+                <ProductCardMini key={product.id} product={toProductCardSummary(product)}>
                   {quickAdd && (
                     <AddToCartRow
                       variantId={quickAdd.variant.id}
@@ -147,7 +124,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                       disabled={!quickAdd.isAvailable}
                     />
                   )}
-                </Card>
+                </ProductCardMini>
               );
             })}
           </div>
