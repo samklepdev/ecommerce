@@ -1,0 +1,28 @@
+.footer {
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+  margin-top: auto;
+}
+
+.inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1.0625rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.copyright {
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
