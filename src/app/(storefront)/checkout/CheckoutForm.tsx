@@ -1,8 +1,9 @@
 'use client';
 
-import { useActionState, useRef } from 'react';
+import { useActionState, useRef, useState } from 'react';
 
 import { startCheckoutAction, type StartCheckoutActionResult } from '@/app/actions/checkout';
+import { US_STATES, COMMON_COUNTRIES } from '@/shared/domain/address-options';
 import { Card } from '@/components/ui/Card';
 import { Field } from '@/components/ui/Field';
 import { Input, Select } from '@/components/ui/Input';
@@ -35,9 +36,15 @@ export function CheckoutForm({ isLoggedIn, savedAddresses }: CheckoutFormProps) 
   const line1Ref = useRef<HTMLInputElement>(null);
   const line2Ref = useRef<HTMLInputElement>(null);
   const cityRef = useRef<HTMLInputElement>(null);
-  const regionRef = useRef<HTMLInputElement>(null);
   const postalCodeRef = useRef<HTMLInputElement>(null);
-  const countryRef = useRef<HTMLInputElement>(null);
+
+  // Country drives whether the State/region field is a dropdown (US) or a
+  // free-text input (everywhere else, since "state" isn't a US-only concept
+  // but this store only curates a US states list) — both need to be
+  // controlled state rather than refs so switching country can re-render
+  // the region field's input type.
+  const [country, setCountry] = useState('US');
+  const [region, setRegion] = useState('');
 
   // Imperative prefill on selection — same pattern AddProductForm uses for
   // its "extract from URL" prefill. The text inputs stay the actual
@@ -49,9 +56,9 @@ export function CheckoutForm({ isLoggedIn, savedAddresses }: CheckoutFormProps) 
     if (line1Ref.current) line1Ref.current.value = address.line1;
     if (line2Ref.current) line2Ref.current.value = address.line2 ?? '';
     if (cityRef.current) cityRef.current.value = address.city;
-    if (regionRef.current) regionRef.current.value = address.region;
     if (postalCodeRef.current) postalCodeRef.current.value = address.postalCode;
-    if (countryRef.current) countryRef.current.value = address.country;
+    setCountry(address.country);
+    setRegion(address.region);
   }
 
   return (
@@ -96,7 +103,31 @@ export function CheckoutForm({ isLoggedIn, savedAddresses }: CheckoutFormProps) 
               <Input type="text" id="shippingCity" name="shippingCity" ref={cityRef} required />
             </Field>
             <Field label="State / region" htmlFor="shippingRegion" className={styles.rowField}>
-              <Input type="text" id="shippingRegion" name="shippingRegion" ref={regionRef} required />
+              {country === 'US' ? (
+                <Select
+                  id="shippingRegion"
+                  name="shippingRegion"
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                  required
+                >
+                  <option value="">Select a state</option>
+                  {US_STATES.map((s) => (
+                    <option key={s.code} value={s.code}>
+                      {s.name}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <Input
+                  type="text"
+                  id="shippingRegion"
+                  name="shippingRegion"
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                  required
+                />
+              )}
             </Field>
           </div>
 
@@ -115,7 +146,25 @@ export function CheckoutForm({ isLoggedIn, savedAddresses }: CheckoutFormProps) 
               />
             </Field>
             <Field label="Country" htmlFor="shippingCountry" className={styles.rowField}>
-              <Input type="text" id="shippingCountry" name="shippingCountry" ref={countryRef} required />
+              <Select
+                id="shippingCountry"
+                name="shippingCountry"
+                value={country}
+                onChange={(e) => {
+                  setCountry(e.target.value);
+                  // A state code from one country is meaningless for
+                  // another — clear it rather than leaving a stale value
+                  // silently submitted under the new country.
+                  setRegion('');
+                }}
+                required
+              >
+                {COMMON_COUNTRIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
             </Field>
           </div>
 

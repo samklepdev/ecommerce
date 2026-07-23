@@ -3,8 +3,9 @@
 import { useActionState, useState } from 'react';
 
 import { addSavedAddressAction, type AddSavedAddressActionResult } from '@/app/actions/addresses';
+import { US_STATES, COMMON_COUNTRIES } from '@/shared/domain/address-options';
 import { Field } from '@/components/ui/Field';
-import { Input } from '@/components/ui/Input';
+import { Input, Select } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import styles from './page.module.css';
@@ -23,6 +24,10 @@ export function AddSavedAddressForm() {
   const [state, formAction, isPending] = useActionState(addSavedAddressAction, initialState);
   const nonce = useResultNonce(state);
 
+  // Same country-drives-region-field-type approach as CheckoutForm.
+  const [country, setCountry] = useState('US');
+  const [region, setRegion] = useState('');
+
   return (
     <form action={formAction} className={styles.form}>
       <Field label="Name" htmlFor="addr-name">
@@ -38,13 +43,50 @@ export function AddSavedAddressForm() {
         <Input type="text" id="addr-city" name="city" required />
       </Field>
       <Field label="State / region" htmlFor="addr-region">
-        <Input type="text" id="addr-region" name="region" />
+        {country === 'US' ? (
+          <Select
+            id="addr-region"
+            name="region"
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+          >
+            <option value="">Select a state</option>
+            {US_STATES.map((s) => (
+              <option key={s.code} value={s.code}>
+                {s.name}
+              </option>
+            ))}
+          </Select>
+        ) : (
+          <Input
+            type="text"
+            id="addr-region"
+            name="region"
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+          />
+        )}
       </Field>
       <Field label="Postal code" htmlFor="addr-postal">
         <Input type="text" id="addr-postal" name="postalCode" required />
       </Field>
       <Field label="Country" htmlFor="addr-country">
-        <Input type="text" id="addr-country" name="country" required defaultValue="US" />
+        <Select
+          id="addr-country"
+          name="country"
+          value={country}
+          onChange={(e) => {
+            setCountry(e.target.value);
+            setRegion('');
+          }}
+          required
+        >
+          {COMMON_COUNTRIES.map((c) => (
+            <option key={c.code} value={c.code}>
+              {c.name}
+            </option>
+          ))}
+        </Select>
       </Field>
 
       {state.error && (
