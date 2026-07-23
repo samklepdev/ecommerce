@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import ReactMarkdown from 'react-markdown';
 
 import { getContainer } from '@/composition/container';
 import { PageContainer } from '@/components/ui/PageContainer';
@@ -63,7 +64,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
         <div>
           <h1>{product.name}</h1>
-          {product.description && <p className={styles.description}>{product.description}</p>}
+          {product.description && (
+            <div className={styles.description}>
+              <ReactMarkdown>{product.description}</ReactMarkdown>
+            </div>
+          )}
         </div>
 
         <Stack gap={3}>
