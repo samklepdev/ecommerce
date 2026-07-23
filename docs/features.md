@@ -28,8 +28,9 @@ feature" checklist).
   or the product has none), and a "Recently viewed" row shows the last few
   products the visitor looked at, remembered in their browser across
   visits.
-- **Cart** (`/cart`) — line items with a quantity stepper (persists
-  immediately, no separate save step), remove, running subtotal, link to
+- **Cart** (`/cart`) — line items showing the product's image, name, and
+  price, a quantity stepper (persists immediately, no separate save step)
+  grouped with a trash-icon remove button, running subtotal, link to
   checkout. Guest carts live in a cookie and merge into the account cart
   on login/signup.
 - **Checkout** (`/checkout`) — email + shipping address, server-side

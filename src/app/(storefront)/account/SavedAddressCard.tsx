@@ -2,6 +2,7 @@ import { deleteSavedAddressAction, setDefaultSavedAddressAction } from '@/app/ac
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { TrashIcon } from '@/components/ui/TrashIcon';
 import styles from './page.module.css';
 
 export interface SavedAddressCardProps {
@@ -49,8 +50,8 @@ export function SavedAddressCard({
         )}
         <form action={deleteSavedAddressAction}>
           <input type="hidden" name="id" value={id} />
-          <Button type="submit" variant="ghost">
-            Delete
+          <Button type="submit" variant="ghost" iconOnly aria-label="Delete address">
+            <TrashIcon />
           </Button>
         </form>
       </div>

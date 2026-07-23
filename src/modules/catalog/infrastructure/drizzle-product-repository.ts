@@ -152,6 +152,24 @@ export class DrizzleProductRepository implements ProductRepository {
     return row ? toVariant(row) : null;
   }
 
+  async findProductByVariantId(variantId: string): Promise<Product | null> {
+    const variantRow = await this.db.query.productVariants.findFirst({
+      where: eq(productVariants.id, variantId),
+    });
+    if (!variantRow) return null;
+
+    const row = await this.db.query.products.findFirst({
+      where: eq(products.id, variantRow.productId),
+    });
+    if (!row) return null;
+
+    const [variants, images] = await Promise.all([
+      this.variantsFor([row.id]),
+      this.imagesFor([row.id]),
+    ]);
+    return toProduct(row, variants.get(row.id) ?? [], images.get(row.id) ?? []);
+  }
+
   async findByIds(ids: string[]): Promise<Product[]> {
     if (ids.length === 0) return [];
     const rows = await this.db.query.products.findMany({

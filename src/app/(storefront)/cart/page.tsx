@@ -7,6 +7,7 @@ import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { TrashIcon } from '@/components/ui/TrashIcon';
 import { CartLineQuantityStepper } from './CartLineQuantityStepper';
 import styles from './page.module.css';
 
@@ -15,7 +16,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function CartPage() {
   const owner = await resolveCartOwner();
-  const { getCart, getShippingRate } = getContainer();
+  const { getCart, getShippingRate, getProductForVariant } = getContainer();
   const cart = await getCart.execute({ owner });
 
   if (!cart || cart.isEmpty) {
@@ -38,27 +39,52 @@ export default async function CartPage() {
   const shipping = await getShippingRate.execute();
   const total = subtotal.add(shipping);
 
+  const productsByVariantId = new Map(
+    await Promise.all(
+      cart.lines.map(
+        async (line) =>
+          [line.variantId, await getProductForVariant.execute({ variantId: line.variantId })] as const,
+      ),
+    ),
+  );
+
   return (
     <PageContainer>
       <Stack gap={5}>
         <h1>Your cart</h1>
 
         <Stack gap={3}>
-          {cart.lines.map((line) => (
-            <Card key={line.variantId} className={styles.lineCard}>
-              <div>
-                <p className={styles.sku}>{line.sku}</p>
-                <p className={styles.qty}>{line.subtotal.toDisplayString()}</p>
-              </div>
-              <CartLineQuantityStepper variantId={line.variantId} quantity={line.quantity} />
-              <form action={removeFromCartAction}>
-                <input type="hidden" name="variantId" value={line.variantId} />
-                <Button type="submit" variant="ghost">
-                  Remove
-                </Button>
-              </form>
-            </Card>
-          ))}
+          {cart.lines.map((line) => {
+            // A deleted/archived product still has an order-independent
+            // cart line — fall back to the sku rather than hiding the row.
+            const product = productsByVariantId.get(line.variantId) ?? null;
+            return (
+              <Card key={line.variantId} className={styles.lineCard}>
+                <div className={styles.lineInfo}>
+                  {product?.imageUrl ? (
+                    // Supplier image hosts are dynamic/admin-added, not known at build time.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={product.imageUrl} alt={product.name} className={styles.lineImage} />
+                  ) : (
+                    <div className={styles.lineImagePlaceholder} aria-hidden />
+                  )}
+                  <div>
+                    <p className={styles.name}>{product?.name ?? line.sku}</p>
+                    <p className={styles.price}>{line.subtotal.toDisplayString()}</p>
+                  </div>
+                </div>
+                <div className={styles.lineActions}>
+                  <CartLineQuantityStepper variantId={line.variantId} quantity={line.quantity} />
+                  <form action={removeFromCartAction}>
+                    <input type="hidden" name="variantId" value={line.variantId} />
+                    <Button type="submit" variant="ghost" iconOnly aria-label="Remove item">
+                      <TrashIcon />
+                    </Button>
+                  </form>
+                </div>
+              </Card>
+            );
+          })}
         </Stack>
 
         <Card className={styles.summary}>
