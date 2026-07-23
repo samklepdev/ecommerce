@@ -57,16 +57,20 @@ export function OrderDetailView({
         <h1>Order {order.id.slice(0, 8)}</h1>
 
         <Card className={styles.section}>
-          <div className={styles.statusCell}>
-            <Badge tone={paymentStatusTone(order.paymentStatus)}>{order.paymentStatus}</Badge>
-            <Badge tone={fulfillmentStatusTone(order.fulfillmentStatus)}>
-              {order.fulfillmentStatus}
-            </Badge>
+          <div className={styles.statusHeaderRow}>
+            <div>
+              <div className={styles.statusCell}>
+                <Badge tone={paymentStatusTone(order.paymentStatus)}>{order.paymentStatus}</Badge>
+                <Badge tone={fulfillmentStatusTone(order.fulfillmentStatus)}>
+                  {order.fulfillmentStatus}
+                </Badge>
+              </div>
+              <p className={styles.empty}>Placed {order.createdAt.toLocaleString()}</p>
+            </div>
+            {cancelAction && CANCELLABLE_STATUSES.has(order.paymentStatus) && (
+              <CancelOrderButton orderId={order.id} action={cancelAction} />
+            )}
           </div>
-          <p className={styles.empty}>Placed {order.createdAt.toLocaleString()}</p>
-          {cancelAction && CANCELLABLE_STATUSES.has(order.paymentStatus) && (
-            <CancelOrderButton orderId={order.id} action={cancelAction} />
-          )}
         </Card>
 
         {paymentSession && (
@@ -81,54 +85,58 @@ export function OrderDetailView({
         )}
 
         <Card className={styles.section}>
-          <div className={styles.sectionHeaderRow}>
-            <h2 className={styles.sectionTitle}>Items</h2>
-            {reorderAction && <ReorderButton orderId={order.id} action={reorderAction} />}
-          </div>
-          <ul className={styles.lineList}>
-            {order.lines.map((line, i) => (
-              <li key={i} className={styles.lineRow}>
-                <span className={styles.lineInfo}>
-                  {line.imageUrl && (
-                    // Supplier image hosts are dynamic/admin-added, not known at build time.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={line.imageUrl} alt={line.sku} className={styles.lineThumb} />
-                  )}
-                  <span>
-                    {line.sku} × {line.quantity}
-                  </span>
-                </span>
-                <span>
-                  {Money.of(line.unitAmountMinor, order.currency).multiply(line.quantity).toDisplayString()}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <div className={styles.lineRow}>
-            <span>Shipping</span>
-            <span>{shipping.toDisplayString()}</span>
-          </div>
-          <div className={styles.total}>
-            <span>Total</span>
-            <span>{total.toDisplayString()}</span>
-          </div>
-
-          {order.shippingAddress && (
-            <div className={styles.addressBlock}>
-              <h2 className={styles.sectionTitle}>Shipping address</h2>
-              <address className={styles.address}>
-                {order.shippingAddress.name}
-                <br />
-                {order.shippingAddress.line1}
-                {order.shippingAddress.line2 ? <>, {order.shippingAddress.line2}</> : null}
-                <br />
-                {order.shippingAddress.city}, {order.shippingAddress.region}{' '}
-                {order.shippingAddress.postalCode}
-                <br />
-                {order.shippingAddress.country}
-              </address>
+          <div className={order.shippingAddress ? styles.bottomGrid : undefined}>
+            <div className={styles.itemsColumn}>
+              <div className={styles.sectionHeaderRow}>
+                <h2 className={styles.sectionTitle}>Items</h2>
+                {reorderAction && <ReorderButton orderId={order.id} action={reorderAction} />}
+              </div>
+              <ul className={styles.lineList}>
+                {order.lines.map((line, i) => (
+                  <li key={i} className={styles.lineRow}>
+                    <span className={styles.lineInfo}>
+                      {line.imageUrl && (
+                        // Supplier image hosts are dynamic/admin-added, not known at build time.
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={line.imageUrl} alt={line.sku} className={styles.lineThumb} />
+                      )}
+                      <span>
+                        {line.sku} × {line.quantity}
+                      </span>
+                    </span>
+                    <span>
+                      {Money.of(line.unitAmountMinor, order.currency).multiply(line.quantity).toDisplayString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className={styles.lineRow}>
+                <span>Shipping</span>
+                <span>{shipping.toDisplayString()}</span>
+              </div>
+              <div className={styles.total}>
+                <span>Total</span>
+                <span>{total.toDisplayString()}</span>
+              </div>
             </div>
-          )}
+
+            {order.shippingAddress && (
+              <div className={styles.addressBlock}>
+                <h2 className={styles.sectionTitle}>Shipping address</h2>
+                <address className={styles.address}>
+                  {order.shippingAddress.name}
+                  <br />
+                  {order.shippingAddress.line1}
+                  {order.shippingAddress.line2 ? <>, {order.shippingAddress.line2}</> : null}
+                  <br />
+                  {order.shippingAddress.city}, {order.shippingAddress.region}{' '}
+                  {order.shippingAddress.postalCode}
+                  <br />
+                  {order.shippingAddress.country}
+                </address>
+              </div>
+            )}
+          </div>
         </Card>
 
         {trackedShipments.length > 0 && (
