@@ -4,6 +4,7 @@ import { paymentStatusTone, fulfillmentStatusTone } from '@/app/lib/status-tone'
 import { Money } from '@/shared/domain/money';
 import { satsToBtcString } from '@/modules/payments/domain/bip21';
 import { buildCarrierTrackingUrl, carrierLabel } from '@/shared/domain/carrier-tracking';
+import { isOrderCancellable } from '@/modules/orders/domain/order-status';
 import type { OrderDetail } from '@/modules/orders/application/ports/order-history-repository';
 import type { SupplierOrderSummary } from '@/modules/orders/application/ports/supplier-order-repository';
 import type { PaymentSession } from '@/modules/payments/application/use-cases/get-payment-session-for-order';
@@ -28,8 +29,6 @@ interface OrderDetailViewProps {
   /** Same split as cancelAction — omitted on the admin order-detail page. */
   reorderAction?: ReorderButtonProps['action'];
 }
-
-const CANCELLABLE_STATUSES = new Set(['pending', 'awaiting_payment']);
 
 export function OrderDetailView({
   order,
@@ -57,16 +56,20 @@ export function OrderDetailView({
         <h1>Order {order.id.slice(0, 8)}</h1>
 
         <Card className={styles.section}>
-          <div className={styles.statusCell}>
-            <Badge tone={paymentStatusTone(order.paymentStatus)}>{order.paymentStatus}</Badge>
-            <Badge tone={fulfillmentStatusTone(order.fulfillmentStatus)}>
-              {order.fulfillmentStatus}
-            </Badge>
+          <div className={styles.statusHeaderRow}>
+            <div>
+              <div className={styles.statusCell}>
+                <Badge tone={paymentStatusTone(order.paymentStatus)}>{order.paymentStatus}</Badge>
+                <Badge tone={fulfillmentStatusTone(order.fulfillmentStatus)}>
+                  {order.fulfillmentStatus}
+                </Badge>
+              </div>
+              <p className={styles.empty}>Placed {order.createdAt.toLocaleString()}</p>
+            </div>
+            {cancelAction && isOrderCancellable(order.paymentStatus) && (
+              <CancelOrderButton orderId={order.id} action={cancelAction} />
+            )}
           </div>
-          <p className={styles.empty}>Placed {order.createdAt.toLocaleString()}</p>
-          {cancelAction && CANCELLABLE_STATUSES.has(order.paymentStatus) && (
-            <CancelOrderButton orderId={order.id} action={cancelAction} />
-          )}
         </Card>
 
         {paymentSession && (
@@ -81,64 +84,59 @@ export function OrderDetailView({
         )}
 
         <Card className={styles.section}>
-          <div className={styles.sectionHeaderRow}>
-            <h2 className={styles.sectionTitle}>Items</h2>
-            {reorderAction && <ReorderButton orderId={order.id} action={reorderAction} />}
-          </div>
-          <ul className={styles.lineList}>
-            {order.lines.map((line, i) => (
-              <li key={i} className={styles.lineRow}>
-                <span>
-                  {line.sku} × {line.quantity}
-                </span>
-                <span>
-                  {Money.of(line.unitAmountMinor, order.currency).multiply(line.quantity).toDisplayString()}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <div className={styles.lineRow}>
-            <span>Shipping</span>
-            <span>{shipping.toDisplayString()}</span>
-          </div>
-          <div className={styles.total}>
-            <span>Total</span>
-            <span>{total.toDisplayString()}</span>
-          </div>
-        </Card>
+          <div className={order.shippingAddress ? styles.bottomGrid : undefined}>
+            <div className={styles.itemsColumn}>
+              <div className={styles.sectionHeaderRow}>
+                <h2 className={styles.sectionTitle}>Items</h2>
+                {reorderAction && <ReorderButton orderId={order.id} action={reorderAction} />}
+              </div>
+              <ul className={styles.lineList}>
+                {order.lines.map((line, i) => (
+                  <li key={i} className={styles.lineRow}>
+                    <span className={styles.lineInfo}>
+                      {line.imageUrl && (
+                        // Supplier image hosts are dynamic/admin-added, not known at build time.
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={line.imageUrl} alt={line.sku} className={styles.lineThumb} />
+                      )}
+                      <span>
+                        {line.sku} × {line.quantity}
+                      </span>
+                    </span>
+                    <span>
+                      {Money.of(line.unitAmountMinor, order.currency).multiply(line.quantity).toDisplayString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className={styles.lineRow}>
+                <span>Shipping</span>
+                <span>{shipping.toDisplayString()}</span>
+              </div>
+              <div className={styles.total}>
+                <span>Total</span>
+                <span>{total.toDisplayString()}</span>
+              </div>
+            </div>
 
-        {order.shippingAddress && (
-          <Card className={styles.section}>
-            <h2 className={styles.sectionTitle}>Shipping address</h2>
-            {order.lines.some((l) => l.imageUrl) && (
-              <div className={styles.addressThumbs}>
-                {order.lines
-                  .filter((l) => l.imageUrl)
-                  .map((l) => (
-                    // Supplier image hosts are dynamic/admin-added, not known at build time.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={l.variantId}
-                      src={l.imageUrl!}
-                      alt={l.sku}
-                      className={styles.addressThumb}
-                    />
-                  ))}
+            {order.shippingAddress && (
+              <div className={styles.addressBlock}>
+                <h2 className={styles.sectionTitle}>Shipping address</h2>
+                <address className={styles.address}>
+                  {order.shippingAddress.name}
+                  <br />
+                  {order.shippingAddress.line1}
+                  {order.shippingAddress.line2 ? <>, {order.shippingAddress.line2}</> : null}
+                  <br />
+                  {order.shippingAddress.city}, {order.shippingAddress.region}{' '}
+                  {order.shippingAddress.postalCode}
+                  <br />
+                  {order.shippingAddress.country}
+                </address>
               </div>
             )}
-            <address className={styles.address}>
-              {order.shippingAddress.name}
-              <br />
-              {order.shippingAddress.line1}
-              {order.shippingAddress.line2 ? <>, {order.shippingAddress.line2}</> : null}
-              <br />
-              {order.shippingAddress.city}, {order.shippingAddress.region}{' '}
-              {order.shippingAddress.postalCode}
-              <br />
-              {order.shippingAddress.country}
-            </address>
-          </Card>
-        )}
+          </div>
+        </Card>
 
         {trackedShipments.length > 0 && (
           <Card className={styles.section}>

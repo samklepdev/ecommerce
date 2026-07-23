@@ -54,16 +54,20 @@ feature" checklist).
   cancellation is no longer offered. A "Reorder" button re-adds the
   order's items to the current cart, re-priced from the live catalog
   (skipping and reporting any item no longer available) — the way back
-  if a cart got cleared by a since-expired or cancelled checkout. Small
-  product thumbnails are shown next to the shipping address, so it's
-  obvious at a glance what's being sent where.
+  if a cart got cleared by a since-expired or cancelled checkout. Each line
+  item shows its own product thumbnail, and the shipping address sits in
+  the same card right below the order total, so it's obvious at a glance
+  what's being sent where.
 - **Account** (`/account`) — profile, avatar upload, change password,
   change email (re-triggers verification), delete account (password
   confirmation required; past orders are kept but unlinked from the
   account); a banner + resend button while the email is unverified; a
   saved-address book (add, delete, set default — used to autofill
   checkout); (`/account/orders`) — order history list and detail (same
-  view as the guest order page, plus the login wall).
+  view as the guest order page, plus the login wall). Orders that are
+  still pre-payment (`pending`/`awaiting_payment`) can be cancelled right
+  from the list, not just the detail page — once BTC is in flight,
+  cancellation is no longer offered anywhere.
 - **Auth** (`/signup`, `/login`, `/forgot-password`, `/reset-password/[token]`,
   `/verify-email/[token]`) — email/password accounts, rate-limited login
   and signup, password reset via emailed one-time token (doesn't reveal
