@@ -53,4 +53,8 @@ export interface OrderHistoryRepository {
    * `/api/orders/[id]/status` route. Used for guest order lookup and
    * anything else that only has an order id, no user context. */
   findById(orderId: string): Promise<OrderDetail | null>;
+  /** Exact (case-insensitive) email match — used to resend order-confirmation
+   * emails to a guest who lost their order link. Never exposed directly to
+   * the customer; only used internally to drive a resend. */
+  findOrderIdsByEmail(email: string): Promise<string[]>;
 }

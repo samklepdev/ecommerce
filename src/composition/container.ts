@@ -109,6 +109,7 @@ import { RequestPasswordReset } from '@/modules/identity/application/use-cases/r
 import { ResetPassword } from '@/modules/identity/application/use-cases/reset-password';
 import { SendWelcomeEmail } from '@/modules/notifications/application/use-cases/send-welcome-email';
 import { SendOrderConfirmationEmail } from '@/modules/notifications/application/use-cases/send-order-confirmation-email';
+import { ResendOrderConfirmations } from '@/modules/orders/application/use-cases/resend-order-confirmations';
 import { MarkWelcomeEmailOpened } from '@/modules/notifications/application/use-cases/mark-welcome-email-opened';
 import { GetWelcomeEmailStatus } from '@/modules/notifications/application/use-cases/get-welcome-email-status';
 
@@ -189,6 +190,7 @@ export interface Container {
   resetPassword: ResetPassword;
   sendWelcomeEmail: SendWelcomeEmail;
   sendOrderConfirmationEmail: SendOrderConfirmationEmail;
+  resendOrderConfirmations: ResendOrderConfirmations;
   markWelcomeEmailOpened: MarkWelcomeEmailOpened;
   getWelcomeEmailStatus: GetWelcomeEmailStatus;
 
@@ -372,6 +374,11 @@ function build(): Container {
 
   // --- orders / checkout / confirmation / fulfillment ---
   const orders = new DrizzleOrderRepository(db);
+  const resendOrderConfirmations = new ResendOrderConfirmations(
+    orders,
+    sendOrderConfirmationEmail,
+    env.APP_URL,
+  );
   const supplierOrders = new DrizzleSupplierOrderRepository(db);
   const processed = new RedisProcessedEventStore(redis);
 
@@ -481,6 +488,7 @@ function build(): Container {
     resetPassword,
     sendWelcomeEmail,
     sendOrderConfirmationEmail,
+    resendOrderConfirmations,
     markWelcomeEmailOpened,
     getWelcomeEmailStatus,
     listSuppliers,

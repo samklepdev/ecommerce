@@ -46,6 +46,10 @@ const envSchema = z.object({
 
   PASSWORD_RESET_TTL_SECONDS: z.coerce.number().int().positive().default(3600),
   EMAIL_VERIFICATION_TTL_SECONDS: z.coerce.number().int().positive().default(86_400),
+
+  // The Footer's "Contact support" mailto: link — swap for a real address
+  // via env, no code change needed.
+  SUPPORT_EMAIL: z.string().email().default('support@storefront.example'),
 });
 
 export const env = envSchema.parse(process.env);
