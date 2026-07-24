@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { isErr } from '@/shared/domain/result';
 import { getContainer } from '@/composition/container';
 import { requireUser, resolveCartOwner } from '@/app/lib/session';
+import { checkRateLimit, getClientIp, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
 
 const CancelOrderSchema = z.object({
   orderId: z.string().min(1),
@@ -112,4 +113,33 @@ export async function reorderOrderByIdAction(
   // and needs an explicit revalidation whenever cart contents change.
   revalidatePath('/', 'layout');
   return { message: reorderResultMessage(result.value.addedCount, result.value.unavailableSkus) };
+}
+
+const FindOrderSchema = z.object({
+  email: z.string().email(),
+});
+
+export interface FindOrderActionResult {
+  message?: string;
+  error?: string;
+}
+
+/** "Find my order" — resends the confirmation email(s) for every order
+ * under the given address. Same "don't reveal whether it matched anything"
+ * convention as password reset: the message is identical either way. */
+export async function findOrderAction(
+  _prevState: FindOrderActionResult | undefined,
+  formData: FormData,
+): Promise<FindOrderActionResult> {
+  const parsed = FindOrderSchema.safeParse({ email: formData.get('email') });
+  if (!parsed.success) return { error: 'Enter a valid email address.' };
+
+  const ip = await getClientIp();
+  const limit = await checkRateLimit(`find-order:${ip}:${parsed.data.email}`, 3, 60 * 60);
+  if (!limit.allowed) return { error: tooManyAttemptsMessage(limit.retryAfterSeconds) };
+
+  const { resendOrderConfirmations } = getContainer();
+  await resendOrderConfirmations.execute({ email: parsed.data.email });
+
+  return { message: 'If that email has any orders, we’ve resent the confirmation email(s).' };
 }

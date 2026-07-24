@@ -59,6 +59,12 @@ feature" checklist).
   item shows its own product thumbnail, and the shipping address sits in
   the same card right below the order total, so it's obvious at a glance
   what's being sent where.
+- **Find my order** (`/orders/find`) — a guest who lost their order link
+  enters the email used at checkout and gets the confirmation email(s)
+  resent, each with a link back to the order. Doesn't reveal whether the
+  email matched anything (same convention as password reset) and is
+  rate-limited per IP+email. Linked from the footer, alongside a
+  "Contact support" mailto: link (address set via `SUPPORT_EMAIL`).
 - **Account** (`/account`) — profile, avatar upload, change password,
   change email (re-triggers verification), delete account (password
   confirmation required; past orders are kept but unlinked from the

@@ -325,6 +325,14 @@ export class DrizzleOrderRepository
     return this.hydrateOrderDetail(row);
   }
 
+  async findOrderIdsByEmail(email: string): Promise<string[]> {
+    const rows = await this.db.query.orders.findMany({
+      where: ilike(orders.customerEmail, email),
+      columns: { id: true },
+    });
+    return rows.map((r) => r.id);
+  }
+
   private async hydrateOrderDetail(row: typeof orders.$inferSelect): Promise<OrderDetail> {
     const lines = await this.db.query.orderLines.findMany({
       where: eq(orderLines.orderId, row.id),

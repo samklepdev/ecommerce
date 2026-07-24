@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { env } from '@/config/env';
 import styles from './Footer.module.css';
 
 export function Footer() {
@@ -11,6 +12,10 @@ export function Footer() {
         <Link href="/" className={styles.brand}>
           Storefront
         </Link>
+        <nav className={styles.links}>
+          <Link href="/orders/find">Find my order</Link>
+          <a href={`mailto:${env.SUPPORT_EMAIL}`}>Contact support</a>
+        </nav>
         <p className={styles.copyright}>© {year} Storefront. All rights reserved.</p>
       </div>
     </footer>
