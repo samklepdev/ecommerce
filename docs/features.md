@@ -127,8 +127,9 @@ feature" checklist).
 - **Audit log** (`/admin/audit-log`) — a durable, searchable-by-scrolling
   record of who did what and when, for the sensitive/destructive admin
   actions: refunds, admin promotions, variant price changes, bulk markup,
-  supplier-order cancellations, product deletions, and shipping-rate
-  changes. Routine catalog edits (images, supplier-cost tweaks, etc.)
+  supplier-order cancellations, product deletions, manually failing a
+  stuck order, and shipping-rate changes. Routine catalog edits (images,
+  supplier-cost tweaks, etc.)
   aren't logged — this is a curated trail of the actions worth a
   who/when record, not a complete activity feed.
 
@@ -143,7 +144,9 @@ holds a watch-only public key.
   on-chain BTC), on a repeating background job.
 - Underpayment holds the order for manual review instead of auto-failing
   it; overpayment is flagged (for a manual refund of the difference)
-  without holding up fulfillment.
+  without holding up fulfillment. If it's never topped up, the order is
+  automatically marked failed after 48 hours of sitting unresolved — an
+  admin can also resolve one sooner from the order detail page.
 - A quote (locked fiat→BTC rate) expires after a configurable window; the
   expiry check and the payment watcher share a grace window so a payment
   that lands right at the deadline is never missed.

@@ -14,7 +14,7 @@ import { getContainer } from '@/composition/container';
 const INTERVAL_MS = env.BTC_WATCH_INTERVAL_MS;
 
 async function main(): Promise<void> {
-  const { watchBitcoinPayments, expireStaleCheckouts } = getContainer();
+  const { watchBitcoinPayments, expireStaleCheckouts, failStuckAwaitingConfirmationOrders } = getContainer();
   console.log(`[btc-watcher] starting, interval=${INTERVAL_MS}ms`);
 
   let running = true;
@@ -37,6 +37,11 @@ async function main(): Promise<void> {
       await expireStaleCheckouts.execute();
     } catch (e) {
       console.error('[btc-watcher] expire-stale-checkouts pass failed:', e);
+    }
+    try {
+      await failStuckAwaitingConfirmationOrders.execute();
+    } catch (e) {
+      console.error('[btc-watcher] fail-stuck-awaiting-confirmation-orders pass failed:', e);
     }
     const elapsed = Date.now() - started;
     await sleep(Math.max(0, INTERVAL_MS - elapsed));

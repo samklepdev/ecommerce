@@ -14,6 +14,8 @@ import type {
   OrderRepository,
 } from '@/modules/orders/application/ports/order-repository';
 import type { StaleCheckoutOrderRepository } from '@/modules/checkout/application/use-cases/expire-stale-checkouts';
+import type { MarkAwaitingConfirmationOrderRepository } from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
+import type { StuckAwaitingConfirmationOrderRepository } from '@/modules/orders/application/use-cases/fail-stuck-awaiting-confirmation-orders';
 import type {
   PaidOrderLine,
   PaidOrderLinesRepository,
@@ -44,6 +46,8 @@ export class DrizzleOrderRepository
     CheckoutOrderRepository,
     ConfirmPaymentOrderRepository,
     StaleCheckoutOrderRepository,
+    MarkAwaitingConfirmationOrderRepository,
+    StuckAwaitingConfirmationOrderRepository,
     OrderFulfillmentRepository,
     PaidOrderLinesRepository,
     OrderSummaryRepository,
@@ -173,6 +177,38 @@ export class DrizzleOrderRepository
       .where(
         and(eq(orders.id, orderId), inArray(orders.paymentStatus, ['pending', 'awaiting_payment'])),
       )
+      .returning({ id: orders.id });
+    return result.length > 0;
+  }
+
+  /** Guarded so `awaitingConfirmationSince` is only ever stamped on the
+   * actual awaiting_payment -> awaiting_confirmation transition — a repeat
+   * call while already awaiting_confirmation matches zero rows and is a
+   * no-op, so the timestamp keeps reflecting first entry. */
+  async markAwaitingConfirmation(orderId: string): Promise<void> {
+    await this.db
+      .update(orders)
+      .set({ paymentStatus: 'awaiting_confirmation', awaitingConfirmationSince: new Date(), updatedAt: new Date() })
+      .where(and(eq(orders.id, orderId), eq(orders.paymentStatus, 'awaiting_payment')));
+  }
+
+  async findStuckAwaitingConfirmationOrderIds(cutoff: Date): Promise<string[]> {
+    const rows = await this.db.query.orders.findMany({
+      where: and(
+        eq(orders.paymentStatus, 'awaiting_confirmation'),
+        lt(orders.awaitingConfirmationSince, cutoff),
+      ),
+      columns: { id: true },
+    });
+    return rows.map((r) => r.id);
+  }
+
+  /** Guarded, idempotent: returns false if another pass already resolved this order. */
+  async tryFailStuckAwaitingConfirmation(orderId: string): Promise<boolean> {
+    const result = await this.db
+      .update(orders)
+      .set({ paymentStatus: 'failed', updatedAt: new Date() })
+      .where(and(eq(orders.id, orderId), eq(orders.paymentStatus, 'awaiting_confirmation')))
       .returning({ id: orders.id });
     return result.length > 0;
   }

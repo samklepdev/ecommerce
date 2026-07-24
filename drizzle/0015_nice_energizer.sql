@@ -1,0 +1,2 @@
+ALTER TABLE "orders" ADD COLUMN "awaiting_confirmation_since" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "orders_payment_status_awaiting_confirmation_since_idx" ON "orders" USING btree ("payment_status","awaiting_confirmation_since");
