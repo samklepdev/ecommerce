@@ -65,6 +65,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
   const rows: AdminProductRow[] = pagedProducts.map((p) => ({
     id: p.id,
     name: p.name,
+    description: p.description,
     slug: p.slug.value,
     status: p.status,
     category: p.category,
@@ -105,6 +106,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
           <AdminProductsTable
             products={rows}
             emptyMessage={supplierId ? 'No products from this supplier.' : 'No products yet.'}
+            suppliers={supplierOptions}
           />
 
           <Pagination

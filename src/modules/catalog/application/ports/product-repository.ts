@@ -35,6 +35,9 @@ export interface ProductRepository {
   createVariant(variant: ProductVariant): Promise<void>;
   updateVariantPrice(variantId: string, amountMinor: number, currency: string): Promise<void>;
   updateCategory(productId: string, category: string | null): Promise<void>;
+  /** Slug is intentionally not editable here — it's permanent once created
+   * so existing bookmarked/shared product URLs never break. */
+  updateDetails(productId: string, details: { name: string; description: string | null }): Promise<void>;
   updateImageUrl(productId: string, imageUrl: string): Promise<void>;
   /** Sets the product's primary image if it doesn't have one yet; otherwise
    * appends an additional (e.g. hover) image at the next position. */

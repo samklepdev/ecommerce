@@ -537,6 +537,42 @@ export async function updateProductCategoryAction(
   return { message: 'Category updated.' };
 }
 
+const UpdateProductDetailsSchema = z.object({
+  productId: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().optional(),
+});
+
+export interface UpdateProductDetailsActionResult {
+  message?: string;
+  error?: string;
+}
+
+/** Slug is intentionally not editable — see ProductRepository.updateDetails. */
+export async function updateProductDetailsAction(
+  _prevState: UpdateProductDetailsActionResult | undefined,
+  formData: FormData,
+): Promise<UpdateProductDetailsActionResult> {
+  await requireAdmin();
+  const parsed = UpdateProductDetailsSchema.safeParse({
+    productId: formData.get('productId'),
+    name: formData.get('name'),
+    description: formData.get('description') || undefined,
+  });
+  if (!parsed.success) return { error: 'Name is required.' };
+
+  const { updateProductDetails } = getContainer();
+  await updateProductDetails.execute({
+    productId: parsed.data.productId,
+    name: parsed.data.name,
+    description: parsed.data.description ?? null,
+  });
+
+  revalidatePath('/admin/products');
+  revalidatePath('/products');
+  return { message: 'Product updated.' };
+}
+
 const UpdateSupplierOfferCostSchema = z.object({
   offerId: z.string().min(1),
   cost: z.string().min(1),
@@ -707,4 +743,72 @@ export async function createProductVariantAction(
   revalidatePath('/admin/products');
   revalidatePath('/products');
   return { message: 'Variant added.' };
+}
+
+const AddSupplierOfferSchema = z.object({
+  variantId: z.string().min(1),
+  supplierId: z.string().min(1),
+  supplierProductUrl: z.string().min(1),
+  costAmountMinor: z.coerce.number().int().nonnegative(),
+});
+
+export interface AddSupplierOfferActionResult {
+  message?: string;
+  error?: string;
+}
+
+/** Adds a further supplier offer to an existing variant — same use case
+ * "add product" already uses for a variant's first offer. A new offer only
+ * becomes preferred if the variant had none yet (CreateSupplierOffer's own
+ * rule), so this never silently steals preference from an existing offer. */
+export async function addSupplierOfferAction(
+  _prevState: AddSupplierOfferActionResult | undefined,
+  formData: FormData,
+): Promise<AddSupplierOfferActionResult> {
+  await requireAdmin();
+  const parsed = AddSupplierOfferSchema.safeParse({
+    variantId: formData.get('variantId'),
+    supplierId: formData.get('supplierId'),
+    supplierProductUrl: formData.get('supplierProductUrl'),
+    costAmountMinor: formData.get('costAmountMinor'),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Fill in a supplier, URL, and cost.' };
+  }
+
+  const { createSupplierOffer } = getContainer();
+  await createSupplierOffer.execute({ ...parsed.data, costCurrency: 'USD' });
+
+  revalidatePath('/admin/products');
+  revalidatePath('/products');
+  return { message: 'Offer added.' };
+}
+
+const SetPreferredSupplierOfferSchema = z.object({
+  offerId: z.string().min(1),
+  variantId: z.string().min(1),
+});
+
+export interface SetPreferredSupplierOfferActionResult {
+  message?: string;
+  error?: string;
+}
+
+export async function setPreferredSupplierOfferAction(
+  _prevState: SetPreferredSupplierOfferActionResult | undefined,
+  formData: FormData,
+): Promise<SetPreferredSupplierOfferActionResult> {
+  await requireAdmin();
+  const parsed = SetPreferredSupplierOfferSchema.safeParse({
+    offerId: formData.get('offerId'),
+    variantId: formData.get('variantId'),
+  });
+  if (!parsed.success) return { error: 'Missing offer.' };
+
+  const { setPreferredSupplierOffer } = getContainer();
+  await setPreferredSupplierOffer.execute(parsed.data);
+
+  revalidatePath('/admin/products');
+  revalidatePath('/products');
+  return { message: 'Preferred offer updated.' };
 }

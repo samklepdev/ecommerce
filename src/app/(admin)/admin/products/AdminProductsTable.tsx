@@ -21,9 +21,12 @@ import { Input } from '@/components/ui/Input';
 import { Stack } from '@/components/ui/Stack';
 import { ProductImagesManager } from './ProductImagesManager';
 import { ProductCategoryEditor } from './ProductCategoryEditor';
+import { ProductDetailsEditor } from './ProductDetailsEditor';
 import { VariantPriceEditor } from './VariantPriceEditor';
 import { SupplierOfferCostEditor } from './SupplierOfferCostEditor';
 import { AddVariantForm } from './AddVariantForm';
+import { AddSupplierOfferForm } from './AddSupplierOfferForm';
+import { SetPreferredOfferButton } from './SetPreferredOfferButton';
 import styles from './page.module.css';
 
 export interface AdminProductOfferRow {
@@ -48,6 +51,7 @@ export interface AdminProductVariantRow {
 export interface AdminProductRow {
   id: string;
   name: string;
+  description: string | null;
   slug: string;
   status: string;
   category: string | null;
@@ -56,9 +60,15 @@ export interface AdminProductRow {
   variants: AdminProductVariantRow[];
 }
 
+interface Supplier {
+  id: string;
+  name: string;
+}
+
 interface AdminProductsTableProps {
   products: AdminProductRow[];
   emptyMessage: string;
+  suppliers: Supplier[];
 }
 
 const deleteInitialState: DeleteProductsActionResult = {};
@@ -68,7 +78,7 @@ const markupInitialState: ApplyMarkupActionResult = {};
 const assignCategoryInitialState: AssignCategoryActionResult = {};
 const BULK_FORM_ID = 'admin-products-bulk-actions';
 
-export function AdminProductsTable({ products, emptyMessage }: AdminProductsTableProps) {
+export function AdminProductsTable({ products, emptyMessage, suppliers }: AdminProductsTableProps) {
   const [deleteState, deleteFormAction, isDeletePending] = useActionState(
     deleteProductsAction,
     deleteInitialState,
@@ -141,8 +151,12 @@ export function AdminProductsTable({ products, emptyMessage }: AdminProductsTabl
                     <img src={p.imageUrl} alt="" className={styles.thumb} />
                   )}
                   <div>
-                    <div>{p.name}</div>
                     <span className={styles.slug}>{p.slug}</span>
+                    <ProductDetailsEditor
+                      productId={p.id}
+                      name={p.name}
+                      description={p.description}
+                    />
                     <ProductCategoryEditor productId={p.id} category={p.category} />
                   </div>
                 </td>
@@ -195,10 +209,14 @@ export function AdminProductsTable({ products, emptyMessage }: AdminProductsTabl
                                     currency={offer.currency}
                                   />
                                 </div>
+                                {!offer.isPreferred && (
+                                  <SetPreferredOfferButton offerId={offer.id} variantId={v.id} />
+                                )}
                               </div>
                             </li>
                           ))}
                         </ul>
+                        <AddSupplierOfferForm variantId={v.id} suppliers={suppliers} />
                       </div>
                     ))}
                     <AddVariantForm productId={p.id} />

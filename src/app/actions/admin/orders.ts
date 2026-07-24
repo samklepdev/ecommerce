@@ -90,3 +90,39 @@ export async function failOrderAction(
   revalidatePath('/admin/orders');
   return { message: 'Order marked failed.' };
 }
+
+const MarkOrderDeliveredSchema = z.object({
+  orderId: z.string().min(1),
+});
+
+export interface MarkOrderDeliveredActionResult {
+  message?: string;
+  error?: string;
+}
+
+/** No carrier webhook exists to detect delivery automatically — an admin
+ * records it once the shipment has actually arrived. Routine fulfillment
+ * update, same as marking a supplier order shipped — not audit-logged. */
+export async function markOrderDeliveredAction(
+  _prevState: MarkOrderDeliveredActionResult | undefined,
+  formData: FormData,
+): Promise<MarkOrderDeliveredActionResult> {
+  await requireAdmin();
+  const parsed = MarkOrderDeliveredSchema.safeParse({ orderId: formData.get('orderId') });
+  if (!parsed.success) return { error: 'Missing order.' };
+
+  const { markOrderDelivered } = getContainer();
+  const result = await markOrderDelivered.execute({ orderId: parsed.data.orderId });
+  if (isErr(result)) {
+    return {
+      error:
+        result.error.code === 'not_found'
+          ? 'Order not found.'
+          : 'This order cannot be marked delivered from its current status.',
+    };
+  }
+
+  revalidatePath(`/admin/orders/${parsed.data.orderId}`);
+  revalidatePath('/admin/orders');
+  return { message: 'Order marked delivered.' };
+}
