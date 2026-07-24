@@ -10,6 +10,7 @@ import { StartCheckout } from '@/modules/checkout/application/use-cases/start-ch
 import { ExpireStaleCheckouts } from '@/modules/checkout/application/use-cases/expire-stale-checkouts';
 import { ConfirmPayment } from '@/modules/orders/application/use-cases/confirm-payment';
 import { MarkOrderRefunded } from '@/modules/orders/application/use-cases/mark-order-refunded';
+import { MarkOrderDelivered } from '@/modules/orders/application/use-cases/mark-order-delivered';
 import { CancelOrder } from '@/modules/orders/application/use-cases/cancel-order';
 import { MarkAwaitingConfirmation } from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
 import { FailStuckAwaitingConfirmationOrders } from '@/modules/orders/application/use-cases/fail-stuck-awaiting-confirmation-orders';
@@ -52,6 +53,7 @@ import { DrizzleProductRepository } from '@/modules/catalog/infrastructure/drizz
 import { ListProducts } from '@/modules/catalog/application/use-cases/list-products';
 import { ListProductCategories } from '@/modules/catalog/application/use-cases/list-product-categories';
 import { UpdateProductCategory } from '@/modules/catalog/application/use-cases/update-product-category';
+import { UpdateProductDetails } from '@/modules/catalog/application/use-cases/update-product-details';
 import { GetProductBySlug } from '@/modules/catalog/application/use-cases/get-product-by-slug';
 import { GetProductForVariant } from '@/modules/catalog/application/use-cases/get-product-for-variant';
 import { GetProductsByIds } from '@/modules/catalog/application/use-cases/get-products-by-ids';
@@ -88,6 +90,7 @@ import { LogOut } from '@/modules/identity/application/use-cases/log-out';
 import { GetCurrentUser } from '@/modules/identity/application/use-cases/get-current-user';
 import { ChangePassword } from '@/modules/identity/application/use-cases/change-password';
 import { PromoteUserToAdmin } from '@/modules/identity/application/use-cases/promote-user-to-admin';
+import { DemoteAdmin } from '@/modules/identity/application/use-cases/demote-admin';
 import { FindUserByEmailForAdmin } from '@/modules/identity/application/use-cases/find-user-by-email-for-admin';
 import { UpdateAvatar } from '@/modules/identity/application/use-cases/update-avatar';
 import { GetAccountProfile } from '@/modules/identity/application/use-cases/get-account-profile';
@@ -142,6 +145,7 @@ export interface Container {
   listProducts: ListProducts;
   listProductCategories: ListProductCategories;
   updateProductCategory: UpdateProductCategory;
+  updateProductDetails: UpdateProductDetails;
   getProductBySlug: GetProductBySlug;
   getProductForVariant: GetProductForVariant;
   getProductsByIds: GetProductsByIds;
@@ -174,6 +178,7 @@ export interface Container {
   getCurrentUser: GetCurrentUser;
   changePassword: ChangePassword;
   promoteUserToAdmin: PromoteUserToAdmin;
+  demoteAdmin: DemoteAdmin;
   findUserByEmailForAdmin: FindUserByEmailForAdmin;
   updateAvatar: UpdateAvatar;
   getAccountProfile: GetAccountProfile;
@@ -210,6 +215,7 @@ export interface Container {
   expireStaleCheckouts: ExpireStaleCheckouts;
   confirmPayment: ConfirmPayment;
   markOrderRefunded: MarkOrderRefunded;
+  markOrderDelivered: MarkOrderDelivered;
   cancelOrder: CancelOrder;
   markAwaitingConfirmation: MarkAwaitingConfirmation;
   failStuckAwaitingConfirmationOrders: FailStuckAwaitingConfirmationOrders;
@@ -264,6 +270,7 @@ function build(): Container {
   const listProducts = new ListProducts(products);
   const listProductCategories = new ListProductCategories(products);
   const updateProductCategory = new UpdateProductCategory(products);
+  const updateProductDetails = new UpdateProductDetails(products);
   const getProductBySlug = new GetProductBySlug(products);
   const getProductForVariant = new GetProductForVariant(products);
   const getProductsByIds = new GetProductsByIds(products);
@@ -298,6 +305,7 @@ function build(): Container {
   const getCurrentUser = new GetCurrentUser(sessions, users);
   const changePassword = new ChangePassword(users);
   const promoteUserToAdmin = new PromoteUserToAdmin(users);
+  const demoteAdmin = new DemoteAdmin(users);
   const findUserByEmailForAdmin = new FindUserByEmailForAdmin(users);
   const avatarImageStorage = new LocalFileImageStorage('avatars');
   const updateAvatar = new UpdateAvatar(users, avatarImageStorage);
@@ -410,6 +418,7 @@ function build(): Container {
 
   const confirmPayment = new ConfirmPayment(orders, processed, fulfillment, paymentConfirmationNotifier);
   const markOrderRefunded = new MarkOrderRefunded(orders);
+  const markOrderDelivered = new MarkOrderDelivered(orders);
   const cancelOrder = new CancelOrder(orders, paymentStore);
   const markAwaitingConfirmation = new MarkAwaitingConfirmation(orders);
   const failStuckAwaitingConfirmationOrders = new FailStuckAwaitingConfirmationOrders(orders);
@@ -436,6 +445,7 @@ function build(): Container {
     listProducts,
     listProductCategories,
     updateProductCategory,
+    updateProductDetails,
     getProductBySlug,
     getProductForVariant,
     getProductsByIds,
@@ -466,6 +476,7 @@ function build(): Container {
     getCurrentUser,
     changePassword,
     promoteUserToAdmin,
+    demoteAdmin,
     findUserByEmailForAdmin,
     updateAvatar,
     getAccountProfile,
@@ -499,6 +510,7 @@ function build(): Container {
     expireStaleCheckouts,
     confirmPayment,
     markOrderRefunded,
+    markOrderDelivered,
     cancelOrder,
     markAwaitingConfirmation,
     failStuckAwaitingConfirmationOrders,

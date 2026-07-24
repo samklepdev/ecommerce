@@ -218,6 +218,16 @@ export class DrizzleProductRepository implements ProductRepository {
       .where(eq(products.id, productId));
   }
 
+  async updateDetails(
+    productId: string,
+    details: { name: string; description: string | null },
+  ): Promise<void> {
+    await this.db
+      .update(products)
+      .set({ name: details.name, description: details.description, updatedAt: new Date() })
+      .where(eq(products.id, productId));
+  }
+
   async createVariant(variant: ProductVariant): Promise<void> {
     await this.db.insert(productVariants).values({
       id: variant.id,

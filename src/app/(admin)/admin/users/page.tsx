@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { PromoteUserButton } from './PromoteUserButton';
+import { DemoteAdminButton } from './DemoteAdminButton';
 import styles from './page.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -23,7 +24,7 @@ interface AdminUsersPageProps {
  * or searching all customers would need a new paginated repository method;
  * out of scope here. */
 export default async function AdminUsersPage({ searchParams }: AdminUsersPageProps) {
-  await requireAdmin();
+  const viewer = await requireAdmin();
   const { email } = await searchParams;
 
   const { findUserByEmailForAdmin, listOrdersForCustomer } = getContainer();
@@ -53,6 +54,9 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
                 <Badge tone={profile.role === 'admin' ? 'accent' : 'neutral'}>{profile.role}</Badge>
               </div>
               {profile.role !== 'admin' && <PromoteUserButton email={profile.email} />}
+              {profile.role === 'admin' && profile.id !== viewer.id && (
+                <DemoteAdminButton email={profile.email} />
+              )}
             </div>
 
             <h2 className={styles.sectionTitle}>Orders ({orders.length})</h2>

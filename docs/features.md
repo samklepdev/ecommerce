@@ -92,12 +92,16 @@ feature" checklist).
   variant); import a batch of products from a supplier feed (URL, pasted
   JSON, or an uploaded spreadsheet); a "paste a product URL" helper that
   scrapes and prefills the add-product form; bulk publish/unpublish/
-  delete/assign-category; upload/manage product images; per-variant
-  sell-price editing; per-offer supplier-cost editing; bulk "apply X%
-  markup" across selected products' variants; a "No supplier offer" badge
-  on any variant that could never actually be fulfilled; an editable
-  category tag (free text) used by the storefront's category filter and
-  assignable in bulk; filter the list by supplier.
+  delete/assign-category; upload/manage product images; editable name
+  and description after creation (the slug stays permanent so existing
+  product URLs never break); per-variant sell-price editing; per-offer
+  supplier-cost editing; add a further supplier offer to an existing
+  variant (e.g. once the original supplier goes out of stock) and switch
+  which offer is preferred; bulk "apply X% markup" across selected
+  products' variants; a "No supplier offer" badge on any variant that
+  could never actually be fulfilled; an editable category tag (free
+  text) used by the storefront's category filter and assignable in bulk;
+  filter the list by supplier.
 - **Fulfillment** (`/admin/fulfillment`) — the ops queue of supplier
   orders (one per supplier per customer order), grouped by customer
   order. Mark a supplier order "ordered" (recording a reference) or
@@ -113,22 +117,26 @@ feature" checklist).
   customers see) plus a "Mark refunded" action for orders that have
   already had a manual on-chain refund sent (refunds themselves are
   always a manual, out-of-band BTC send — this just records that it
-  happened). A "Recovered" badge flags any order where a late on-chain
-  payment arrived after the order had already been cancelled or expired —
-  worth a manual look, since it's a rare edge case by design.
+  happened), and a "Mark delivered" action once an order has shipped
+  (there's no carrier webhook, so this is how delivery gets recorded). A
+  "Recovered" badge flags any order where a late on-chain payment arrived
+  after the order had already been cancelled or expired — worth a manual
+  look, since it's a rare edge case by design.
 - **Users** (`/admin/users`) — look up an account by its exact email, see
-  their profile and order history, promote them to admin. (Promoting the
-  very first admin, before any admin account exists, is a one-time CLI
-  step: `npm run admin:promote -- <email>`.) There's no browsing/searching
-  across all customers yet — only exact-email lookup.
+  their profile and order history, promote them to admin or revoke an
+  existing admin's access (an admin can't revoke their own). (Promoting
+  the very first admin, before any admin account exists, is a one-time
+  CLI step: `npm run admin:promote -- <email>`.) There's no
+  browsing/searching across all customers yet — only exact-email lookup.
 - **Settings** (`/admin/settings`) — the single global flat-rate shipping
   fee. Changing it only affects orders placed after the change; existing
   orders keep the rate they were placed under.
 - **Audit log** (`/admin/audit-log`) — a durable, searchable-by-scrolling
   record of who did what and when, for the sensitive/destructive admin
-  actions: refunds, admin promotions, variant price changes, bulk markup,
-  supplier-order cancellations, product deletions, manually failing a
-  stuck order, and shipping-rate changes. Routine catalog edits (images,
+  actions: refunds, admin promotions and demotions, variant price
+  changes, bulk markup, supplier-order cancellations, product deletions,
+  manually failing a stuck order, and shipping-rate changes. Routine
+  catalog edits (images,
   supplier-cost tweaks, etc.)
   aren't logged — this is a curated trail of the actions worth a
   who/when record, not a complete activity feed.
