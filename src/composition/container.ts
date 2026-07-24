@@ -12,6 +12,8 @@ import { ConfirmPayment } from '@/modules/orders/application/use-cases/confirm-p
 import { MarkOrderRefunded } from '@/modules/orders/application/use-cases/mark-order-refunded';
 import { CancelOrder } from '@/modules/orders/application/use-cases/cancel-order';
 import { MarkAwaitingConfirmation } from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
+import { FailStuckAwaitingConfirmationOrders } from '@/modules/orders/application/use-cases/fail-stuck-awaiting-confirmation-orders';
+import { FailOrder } from '@/modules/orders/application/use-cases/fail-order';
 import { PlaceOrder } from '@/modules/orders/application/use-cases/place-order';
 import { CreateSupplierOrdersForPaidOrder } from '@/modules/orders/application/use-cases/create-supplier-orders-for-paid-order';
 import { MarkSupplierOrderOrdered } from '@/modules/orders/application/use-cases/mark-supplier-order-ordered';
@@ -210,6 +212,8 @@ export interface Container {
   markOrderRefunded: MarkOrderRefunded;
   cancelOrder: CancelOrder;
   markAwaitingConfirmation: MarkAwaitingConfirmation;
+  failStuckAwaitingConfirmationOrders: FailStuckAwaitingConfirmationOrders;
+  failOrder: FailOrder;
   watchBitcoinPayments: WatchBitcoinPayments;
   getPaymentProgress: GetPaymentProgress;
 
@@ -408,6 +412,8 @@ function build(): Container {
   const markOrderRefunded = new MarkOrderRefunded(orders);
   const cancelOrder = new CancelOrder(orders, paymentStore);
   const markAwaitingConfirmation = new MarkAwaitingConfirmation(orders);
+  const failStuckAwaitingConfirmationOrders = new FailStuckAwaitingConfirmationOrders(orders);
+  const failOrder = new FailOrder(orders);
   // One unified number for both the actual gate and the customer-facing
   // "X of Y confirmations" display — BTC_REQUIRED_CONFIRMATIONS stays the
   // documented/nominal requirement, BTC_SETTLEMENT_BUFFER_CONFIRMATIONS is
@@ -495,6 +501,8 @@ function build(): Container {
     markOrderRefunded,
     cancelOrder,
     markAwaitingConfirmation,
+    failStuckAwaitingConfirmationOrders,
+    failOrder,
     watchBitcoinPayments,
     getPaymentProgress,
     createSupplierOrdersForPaidOrder,

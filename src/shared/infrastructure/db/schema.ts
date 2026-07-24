@@ -276,6 +276,10 @@ export const orders = pgTable(
     shippingAddress: jsonb('shipping_address').$type<ShippingAddressJson>(),
     // BTC quote/rate-lock expiry. ExpireStaleCheckouts scans this column.
     paymentWindowExpiresAt: timestamp('payment_window_expires_at', { withTimezone: true }),
+    // Set once, when the order first enters awaiting_confirmation (never
+    // touched again on repeat watcher passes) — FailStuckAwaitingConfirmationOrders
+    // scans this column for orders that have sat there too long.
+    awaitingConfirmationSince: timestamp('awaiting_confirmation_since', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -285,6 +289,9 @@ export const orders = pgTable(
       t.paymentStatus,
       t.paymentWindowExpiresAt,
     ),
+    stuckAwaitingConfirmationScanIdx: index(
+      'orders_payment_status_awaiting_confirmation_since_idx',
+    ).on(t.paymentStatus, t.awaitingConfirmationSince),
   }),
 );
 

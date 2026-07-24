@@ -3,9 +3,45 @@ import type {
   ChainDataProvider,
 } from '@/modules/payments/application/ports/bitcoin-ports';
 
-interface EsploraTx {
+export interface EsploraTx {
   vout: { scriptpubkey_address?: string; value: number }[];
   status: { confirmed: boolean; block_height?: number };
+}
+
+/**
+ * Pure aggregation, split out from `getStatus` so it's unit-testable without
+ * mocking `fetch`. Only confirmed transactions count toward `confirmedSats`
+ * — an unconfirmed transaction (e.g. a customer's top-up still in the
+ * mempool) must never be folded into the "confirmed" total, or the order
+ * could be marked paid before that portion is actually safe.
+ *
+ * When more than one confirmed transaction pays the address, `confirmations`
+ * is the MINIMUM among them, not the maximum — the combined `confirmedSats`
+ * total isn't safely settled until its shallowest contributing transaction
+ * also clears the required depth.
+ */
+export function aggregateChainStatus(
+  txs: EsploraTx[],
+  address: string,
+  tipHeight: number,
+): Pick<AddressChainStatus, 'confirmedSats' | 'confirmations'> {
+  let confirmedSats = 0;
+  const confirmedTxDepths: number[] = [];
+
+  for (const tx of txs) {
+    if (!tx.status.confirmed || tx.status.block_height === undefined) continue;
+
+    const receivedSats = tx.vout
+      .filter((o) => o.scriptpubkey_address === address)
+      .reduce((sum, o) => sum + o.value, 0);
+    if (receivedSats === 0) continue;
+
+    confirmedSats += receivedSats;
+    confirmedTxDepths.push(tipHeight - tx.status.block_height + 1);
+  }
+
+  const confirmations = confirmedTxDepths.length > 0 ? Math.min(...confirmedTxDepths) : 0;
+  return { confirmedSats, confirmations };
 }
 
 /**
@@ -27,22 +63,6 @@ export class EsploraChainDataProvider implements ChainDataProvider {
     const txs = (await txsRes.json()) as EsploraTx[];
     const tipHeight = Number(await tipRes.text());
 
-    let confirmedSats = 0;
-    let bestConfirmations = 0;
-
-    for (const tx of txs) {
-      const receivedSats = tx.vout
-        .filter((o) => o.scriptpubkey_address === address)
-        .reduce((sum, o) => sum + o.value, 0);
-      if (receivedSats === 0) continue;
-
-      confirmedSats += receivedSats;
-      if (tx.status.confirmed && tx.status.block_height) {
-        const confirmations = tipHeight - tx.status.block_height + 1;
-        bestConfirmations = Math.max(bestConfirmations, confirmations);
-      }
-    }
-
-    return { address, confirmedSats, confirmations: bestConfirmations };
+    return { address, ...aggregateChainStatus(txs, address, tipHeight) };
   }
 }

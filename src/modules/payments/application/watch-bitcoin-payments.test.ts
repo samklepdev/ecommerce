@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { WatchBitcoinPayments } from './watch-bitcoin-payments';
 import { ConfirmPayment } from '@/modules/orders/application/use-cases/confirm-payment';
-import { MarkAwaitingConfirmation } from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
+import {
+  MarkAwaitingConfirmation,
+  type MarkAwaitingConfirmationOrderRepository,
+} from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
 import type { ConfirmPaymentOrderRepository } from '@/modules/orders/application/ports/order-repository';
 import type { PaymentStatus } from '@/modules/orders/domain/order-status';
 import type {
@@ -14,9 +17,11 @@ import type {
 
 const REQUIRED_CONFIRMATIONS = 2;
 
+type FakeOrders = ConfirmPaymentOrderRepository & MarkAwaitingConfirmationOrderRepository;
+
 function makeFakeOrders(initialStatus: PaymentStatus) {
   let status = initialStatus;
-  const repo: ConfirmPaymentOrderRepository = {
+  const repo: FakeOrders = {
     async getPaymentStatus() {
       return status;
     },
@@ -24,6 +29,9 @@ function makeFakeOrders(initialStatus: PaymentStatus) {
       status = next;
     },
     async recordPaymentRecovery() {},
+    async markAwaitingConfirmation() {
+      status = 'awaiting_confirmation';
+    },
   };
   return { repo, getStatus: () => status };
 }
@@ -75,7 +83,7 @@ function makeIntent(overrides: Partial<BitcoinPaymentIntent> = {}): BitcoinPayme
   };
 }
 
-function makeWatcher(paymentStore: BitcoinPaymentStore, chain: ChainDataProvider, orders: ConfirmPaymentOrderRepository) {
+function makeWatcher(paymentStore: BitcoinPaymentStore, chain: ChainDataProvider, orders: FakeOrders) {
   const processedEvents = { seen: async () => false, markSeen: async () => {} };
   const fulfillment = { enqueueOrderPaid: async () => {} };
   const paymentConfirmationNotifier = { notifyPaymentConfirmed: async () => {} };

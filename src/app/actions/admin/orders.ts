@@ -47,3 +47,46 @@ export async function markOrderRefundedAction(
   revalidatePath('/admin/orders');
   return { message: 'Order marked refunded.' };
 }
+
+const FailOrderSchema = z.object({
+  orderId: z.string().min(1),
+});
+
+export interface FailOrderActionResult {
+  message?: string;
+  error?: string;
+}
+
+/** Manual override for an order stuck in awaiting_confirmation — otherwise
+ * FailStuckAwaitingConfirmationOrders resolves it automatically after 48h. */
+export async function failOrderAction(
+  _prevState: FailOrderActionResult | undefined,
+  formData: FormData,
+): Promise<FailOrderActionResult> {
+  const admin = await requireAdmin();
+  const parsed = FailOrderSchema.safeParse({ orderId: formData.get('orderId') });
+  if (!parsed.success) return { error: 'Missing order.' };
+
+  const { failOrder, recordAuditLogEntry } = getContainer();
+  const result = await failOrder.execute({ orderId: parsed.data.orderId });
+  if (isErr(result)) {
+    return {
+      error:
+        result.error.code === 'not_found'
+          ? 'Order not found.'
+          : 'This order cannot be marked failed from its current status.',
+    };
+  }
+
+  await recordAuditLogEntry.execute({
+    actorUserId: admin.id,
+    actorEmail: admin.email,
+    action: 'order.failed',
+    targetType: 'order',
+    targetId: parsed.data.orderId,
+  });
+
+  revalidatePath(`/admin/orders/${parsed.data.orderId}`);
+  revalidatePath('/admin/orders');
+  return { message: 'Order marked failed.' };
+}
