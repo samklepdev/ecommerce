@@ -1,6 +1,6 @@
 import { AggregateRoot } from '@/shared/domain/entity';
 import { Money } from '@/shared/domain/money';
-import { CartLine } from './cart-line';
+import { CartLine, MAX_CART_LINE_QUANTITY } from './cart-line';
 
 export type CartOwner = { type: 'guest'; sessionId: string } | { type: 'user'; userId: string };
 
@@ -32,26 +32,33 @@ export class Cart extends AggregateRoot<string> {
     return this._lines.length === 0;
   }
 
+  /** Clamped to `MAX_CART_LINE_QUANTITY` — both for a brand-new line and for
+   * the summed quantity on a collision, since two individually-valid adds
+   * can still combine past the cap. */
   addLine(line: CartLine): Cart {
     const existingIndex = this._lines.findIndex((l) => l.variantId === line.variantId);
     const lines =
       existingIndex >= 0
         ? this._lines.map((l, i) =>
-            i === existingIndex ? l.withQuantity(l.quantity + line.quantity) : l,
+            i === existingIndex
+              ? l.withQuantity(Math.min(l.quantity + line.quantity, MAX_CART_LINE_QUANTITY))
+              : l,
           )
-        : [...this._lines, line];
+        : [...this._lines, line.withQuantity(Math.min(line.quantity, MAX_CART_LINE_QUANTITY))];
     return Cart.create({ id: this.id, owner: this.owner, lines });
   }
 
   /** Sets a line's quantity directly (not additive, unlike `addLine`) — zero
    * or negative removes the line, matching `CartLine.create`'s own guard
    * against non-positive quantities. A no-op if the variant isn't in the
-   * cart. */
+   * cart. Clamped to `MAX_CART_LINE_QUANTITY`. */
   setLineQuantity(variantId: string, quantity: number): Cart {
     if (quantity <= 0) return this.removeLine(variantId);
     const existingIndex = this._lines.findIndex((l) => l.variantId === variantId);
     if (existingIndex < 0) return this;
-    const lines = this._lines.map((l, i) => (i === existingIndex ? l.withQuantity(quantity) : l));
+    const lines = this._lines.map((l, i) =>
+      i === existingIndex ? l.withQuantity(Math.min(quantity, MAX_CART_LINE_QUANTITY)) : l,
+    );
     return Cart.create({ id: this.id, owner: this.owner, lines });
   }
 

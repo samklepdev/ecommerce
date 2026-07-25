@@ -6,10 +6,11 @@ import { z } from 'zod';
 import { getContainer } from '@/composition/container';
 import { isErr } from '@/shared/domain/result';
 import { resolveCartOwner } from '@/app/lib/session';
+import { MAX_CART_LINE_QUANTITY } from '@/modules/cart/domain/cart-line';
 
 const AddToCartSchema = z.object({
   variantId: z.string().min(1),
-  quantity: z.coerce.number().int().positive(),
+  quantity: z.coerce.number().int().positive().max(MAX_CART_LINE_QUANTITY),
 });
 
 export interface AddToCartActionResult {
@@ -57,7 +58,7 @@ export async function removeFromCartAction(formData: FormData): Promise<void> {
 
 const UpdateCartLineQuantitySchema = z.object({
   variantId: z.string().min(1),
-  quantity: z.coerce.number().int().min(0),
+  quantity: z.coerce.number().int().min(0).max(MAX_CART_LINE_QUANTITY),
 });
 
 export async function updateCartLineQuantityAction(formData: FormData): Promise<void> {

@@ -33,17 +33,25 @@ feature" checklist).
   visitor who hasn't already reviewed it can submit one (login required,
   one review per product), which stays hidden until an admin approves it.
 - **Cart** (`/cart`) — line items showing the product's image, name, and
-  price, a quantity stepper (persists immediately, no separate save step)
-  grouped with a trash-icon remove button, running subtotal, link to
-  checkout. Guest carts live in a cookie and merge into the account cart
-  on login/signup.
-- **Checkout** (`/checkout`) — email + shipping address, server-side
-  repricing (never trusts the cart's stored price), creates a unique BTC
-  receive address for the order, redirects to a real bookmarkable
-  order-status URL. Shows a subtotal/shipping/total summary before the
-  customer submits; redirects back to the cart if it's empty. A logged-in
-  customer can pick a saved address to autofill the form, or check a box
-  to save the address they just entered.
+  price, a quantity stepper (persists immediately, no separate save step,
+  capped at 99 per line) grouped with a trash-icon remove button, running
+  subtotal, link to checkout. Guest carts live in a cookie and merge into
+  the account cart on login/signup.
+- **Checkout** (`/checkout`) — email (pre-filled for a logged-in customer)
+  + shipping address + an optional promo code, server-side repricing
+  (never trusts the cart's stored price), creates a unique BTC receive
+  address for the order, redirects to a real bookmarkable order-status
+  URL. Shows a subtotal/shipping/total summary before the customer
+  submits; redirects back to the cart if it's empty. A logged-in customer
+  can pick a saved address to autofill the form, or check a box to save
+  the address they just entered.
+- **Coupons** — admin-managed percentage or fixed-amount discount codes,
+  entered at checkout and validated/applied server-side (never trusted
+  from the client) before the BTC quote is locked; a fixed amount is
+  clamped so it can never exceed the order subtotal. The discount is
+  snapshotted onto the order and shown on the order-status page — a later
+  edit or deactivation of the coupon never alters an order that already
+  used it.
 - **Shipping** — a single flat-rate fee, admin-configurable, added once per
   order (not per item). Shown on product pages, the cart, and checkout, and
   snapshotted onto the order at placement so a later rate change never
@@ -68,7 +76,10 @@ feature" checklist).
   resent, each with a link back to the order. Doesn't reveal whether the
   email matched anything (same convention as password reset) and is
   rate-limited per IP+email. Linked from the footer, alongside a
-  "Contact support" mailto: link (address set via `SUPPORT_EMAIL`).
+  "Contact support" mailto: link (address set via `SUPPORT_EMAIL`) and
+  Privacy Policy / Terms of Service pages (`/privacy`, `/terms` — currently
+  placeholder copy, flagged as such on the page; swap in real policy text
+  before going live).
 - **Account** (`/account`) — profile, avatar upload, change password,
   change email (re-triggers verification), delete account (password
   confirmation required; past orders are kept but unlinked from the
@@ -144,6 +155,10 @@ feature" checklist).
 - **Reviews** (`/admin/reviews`) — moderation queue for storefront product
   reviews, defaulting to pending; approve (makes it public) or reject.
   Filter by status.
+- **Coupons** (`/admin/coupons`) — create a percentage or fixed-amount
+  discount code and activate/deactivate it. No editing an existing code's
+  discount — deactivate and create a new one instead, so past orders that
+  used it are never retroactively reinterpreted.
 - **Users** (`/admin/users`) — look up an account by its exact email, see
   their profile and order history, promote them to admin or revoke an
   existing admin's access (an admin can't revoke their own). (Promoting

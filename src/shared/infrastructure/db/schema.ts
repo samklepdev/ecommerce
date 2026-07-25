@@ -234,6 +234,25 @@ export const reviews = pgTable(
   }),
 );
 
+/** Admin-managed discount codes, applied server-side at PlaceOrder time —
+ * see `Coupon.discountAmountFor`. */
+export const coupons = pgTable(
+  'coupons',
+  {
+    id: text('id').primaryKey(),
+    code: text('code').notNull(),
+    discountType: text('discount_type').notNull(), // percentage | fixed_amount
+    percentageValue: integer('percentage_value'),
+    fixedAmountMinor: bigint('fixed_amount_minor', { mode: 'number' }),
+    currency: text('currency'),
+    isActive: boolean('is_active').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    codeUnique: uniqueIndex('coupons_code_unique').on(t.code),
+  }),
+);
+
 export const suppliers = pgTable('suppliers', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -315,6 +334,11 @@ export const orders = pgTable(
     awaitingConfirmationSince: timestamp('awaiting_confirmation_since', { withTimezone: true }),
     // Internal ops notes — admin-only, never shown to customers.
     notes: text('notes'),
+    // Snapshotted from the coupon at PlaceOrder time, same rationale as
+    // shippingAmountMinor — a later coupon change/deactivation never alters
+    // a historical order. 0 / null means no coupon was used.
+    discountAmountMinor: bigint('discount_amount_minor', { mode: 'number' }).notNull().default(0),
+    couponCode: text('coupon_code'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

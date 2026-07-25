@@ -15,6 +15,8 @@ export function Footer() {
         <nav className={styles.links}>
           <Link href="/orders/find">Find my order</Link>
           <a href={`mailto:${env.SUPPORT_EMAIL}`}>Contact support</a>
+          <Link href="/privacy">Privacy Policy</Link>
+          <Link href="/terms">Terms of Service</Link>
         </nav>
         <p className={styles.copyright}>© {year} Storefront. All rights reserved.</p>
       </div>

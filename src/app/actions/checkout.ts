@@ -21,6 +21,7 @@ const StartCheckoutSchema = z.object({
   shippingPostalCode: z.string().min(1),
   shippingCountry: z.string().min(1),
   saveAddress: z.string().optional(),
+  couponCode: z.string().optional(),
 });
 
 export interface StartCheckoutActionResult {
@@ -41,6 +42,7 @@ export async function startCheckoutAction(
     shippingPostalCode: formData.get('shippingPostalCode'),
     shippingCountry: formData.get('shippingCountry'),
     saveAddress: formData.get('saveAddress') || undefined,
+    couponCode: formData.get('couponCode') || undefined,
   });
   if (!parsed.success) return { error: 'Please fill in a valid email and shipping address.' };
 
@@ -66,13 +68,16 @@ export async function startCheckoutAction(
       postalCode: parsed.data.shippingPostalCode,
       country: parsed.data.shippingCountry,
     },
+    couponCode: parsed.data.couponCode,
   });
   if (isErr(placed)) {
     return {
       error:
         placed.error.code === 'empty_cart'
           ? 'Your cart is empty.'
-          : 'An item in your cart is no longer available.',
+          : placed.error.code === 'invalid_coupon'
+            ? "That coupon code isn't valid."
+            : 'An item in your cart is no longer available.',
     };
   }
 

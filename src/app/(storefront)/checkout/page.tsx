@@ -36,6 +36,7 @@ export default async function CheckoutPage() {
         </Card>
         <CheckoutForm
           isLoggedIn={!!user}
+          userEmail={user?.email}
           savedAddresses={savedAddresses.map((a) => ({
             id: a.id,
             name: a.name,

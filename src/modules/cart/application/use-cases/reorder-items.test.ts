@@ -34,6 +34,8 @@ function makeOrderDetail(overrides: Partial<OrderDetail> = {}): OrderDetail {
     customerEmail: 'buyer@example.com',
     paymentRecoveredFrom: null,
     notes: null,
+    discountAmountMinor: 0,
+    couponCode: null,
     shippingAddress: null,
     shippingAmountMinor: 0,
     lines: [],

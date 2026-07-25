@@ -27,9 +27,10 @@ export interface CheckoutSavedAddress {
 export interface CheckoutFormProps {
   isLoggedIn: boolean;
   savedAddresses: CheckoutSavedAddress[];
+  userEmail?: string;
 }
 
-export function CheckoutForm({ isLoggedIn, savedAddresses }: CheckoutFormProps) {
+export function CheckoutForm({ isLoggedIn, savedAddresses, userEmail }: CheckoutFormProps) {
   const [state, formAction, isPending] = useActionState(startCheckoutAction, initialState);
 
   const nameRef = useRef<HTMLInputElement>(null);
@@ -65,7 +66,7 @@ export function CheckoutForm({ isLoggedIn, savedAddresses }: CheckoutFormProps) 
     <Card className={styles.card}>
       <form action={formAction}>
         <Field label="Email for order updates" htmlFor="customerEmail">
-          <Input type="email" id="customerEmail" name="customerEmail" required />
+          <Input type="email" id="customerEmail" name="customerEmail" defaultValue={userEmail} required />
         </Field>
 
         <fieldset className={styles.fieldset}>
@@ -175,6 +176,10 @@ export function CheckoutForm({ isLoggedIn, savedAddresses }: CheckoutFormProps) 
             </label>
           )}
         </fieldset>
+
+        <Field label="Promo code" htmlFor="couponCode" hint="Optional">
+          <Input type="text" id="couponCode" name="couponCode" />
+        </Field>
 
         {state.error && <Alert>{state.error}</Alert>}
 
