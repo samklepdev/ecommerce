@@ -28,10 +28,10 @@ export function ProductActionsBar({ suppliers }: ProductActionsBarProps) {
       </Modal>
 
       <Modal
-        title="Import from JSON feed"
+        title="Import Products"
         trigger={(open) => (
           <Button onClick={open} variant="secondary">
-            + Import from JSON feed
+            + Import Products
           </Button>
         )}
       >
