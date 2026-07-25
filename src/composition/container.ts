@@ -17,6 +17,10 @@ import { UpdateOrderNotes } from '@/modules/orders/application/use-cases/update-
 import { FailStuckAwaitingConfirmationOrders } from '@/modules/orders/application/use-cases/fail-stuck-awaiting-confirmation-orders';
 import { FailOrder } from '@/modules/orders/application/use-cases/fail-order';
 import { PlaceOrder } from '@/modules/orders/application/use-cases/place-order';
+import { DrizzleCouponRepository } from '@/modules/coupons/infrastructure/drizzle-coupon-repository';
+import { CreateCoupon } from '@/modules/coupons/application/use-cases/create-coupon';
+import { ListCoupons } from '@/modules/coupons/application/use-cases/list-coupons';
+import { SetCouponActive } from '@/modules/coupons/application/use-cases/set-coupon-active';
 import { CreateSupplierOrdersForPaidOrder } from '@/modules/orders/application/use-cases/create-supplier-orders-for-paid-order';
 import { MarkSupplierOrderOrdered } from '@/modules/orders/application/use-cases/mark-supplier-order-ordered';
 import { MarkSupplierOrderShipped } from '@/modules/orders/application/use-cases/mark-supplier-order-shipped';
@@ -235,6 +239,9 @@ export interface Container {
   setShippingRate: SetShippingRate;
 
   placeOrder: PlaceOrder;
+  createCoupon: CreateCoupon;
+  listCoupons: ListCoupons;
+  setCouponActive: SetCouponActive;
   startCheckout: StartCheckout;
   expireStaleCheckouts: ExpireStaleCheckouts;
   confirmPayment: ConfirmPayment;
@@ -427,7 +434,11 @@ function build(): Container {
   const supplierOrders = new DrizzleSupplierOrderRepository(db);
   const processed = new RedisProcessedEventStore(redis);
 
-  const placeOrder = new PlaceOrder(carts, products, orders, shippingRates);
+  const coupons = new DrizzleCouponRepository(db);
+  const createCoupon = new CreateCoupon(coupons);
+  const listCoupons = new ListCoupons(coupons);
+  const setCouponActive = new SetCouponActive(coupons);
+  const placeOrder = new PlaceOrder(carts, products, orders, shippingRates, coupons);
   const reorderItems = new ReorderItems(orders, carts, products);
   const startCheckout = new StartCheckout(orders, gateways, env.QUOTE_TTL_SECONDS);
   const expireStaleCheckouts = new ExpireStaleCheckouts(orders);
@@ -563,6 +574,9 @@ function build(): Container {
     getShippingRate,
     setShippingRate,
     placeOrder,
+    createCoupon,
+    listCoupons,
+    setCouponActive,
     startCheckout,
     expireStaleCheckouts,
     confirmPayment,

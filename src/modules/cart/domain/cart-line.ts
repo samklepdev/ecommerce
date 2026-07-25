@@ -1,6 +1,10 @@
 import { ValueObject } from '@/shared/domain/value-object';
 import { Money } from '@/shared/domain/money';
 
+/** Upper bound on a single cart line's quantity — guards against a
+ * runaway stepper or a tampered form value producing an absurd order. */
+export const MAX_CART_LINE_QUANTITY = 99;
+
 interface CartLineProps {
   variantId: string;
   sku: string;

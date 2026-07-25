@@ -3,6 +3,7 @@
 import { useTransition } from 'react';
 
 import { updateCartLineQuantityAction } from '@/app/actions/cart';
+import { MAX_CART_LINE_QUANTITY } from '@/modules/cart/domain/cart-line';
 import styles from './CartLineQuantityStepper.module.css';
 
 interface CartLineQuantityStepperProps {
@@ -44,7 +45,7 @@ export function CartLineQuantityStepper({ variantId, quantity }: CartLineQuantit
         type="button"
         className={styles.stepButton}
         onClick={() => updateTo(quantity + 1)}
-        disabled={isPending}
+        disabled={isPending || quantity >= MAX_CART_LINE_QUANTITY}
         aria-label="Increase quantity"
       >
         +

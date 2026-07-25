@@ -11,6 +11,8 @@ import type { ProductRepository } from '@/modules/catalog/application/ports/prod
 import type { OrderRepository } from '@/modules/orders/application/ports/order-repository';
 import type { Order } from '@/modules/orders/domain/order';
 import type { ShippingRateRepository } from '@/modules/shipping/application/ports/shipping-rate-repository';
+import { Coupon } from '@/modules/coupons/domain/coupon';
+import type { CouponRepository } from '@/modules/coupons/application/ports/coupon-repository';
 
 function makeVariant(id: string, unitAmountMinor: number) {
   return ProductVariant.create({
@@ -65,6 +67,15 @@ function makeFakeShippingRates(rate: Money) {
   return repo;
 }
 
+function makeFakeCoupons(coupon: Coupon | null = null) {
+  const repo: Partial<CouponRepository> = {
+    async findByCode() {
+      return coupon;
+    },
+  };
+  return repo as CouponRepository;
+}
+
 function validShippingAddress() {
   return {
     name: 'Ada Lovelace',
@@ -93,7 +104,8 @@ describe('PlaceOrder', () => {
     const { repo: orders, created } = makeFakeOrders();
 
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
-    const result = await new PlaceOrder(carts, products, orders, shippingRates).execute({
+    const coupons = makeFakeCoupons();
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -120,7 +132,8 @@ describe('PlaceOrder', () => {
     const { repo: orders, created } = makeFakeOrders();
 
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
-    const result = await new PlaceOrder(carts, products, orders, shippingRates).execute({
+    const coupons = makeFakeCoupons();
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -139,7 +152,8 @@ describe('PlaceOrder', () => {
     const { repo: orders } = makeFakeOrders();
 
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
-    const result = await new PlaceOrder(carts, products, orders, shippingRates).execute({
+    const coupons = makeFakeCoupons();
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -162,7 +176,8 @@ describe('PlaceOrder', () => {
     const { repo: orders, created } = makeFakeOrders();
 
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
-    const result = await new PlaceOrder(carts, products, orders, shippingRates).execute({
+    const coupons = makeFakeCoupons();
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -189,8 +204,9 @@ describe('PlaceOrder', () => {
     const products = makeFakeProducts(new Map([[variantId, variant]]));
     const { repo: orders, created } = makeFakeOrders();
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
+    const coupons = makeFakeCoupons();
 
-    await new PlaceOrder(carts, products, orders, shippingRates).execute({
+    await new PlaceOrder(carts, products, orders, shippingRates, coupons).execute({
       owner: { type: 'user', userId: 'user-1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -212,8 +228,9 @@ describe('PlaceOrder', () => {
     const products = makeFakeProducts(new Map([[variantId, variant]]));
     const { repo: orders, created } = makeFakeOrders();
     const shippingRates = makeFakeShippingRates(Money.of(599, 'USD'));
+    const coupons = makeFakeCoupons();
 
-    await new PlaceOrder(carts, products, orders, shippingRates).execute({
+    await new PlaceOrder(carts, products, orders, shippingRates, coupons).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -222,5 +239,100 @@ describe('PlaceOrder', () => {
 
     expect(created[0]?.shippingAmount.amountMinor).toBe(599);
     expect(created[0]?.total.amountMinor).toBe(1599);
+  });
+
+  it('applies a valid active coupon and snapshots the discount + code onto the order', async () => {
+    const variantId = randomUUID();
+    const variant = makeVariant(variantId, 2000);
+    const cart = Cart.create({
+      id: randomUUID(),
+      owner: { type: 'guest', sessionId: 's1' },
+      lines: [CartLine.create({ variantId, sku: 'X', quantity: 1, unitPrice: Money.of(2000, 'USD') })],
+    });
+    const { repo: carts } = makeFakeCarts(cart);
+    const products = makeFakeProducts(new Map([[variantId, variant]]));
+    const { repo: orders, created } = makeFakeOrders();
+    const shippingRates = makeFakeShippingRates(Money.of(500, 'USD'));
+    const coupon = Coupon.create({
+      id: 'c1',
+      code: 'SAVE10',
+      discountType: 'percentage',
+      percentageValue: 10,
+    });
+    const coupons = makeFakeCoupons(coupon);
+
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons).execute({
+      owner: { type: 'guest', sessionId: 's1' },
+      customerEmail: 'test@example.com',
+      currency: 'USD',
+      shippingAddress: validShippingAddress(),
+      couponCode: 'save10',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(created[0]?.couponCode).toBe('SAVE10');
+    expect(created[0]?.discountAmount.amountMinor).toBe(200); // 10% of 2000
+    expect(created[0]?.total.amountMinor).toBe(2300); // 2000 - 200 + 500
+  });
+
+  it('returns invalid_coupon for a code that does not exist', async () => {
+    const variantId = randomUUID();
+    const variant = makeVariant(variantId, 2000);
+    const cart = Cart.create({
+      id: randomUUID(),
+      owner: { type: 'guest', sessionId: 's1' },
+      lines: [CartLine.create({ variantId, sku: 'X', quantity: 1, unitPrice: Money.of(2000, 'USD') })],
+    });
+    const { repo: carts } = makeFakeCarts(cart);
+    const products = makeFakeProducts(new Map([[variantId, variant]]));
+    const { repo: orders, created } = makeFakeOrders();
+    const shippingRates = makeFakeShippingRates(Money.zero('USD'));
+    const coupons = makeFakeCoupons(null);
+
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons).execute({
+      owner: { type: 'guest', sessionId: 's1' },
+      customerEmail: 'test@example.com',
+      currency: 'USD',
+      shippingAddress: validShippingAddress(),
+      couponCode: 'BOGUS',
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe('invalid_coupon');
+    expect(created).toHaveLength(0);
+  });
+
+  it('returns invalid_coupon for a deactivated code', async () => {
+    const variantId = randomUUID();
+    const variant = makeVariant(variantId, 2000);
+    const cart = Cart.create({
+      id: randomUUID(),
+      owner: { type: 'guest', sessionId: 's1' },
+      lines: [CartLine.create({ variantId, sku: 'X', quantity: 1, unitPrice: Money.of(2000, 'USD') })],
+    });
+    const { repo: carts } = makeFakeCarts(cart);
+    const products = makeFakeProducts(new Map([[variantId, variant]]));
+    const { repo: orders, created } = makeFakeOrders();
+    const shippingRates = makeFakeShippingRates(Money.zero('USD'));
+    const inactiveCoupon = Coupon.create({
+      id: 'c1',
+      code: 'OLDCODE',
+      discountType: 'percentage',
+      percentageValue: 10,
+      isActive: false,
+    });
+    const coupons = makeFakeCoupons(inactiveCoupon);
+
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons).execute({
+      owner: { type: 'guest', sessionId: 's1' },
+      customerEmail: 'test@example.com',
+      currency: 'USD',
+      shippingAddress: validShippingAddress(),
+      couponCode: 'OLDCODE',
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe('invalid_coupon');
+    expect(created).toHaveLength(0);
   });
 });

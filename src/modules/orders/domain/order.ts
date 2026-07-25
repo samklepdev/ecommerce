@@ -19,6 +19,10 @@ export interface OrderProps {
   paymentStatus: PaymentStatus;
   fulfillmentStatus: FulfillmentStatus;
   shippingAmount: Money;
+  /** Snapshotted from a coupon at PlaceOrder time, same treatment as
+   * shippingAmount — defaults to zero (no coupon used). */
+  discountAmount?: Money;
+  couponCode?: string | null;
 }
 
 export class Order extends AggregateRoot<string> {
@@ -30,6 +34,8 @@ export class Order extends AggregateRoot<string> {
   readonly paymentStatus: PaymentStatus;
   readonly fulfillmentStatus: FulfillmentStatus;
   readonly shippingAmount: Money;
+  readonly discountAmount: Money;
+  readonly couponCode: string | null;
 
   private constructor(props: OrderProps) {
     super(props.id);
@@ -41,6 +47,8 @@ export class Order extends AggregateRoot<string> {
     this.paymentStatus = props.paymentStatus;
     this.fulfillmentStatus = props.fulfillmentStatus;
     this.shippingAmount = props.shippingAmount;
+    this.discountAmount = props.discountAmount ?? Money.zero(props.currency);
+    this.couponCode = props.couponCode ?? null;
   }
 
   static create(props: OrderProps): Order {
@@ -53,7 +61,7 @@ export class Order extends AggregateRoot<string> {
   }
 
   get total(): Money {
-    return this.subtotal.add(this.shippingAmount);
+    return this.subtotal.add(this.shippingAmount).subtract(this.discountAmount);
   }
 
   withPaymentStatus(next: PaymentStatus): Order {

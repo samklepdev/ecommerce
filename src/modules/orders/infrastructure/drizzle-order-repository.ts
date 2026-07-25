@@ -68,6 +68,8 @@ export class DrizzleOrderRepository
         currency: order.currency,
         amountMinor: order.total.amountMinor,
         shippingAmountMinor: order.shippingAmount.amountMinor,
+        discountAmountMinor: order.discountAmount.amountMinor,
+        couponCode: order.couponCode,
         paymentStatus: order.paymentStatus,
         fulfillmentStatus: order.fulfillmentStatus,
         customerEmail: order.customerEmail,
@@ -123,10 +125,16 @@ export class DrizzleOrderRepository
     if (lines.length === 0) {
       return Money.of(row.amountMinor, row.currency);
     }
-    return lines.reduce(
+    const linesTotal = lines.reduce(
       (total, l) => total.add(Money.of(l.unitAmountMinor, row.currency).multiply(l.quantity)),
-      Money.of(row.shippingAmountMinor, row.currency),
+      Money.zero(row.currency),
     );
+    const withShipping = linesTotal.add(Money.of(row.shippingAmountMinor, row.currency));
+    // Subtract last, from a total that already includes shipping — never
+    // construct a negative intermediate Money value.
+    return row.discountAmountMinor > 0
+      ? withShipping.subtract(Money.of(row.discountAmountMinor, row.currency))
+      : withShipping;
   }
 
   async getOrderLines(orderId: string): Promise<PaidOrderLine[]> {
@@ -360,6 +368,8 @@ export class DrizzleOrderRepository
       shippingAddress: row.shippingAddress,
       shippingAmountMinor: row.shippingAmountMinor,
       notes: row.notes,
+      discountAmountMinor: row.discountAmountMinor,
+      couponCode: row.couponCode,
       lines: lines.map((l) => ({
         variantId: l.variantId,
         sku: l.sku,

@@ -44,7 +44,8 @@ export function OrderDetailView({
     Money.zero(order.currency),
   );
   const shipping = Money.of(order.shippingAmountMinor, order.currency);
-  const total = subtotal.add(shipping);
+  const discount = Money.of(order.discountAmountMinor, order.currency);
+  const total = subtotal.add(shipping).subtract(discount);
   const trackedShipments = shipments.filter((s) => s.trackingNumber);
 
   return (
@@ -109,6 +110,12 @@ export function OrderDetailView({
                   </li>
                 ))}
               </ul>
+              {order.discountAmountMinor > 0 && (
+                <div className={styles.lineRow}>
+                  <span>Discount{order.couponCode ? ` (${order.couponCode})` : ''}</span>
+                  <span>-{discount.toDisplayString()}</span>
+                </div>
+              )}
               <div className={styles.lineRow}>
                 <span>Shipping</span>
                 <span>{shipping.toDisplayString()}</span>

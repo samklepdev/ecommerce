@@ -15,6 +15,8 @@ function makeOrder(overrides: Partial<OrderDetail> = {}): OrderDetail {
     fulfillmentStatus: 'unfulfilled',
     paymentRecoveredFrom: null,
     notes: null,
+    discountAmountMinor: 0,
+    couponCode: null,
     shippingAddress: null,
     shippingAmountMinor: 0,
     lines: [{ variantId: 'v1', sku: 'SKU-1', quantity: 2, unitAmountMinor: 2100, imageUrl: null }],

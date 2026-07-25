@@ -4,6 +4,7 @@ import { useActionState, useState } from 'react';
 
 import { addToCartAction, type AddToCartActionResult } from '@/app/actions/cart';
 import { useAddToCartFeedback } from '@/app/lib/use-add-to-cart-feedback';
+import { MAX_CART_LINE_QUANTITY } from '@/modules/cart/domain/cart-line';
 import { Button } from '@/components/ui/Button';
 import styles from './AddToCartRow.module.css';
 
@@ -39,8 +40,8 @@ export function AddToCartRow({ variantId, priceDisplay, disabled = false }: AddT
         <button
           type="button"
           className={styles.stepButton}
-          onClick={() => setQuantity((q) => q + 1)}
-          disabled={disabled}
+          onClick={() => setQuantity((q) => Math.min(MAX_CART_LINE_QUANTITY, q + 1))}
+          disabled={disabled || quantity >= MAX_CART_LINE_QUANTITY}
           aria-label="Increase quantity"
         >
           +

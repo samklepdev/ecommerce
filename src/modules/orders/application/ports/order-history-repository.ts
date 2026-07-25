@@ -41,6 +41,8 @@ export interface OrderDetail extends OrderListItem {
   /** Internal ops notes — admin-only, never rendered for customers even
    * though it travels on the same read model as the public order view. */
   notes: string | null;
+  discountAmountMinor: number;
+  couponCode: string | null;
 }
 
 export interface OrderHistoryRepository {

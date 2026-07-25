@@ -25,6 +25,8 @@ function makeOrderDetail(id: string): OrderDetail {
     shippingAmountMinor: 0,
     paymentRecoveredFrom: null,
     notes: null,
+    discountAmountMinor: 0,
+    couponCode: null,
     lines: [],
   };
 }

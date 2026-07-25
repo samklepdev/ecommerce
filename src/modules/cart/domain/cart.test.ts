@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 
 import { Cart } from './cart';
-import { CartLine } from './cart-line';
+import { CartLine, MAX_CART_LINE_QUANTITY } from './cart-line';
 import { Money } from '@/shared/domain/money';
 
 function makeLine(variantId: string, quantity: number, unitAmountMinor = 1000) {
@@ -50,6 +50,19 @@ describe('Cart#addLine', () => {
     cart.addLine(makeLine(randomUUID(), 1));
     expect(cart.isEmpty).toBe(true);
   });
+
+  it('clamps a brand-new line to the max quantity', () => {
+    const cart = makeCart();
+    const updated = cart.addLine(makeLine(randomUUID(), MAX_CART_LINE_QUANTITY + 50));
+    expect(updated.lines[0]?.quantity).toBe(MAX_CART_LINE_QUANTITY);
+  });
+
+  it('clamps the summed quantity to the max even when each add was individually within bounds', () => {
+    const variantId = randomUUID();
+    const cart = makeCart([makeLine(variantId, MAX_CART_LINE_QUANTITY - 10)]);
+    const updated = cart.addLine(makeLine(variantId, 20));
+    expect(updated.lines[0]?.quantity).toBe(MAX_CART_LINE_QUANTITY);
+  });
 });
 
 describe('Cart#removeLine', () => {
@@ -93,6 +106,13 @@ describe('Cart#setLineQuantity', () => {
     const cart = makeCart([makeLine(variantId, 2)]);
     cart.setLineQuantity(variantId, 9);
     expect(cart.lines[0]?.quantity).toBe(2);
+  });
+
+  it('clamps to the max quantity', () => {
+    const variantId = randomUUID();
+    const cart = makeCart([makeLine(variantId, 2)]);
+    const updated = cart.setLineQuantity(variantId, MAX_CART_LINE_QUANTITY + 50);
+    expect(updated.lines[0]?.quantity).toBe(MAX_CART_LINE_QUANTITY);
   });
 });
 
