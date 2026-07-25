@@ -43,6 +43,9 @@ yarn-error.log*
 # local scratch/planning notes
 TODO.md
 
+# superpowers brainstorming scratch (mockup sessions, progress ledgers)
+.superpowers/
+
 # imported product images — runtime-generated, not source
 /public/uploads/
 
