@@ -15,6 +15,7 @@ import { CancelOrder } from '@/modules/orders/application/use-cases/cancel-order
 import { MarkAwaitingConfirmation } from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
 import { UpdateOrderNotes } from '@/modules/orders/application/use-cases/update-order-notes';
 import { ListOrderEvents } from '@/modules/orders/application/use-cases/list-order-events';
+import { GetRevenueSummary } from '@/modules/orders/application/use-cases/get-revenue-summary';
 import { FailStuckAwaitingConfirmationOrders } from '@/modules/orders/application/use-cases/fail-stuck-awaiting-confirmation-orders';
 import { FailOrder } from '@/modules/orders/application/use-cases/fail-order';
 import { PlaceOrder } from '@/modules/orders/application/use-cases/place-order';
@@ -286,6 +287,7 @@ export interface Container {
   orders: DrizzleOrderRepository;
   paymentStore: DrizzleBitcoinPaymentStore;
   getOnChainActivityReport: GetOnChainActivityReport;
+  getRevenueSummary: GetRevenueSummary;
 }
 
 function build(): Container {
@@ -439,6 +441,7 @@ function build(): Container {
 
   // --- orders / checkout / confirmation / fulfillment ---
   const orders = new DrizzleOrderRepository(db);
+  const getRevenueSummary = new GetRevenueSummary(orders);
   const resendOrderConfirmations = new ResendOrderConfirmations(
     orders,
     sendOrderConfirmationEmail,
@@ -628,6 +631,7 @@ function build(): Container {
     orders,
     paymentStore,
     getOnChainActivityReport,
+    getRevenueSummary,
   };
 }
 
