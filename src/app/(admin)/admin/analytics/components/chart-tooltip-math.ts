@@ -17,6 +17,6 @@ export function percentChange(current: number, previous: number | null): number 
 export function withPreviousValue(points: { label: string; value: number }[]): ChartPoint[] {
   return points.map((p, i) => ({
     ...p,
-    previousValue: i === 0 ? null : points[i - 1].value,
+    previousValue: i === 0 ? null : (points[i - 1]?.value ?? null),
   }));
 }

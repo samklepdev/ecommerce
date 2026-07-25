@@ -21,8 +21,7 @@ export function DailyBarChart({ data, label }: DailyBarChartProps) {
       <BarChart data={points}>
         <XAxis dataKey="label" tick={{ fontSize: 12 }} />
         <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <RechartsTooltip content={tooltip as any} />
+        <RechartsTooltip content={tooltip} />
         <Bar dataKey="value" fill="var(--color-accent)" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
