@@ -15,6 +15,7 @@ import type {
 } from '@/modules/orders/application/ports/order-repository';
 import type { StaleCheckoutOrderRepository } from '@/modules/checkout/application/use-cases/expire-stale-checkouts';
 import type { MarkAwaitingConfirmationOrderRepository } from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
+import type { UpdateOrderNotesRepository } from '@/modules/orders/application/use-cases/update-order-notes';
 import type { StuckAwaitingConfirmationOrderRepository } from '@/modules/orders/application/use-cases/fail-stuck-awaiting-confirmation-orders';
 import type {
   PaidOrderLine,
@@ -47,6 +48,7 @@ export class DrizzleOrderRepository
     ConfirmPaymentOrderRepository,
     StaleCheckoutOrderRepository,
     MarkAwaitingConfirmationOrderRepository,
+    UpdateOrderNotesRepository,
     StuckAwaitingConfirmationOrderRepository,
     OrderFulfillmentRepository,
     PaidOrderLinesRepository,
@@ -325,6 +327,10 @@ export class DrizzleOrderRepository
     return this.hydrateOrderDetail(row);
   }
 
+  async setNotes(orderId: string, notes: string | null): Promise<void> {
+    await this.db.update(orders).set({ notes }).where(eq(orders.id, orderId));
+  }
+
   async findOrderIdsByEmail(email: string): Promise<string[]> {
     const rows = await this.db.query.orders.findMany({
       where: ilike(orders.customerEmail, email),
@@ -353,6 +359,7 @@ export class DrizzleOrderRepository
       ...toOrderListItem(row),
       shippingAddress: row.shippingAddress,
       shippingAmountMinor: row.shippingAmountMinor,
+      notes: row.notes,
       lines: lines.map((l) => ({
         variantId: l.variantId,
         sku: l.sku,

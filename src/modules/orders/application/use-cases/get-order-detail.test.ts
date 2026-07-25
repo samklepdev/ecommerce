@@ -24,6 +24,7 @@ function makeOrderDetail(id: string): OrderDetail {
     shippingAddress: null,
     shippingAmountMinor: 0,
     paymentRecoveredFrom: null,
+    notes: null,
     lines: [],
   };
 }

@@ -44,6 +44,53 @@ export async function addSavedAddressAction(
   return { message: 'Address saved.' };
 }
 
+const EditSavedAddressSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  line1: z.string().min(1),
+  line2: z.string().optional(),
+  city: z.string().min(1),
+  region: z.string().optional(),
+  postalCode: z.string().min(1),
+  country: z.string().min(1),
+});
+
+export interface EditSavedAddressActionResult {
+  message?: string;
+  error?: string;
+}
+
+export async function editSavedAddressAction(
+  _prevState: EditSavedAddressActionResult | undefined,
+  formData: FormData,
+): Promise<EditSavedAddressActionResult> {
+  const user = await requireUser();
+  const parsed = EditSavedAddressSchema.safeParse({
+    id: formData.get('id'),
+    name: formData.get('name'),
+    line1: formData.get('line1'),
+    line2: formData.get('line2') || undefined,
+    city: formData.get('city'),
+    region: formData.get('region') || undefined,
+    postalCode: formData.get('postalCode'),
+    country: formData.get('country'),
+  });
+  if (!parsed.success) return { error: 'Fill in all required address fields.' };
+
+  const { updateSavedAddress } = getContainer();
+  const { id, ...details } = parsed.data;
+  const updated = await updateSavedAddress.execute({
+    id,
+    userId: user.id,
+    ...details,
+    region: details.region ?? '',
+  });
+  if (!updated) return { error: 'Address not found.' };
+
+  revalidatePath('/account');
+  return { message: 'Address updated.' };
+}
+
 const SavedAddressIdSchema = z.object({
   id: z.string().min(1),
 });

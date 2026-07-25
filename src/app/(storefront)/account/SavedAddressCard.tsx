@@ -1,4 +1,9 @@
+'use client';
+
+import { useState } from 'react';
+
 import { deleteSavedAddressAction, setDefaultSavedAddressAction } from '@/app/actions/addresses';
+import { EditSavedAddressForm } from './EditSavedAddressForm';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -28,6 +33,20 @@ export function SavedAddressCard({
   country,
   isDefault,
 }: SavedAddressCardProps) {
+  const [isEditing, setIsEditing] = useState(false);
+
+  if (isEditing) {
+    return (
+      <Card className={styles.addressCard}>
+        <EditSavedAddressForm
+          id={id}
+          initial={{ name, line1, line2, city, region, postalCode, country }}
+          onCancel={() => setIsEditing(false)}
+        />
+      </Card>
+    );
+  }
+
   return (
     <Card className={styles.addressCard}>
       <div>
@@ -40,6 +59,9 @@ export function SavedAddressCard({
         </p>
       </div>
       <div className={styles.addressActions}>
+        <Button type="button" variant="ghost" onClick={() => setIsEditing(true)}>
+          Edit
+        </Button>
         {!isDefault && (
           <form action={setDefaultSavedAddressAction}>
             <input type="hidden" name="id" value={id} />

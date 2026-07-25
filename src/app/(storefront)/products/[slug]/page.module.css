@@ -65,3 +65,55 @@
   grid-template-columns: minmax(160px, 240px);
   justify-content: center;
 }
+
+.meta {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+
+.reviewsSummary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.reviewsStars {
+  color: var(--color-accent);
+  letter-spacing: 0.1em;
+}
+
+.reviewForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 480px;
+  margin: var(--space-4) 0;
+}
+
+.reviewsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.reviewCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.reviewHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.reviewTitle {
+  font-weight: 500;
+}
+
+.reviewBody {
+  white-space: pre-wrap;
+}

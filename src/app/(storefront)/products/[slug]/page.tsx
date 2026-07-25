@@ -11,6 +11,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ProductGallery } from './ProductGallery';
 import { AddToCartButton } from './AddToCartButton';
 import { RecentlyViewed } from './RecentlyViewed';
+import { ReviewsSection } from './ReviewsSection';
 import styles from './page.module.css';
 import type { Product } from '@/modules/catalog/domain/product';
 import { ProductCardMini, toProductCardSummary } from '../ProductCardMini';
@@ -142,6 +143,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
             </div>
           </div>
         )}
+        <ReviewsSection productId={product.id} productSlug={product.slug.value} />
         <RecentlyViewed currentProductId={product.id} />
       </Stack>
     </PageContainer>
