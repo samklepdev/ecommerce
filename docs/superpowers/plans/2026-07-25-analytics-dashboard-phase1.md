@@ -1350,8 +1350,8 @@ git commit -m "feat(analytics): add chart-tooltip-math pure helpers"
 - Create: `src/app/(admin)/admin/analytics/components/ChartTooltip.module.css`
 
 **Interfaces:**
-- Consumes: `percentChange` (Task 10), `ChartPoint` (Task 10), `recharts`'s `TooltipProps` type
-- Produces: `export function createChartTooltip(valueFormatter: (value: number) => string): FC<TooltipProps<number, string>>`, consumed by Tasks 12-14.
+- Consumes: `percentChange` (Task 10), `ChartPoint` (Task 10), `recharts`'s `TooltipContentProps` type (the version of Recharts' tooltip-props type that actually includes `active`/`payload` — `TooltipProps` alone omits `payload`)
+- Produces: `export function createChartTooltip(valueFormatter: (value: number) => string): FC<TooltipContentProps<number, string>>`, consumed by Tasks 12-14.
 
 No unit test for this task — it's a presentational React component with no pure logic of its own beyond what Task 10 already tested; this repo has no component-testing infra (see Global Constraints). Verified via typecheck + manual browser check once Task 16 wires it into the page.
 
@@ -1397,7 +1397,7 @@ Create `src/app/(admin)/admin/analytics/components/ChartTooltip.tsx`:
 ```tsx
 'use client';
 
-import type { TooltipProps } from 'recharts';
+import type { TooltipContentProps } from 'recharts';
 
 import { percentChange, type ChartPoint } from './chart-tooltip-math';
 import styles from './ChartTooltip.module.css';
@@ -1405,9 +1405,12 @@ import styles from './ChartTooltip.module.css';
 /** Builds a Recharts `<Tooltip content={...}>` renderer for one chart.
  * `valueFormatter` lets each chart display its own unit (views, currency,
  * BTC) while sharing the same layout and %-change-vs-previous-point
- * logic. */
+ * logic. Uses `TooltipContentProps`, not the narrower `TooltipProps` —
+ * Recharts 3.x's `TooltipProps` omits `payload` entirely (it's one of the
+ * properties `Tooltip` reads from context and re-supplies only on the
+ * content-props variant). */
 export function createChartTooltip(valueFormatter: (value: number) => string) {
-  return function ChartTooltip({ active, payload }: TooltipProps<number, string>) {
+  return function ChartTooltip({ active, payload }: TooltipContentProps<number, string>) {
     if (!active || !payload || payload.length === 0) return null;
     const point = payload[0]?.payload as ChartPoint | undefined;
     if (!point) return null;
