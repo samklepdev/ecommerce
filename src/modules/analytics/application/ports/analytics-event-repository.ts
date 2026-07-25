@@ -23,13 +23,14 @@ export interface ValueCount {
 
 export interface AnalyticsEventRepository {
   record(event: AnalyticsEventInput): Promise<void>;
-  countByTypePerDay(eventType: AnalyticsEventType, since: Date): Promise<DailyCount[]>;
+  countByTypePerDay(eventType: AnalyticsEventType, since: Date, until: Date): Promise<DailyCount[]>;
   topValues(
     eventType: AnalyticsEventType,
     field: 'path' | 'referrer',
     since: Date,
+    until: Date,
     limit: number,
   ): Promise<ValueCount[]>;
   /** Top search terms, read from `metadata.term` on `search` events. */
-  topSearchTerms(since: Date, limit: number): Promise<ValueCount[]>;
+  topSearchTerms(since: Date, until: Date, limit: number): Promise<ValueCount[]>;
 }

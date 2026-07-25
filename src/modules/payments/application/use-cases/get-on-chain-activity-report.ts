@@ -17,18 +17,25 @@ export interface OnChainOrderActivity {
 
 export interface OnChainActivityReportRepository {
   /** `orders.paymentStatus = 'paid'` joined with `bitcoin_payment_intents`,
-   * since `since`. */
-  listConfirmedWithOrderInfo(since: Date): Promise<OnChainOrderActivity[]>;
+   * within `[since, until]`. */
+  listConfirmedWithOrderInfo(since: Date, until: Date): Promise<OnChainOrderActivity[]>;
 }
 
 export interface GetOnChainActivityReportInput {
-  sinceDays: number;
+  since: Date;
+  until: Date;
+}
+
+export interface DailySats {
+  day: string;
+  sats: number;
 }
 
 export interface GetOnChainActivityReportResult {
   totalSats: number;
   addressCount: number;
   orders: OnChainOrderActivity[];
+  satsPerDay: DailySats[];
 }
 
 /**
@@ -46,12 +53,20 @@ export class GetOnChainActivityReport
   constructor(private readonly report: OnChainActivityReportRepository) {}
 
   async execute(input: GetOnChainActivityReportInput): Promise<GetOnChainActivityReportResult> {
-    const since = new Date(Date.now() - input.sinceDays * 24 * 60 * 60 * 1000);
-    const orders = await this.report.listConfirmedWithOrderInfo(since);
+    const orders = await this.report.listConfirmedWithOrderInfo(input.since, input.until);
 
     const totalSats = orders.reduce((sum, o) => sum + o.expectedSats, 0);
     const addressCount = new Set(orders.map((o) => o.address)).size;
 
-    return { totalSats, addressCount, orders };
+    const byDay = new Map<string, number>();
+    for (const o of orders) {
+      const day = o.paidAt.toISOString().slice(0, 10);
+      byDay.set(day, (byDay.get(day) ?? 0) + o.expectedSats);
+    }
+    const satsPerDay = [...byDay.entries()]
+      .map(([day, sats]) => ({ day, sats }))
+      .sort((a, b) => a.day.localeCompare(b.day));
+
+    return { totalSats, addressCount, orders, satsPerDay };
   }
 }

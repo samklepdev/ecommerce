@@ -34,7 +34,7 @@ export class UpdateCartLineQuantity implements UseCase<UpdateCartLineQuantityInp
           eventType: 'cart_changed',
           sessionId: input.owner.type === 'guest' ? input.owner.sessionId : input.owner.userId,
           userId: input.owner.type === 'user' ? input.owner.userId : null,
-          metadata: { variantId: input.variantId, quantity: input.quantity, lineCount: updated.lines.length },
+          metadata: { lines: updated.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity })) },
         });
       } catch (e) {
         logger.warn('failed to record cart_changed analytics event', {

@@ -8,11 +8,18 @@ import { Stack } from '@/components/ui/Stack';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import type { ValueCount } from '@/modules/analytics/application/ports/analytics-event-repository';
+import { parseDateRange, type DateRangeSearchParams } from './date-range';
+import { DateRangePicker } from './components/DateRangePicker';
+import { DailyBarChart } from './components/DailyBarChart';
+import { RevenueChart } from './components/RevenueChart';
+import { OnChainChart } from './components/OnChainChart';
 import styles from './page.module.css';
 
 export const dynamic = 'force-dynamic';
 
-const SINCE_DAYS = 30;
+interface AdminAnalyticsPageProps {
+  searchParams: Promise<DateRangeSearchParams>;
+}
 
 function ValueCountList({ items, emptyLabel }: { items: ValueCount[]; emptyLabel: string }) {
   if (items.length === 0) return <p className={styles.empty}>{emptyLabel}</p>;
@@ -28,13 +35,15 @@ function ValueCountList({ items, emptyLabel }: { items: ValueCount[]; emptyLabel
   );
 }
 
-export default async function AdminAnalyticsPage() {
+export default async function AdminAnalyticsPage({ searchParams }: AdminAnalyticsPageProps) {
   await requireAdmin();
+  const { since, until } = parseDateRange(await searchParams);
 
-  const { getWebAnalyticsSummary, getOnChainActivityReport } = getContainer();
-  const [web, onChain] = await Promise.all([
-    getWebAnalyticsSummary.execute({ sinceDays: SINCE_DAYS }),
-    getOnChainActivityReport.execute({ sinceDays: SINCE_DAYS }),
+  const { getWebAnalyticsSummary, getOnChainActivityReport, getRevenueSummary } = getContainer();
+  const [web, onChain, revenue] = await Promise.all([
+    getWebAnalyticsSummary.execute({ since, until }),
+    getOnChainActivityReport.execute({ since, until }),
+    getRevenueSummary.execute({ since, until }),
   ]);
 
   return (
@@ -42,27 +51,23 @@ export default async function AdminAnalyticsPage() {
       <Stack gap={5}>
         <div>
           <h1>Analytics</h1>
-          <p className={styles.meta}>Last {SINCE_DAYS} days.</p>
+          <DateRangePicker since={since} until={until} action="/admin/analytics" />
         </div>
 
         <section>
-          <h2 className={styles.sectionTitle}>Web</h2>
+          <div className={styles.sectionHeaderRow}>
+            <h2 className={styles.sectionTitle}>Page views</h2>
+            <Link href="/admin/analytics/page-views">View details →</Link>
+          </div>
+          <Card className={styles.chartCard}>
+            <h3 className={styles.cardTitle}>Page views per day</h3>
+            {web.pageViewsPerDay.length === 0 ? (
+              <p className={styles.empty}>No data yet.</p>
+            ) : (
+              <DailyBarChart data={web.pageViewsPerDay} label="views" />
+            )}
+          </Card>
           <div className={styles.grid}>
-            <Card>
-              <h3 className={styles.cardTitle}>Page views per day</h3>
-              {web.pageViewsPerDay.length === 0 ? (
-                <p className={styles.empty}>No data yet.</p>
-              ) : (
-                <ul className={styles.list}>
-                  {web.pageViewsPerDay.map((d) => (
-                    <li key={d.day} className={styles.listRow}>
-                      <span>{d.day}</span>
-                      <span>{d.count}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
             <Card>
               <h3 className={styles.cardTitle}>Top pages</h3>
               <ValueCountList items={web.topPaths} emptyLabel="No page views yet." />
@@ -71,15 +76,63 @@ export default async function AdminAnalyticsPage() {
               <h3 className={styles.cardTitle}>Top referrers</h3>
               <ValueCountList items={web.topReferrers} emptyLabel="No referrer data yet." />
             </Card>
-            <Card>
-              <h3 className={styles.cardTitle}>Top search terms</h3>
-              <ValueCountList items={web.topSearchTerms} emptyLabel="No searches yet." />
-            </Card>
           </div>
         </section>
 
         <section>
-          <h2 className={styles.sectionTitle}>On-chain activity</h2>
+          <div className={styles.sectionHeaderRow}>
+            <h2 className={styles.sectionTitle}>Searches</h2>
+            <Link href="/admin/analytics/searches">View details →</Link>
+          </div>
+          <Card>
+            <h3 className={styles.cardTitle}>Top search terms</h3>
+            <ValueCountList items={web.topSearchTerms} emptyLabel="No searches yet." />
+          </Card>
+        </section>
+
+        <section>
+          <div className={styles.sectionHeaderRow}>
+            <h2 className={styles.sectionTitle}>Cart activity</h2>
+            <Link href="/admin/analytics/cart">View details →</Link>
+          </div>
+          <Card className={styles.chartCard}>
+            <h3 className={styles.cardTitle}>Cart changes per day</h3>
+            {web.cartChangesPerDay.length === 0 ? (
+              <p className={styles.empty}>No data yet.</p>
+            ) : (
+              <DailyBarChart data={web.cartChangesPerDay} label="cart changes" />
+            )}
+          </Card>
+        </section>
+
+        <section>
+          <h2 className={styles.sectionTitle}>Revenue</h2>
+          <Card className={styles.chartCard}>
+            <h3 className={styles.cardTitle}>Revenue per day</h3>
+            {revenue.days.length === 0 ? (
+              <p className={styles.empty}>No orders yet.</p>
+            ) : (
+              <RevenueChart data={revenue.days} currency={revenue.currency} />
+            )}
+          </Card>
+          <Card className={styles.chartCard}>
+            <h3 className={styles.cardTitle}>Items sold per day</h3>
+            {revenue.days.length === 0 ? (
+              <p className={styles.empty}>No orders yet.</p>
+            ) : (
+              <DailyBarChart
+                data={revenue.days.map((d) => ({ day: d.day, count: d.totalQuantity }))}
+                label="items"
+              />
+            )}
+          </Card>
+        </section>
+
+        <section>
+          <div className={styles.sectionHeaderRow}>
+            <h2 className={styles.sectionTitle}>On-chain activity</h2>
+            <Link href="/admin/analytics/on-chain">View details →</Link>
+          </div>
           <p className={styles.meta}>
             Totals use each order&apos;s expected amount as a stand-in for actually-received
             sats (accurate in the common exact-payment case) — underpaid/overpaid orders are
@@ -95,6 +148,14 @@ export default async function AdminAnalyticsPage() {
               <p className={styles.cardLabel}>Distinct addresses</p>
             </Card>
           </div>
+          <Card className={styles.chartCard}>
+            <h3 className={styles.cardTitle}>Sats received per day</h3>
+            {onChain.satsPerDay.length === 0 ? (
+              <p className={styles.empty}>No data yet.</p>
+            ) : (
+              <OnChainChart data={onChain.satsPerDay} />
+            )}
+          </Card>
 
           <Card>
             <h3 className={styles.cardTitle}>Paid orders</h3>

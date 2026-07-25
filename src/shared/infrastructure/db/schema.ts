@@ -167,6 +167,10 @@ export const analyticsEvents = pgTable(
   },
   (t) => ({
     typeCreatedAtIdx: index('analytics_events_type_created_at_idx').on(t.eventType, t.createdAt),
+    sessionIdCreatedAtIdx: index('analytics_events_session_id_created_at_idx').on(
+      t.sessionId,
+      t.createdAt,
+    ),
   }),
 );
 
@@ -388,11 +392,12 @@ export const orderEvents = pgTable(
       .references(() => orders.id, { onDelete: 'cascade' }),
     eventType: text('event_type').notNull(), // order_created | payment_status_changed | fulfillment_status_changed
     status: text('status').notNull(), // the new value, e.g. 'paid', 'shipped', 'expired'
-    metadata: jsonb('metadata'), // amountMinor + lineCount on order_created
+    metadata: jsonb('metadata'), // amountMinor + lineCount + quantity on order_created
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     orderIdx: index('order_events_order_id_idx').on(t.orderId),
+    typeCreatedAtIdx: index('order_events_type_created_at_idx').on(t.eventType, t.createdAt),
   }),
 );
 

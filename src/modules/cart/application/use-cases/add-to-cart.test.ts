@@ -135,7 +135,7 @@ describe('AddToCart', () => {
         eventType: 'cart_changed',
         sessionId: 's1',
         userId: null,
-        metadata: { variantId, quantity: 2, lineCount: 1 },
+        metadata: { lines: [{ variantId, quantity: 2 }] },
       },
     ]);
   });

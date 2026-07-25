@@ -1,0 +1,10 @@
+.form {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.submit {
+  margin-bottom: 2px;
+}
