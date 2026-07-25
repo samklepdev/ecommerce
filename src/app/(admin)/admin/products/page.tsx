@@ -35,7 +35,14 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
     listSuppliers.execute(),
   ]);
   const supplierNameById = new Map(suppliers.map((s) => [s.id, s.name] as const));
+  // The filter dropdown shows every supplier (including inactive) so admins
+  // can still find products sourced from one they've since deactivated —
+  // but "source from" pickers (new product, new supplier offer) only offer
+  // active ones.
   const supplierOptions = suppliers.map((s) => ({ id: s.id, name: s.name }));
+  const activeSupplierOptions = suppliers
+    .filter((s) => s.isActive)
+    .map((s) => ({ id: s.id, name: s.name }));
 
   const offersByVariant = new Map<string, SupplierOffer[]>(
     await Promise.all(
@@ -95,7 +102,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
         <h1>Products</h1>
 
         <div className={styles.toolbar}>
-          <ProductActionsBar suppliers={supplierOptions} />
+          <ProductActionsBar suppliers={activeSupplierOptions} />
           <div className={styles.filterRow}>
             <SupplierFilterSelect suppliers={supplierOptions} selectedSupplierId={supplierId} />
           </div>
@@ -106,7 +113,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
           <AdminProductsTable
             products={rows}
             emptyMessage={supplierId ? 'No products from this supplier.' : 'No products yet.'}
-            suppliers={supplierOptions}
+            suppliers={activeSupplierOptions}
           />
 
           <Pagination

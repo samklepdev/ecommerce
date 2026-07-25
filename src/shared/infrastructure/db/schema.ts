@@ -210,6 +210,10 @@ export const suppliers = pgTable('suppliers', {
   name: text('name').notNull(),
   url: text('url').notNull(),
   notes: text('notes'),
+  // Inactive suppliers drop out of "source from" dropdowns (new product,
+  // new supplier offer) but stay selectable in admin filters/history —
+  // existing offers/orders referencing them are never affected.
+  isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
