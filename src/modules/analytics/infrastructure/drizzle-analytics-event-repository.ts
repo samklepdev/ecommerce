@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, gte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { analyticsEvents } from '@/shared/infrastructure/db/schema';
@@ -28,14 +28,20 @@ export class DrizzleAnalyticsEventRepository implements AnalyticsEventRepository
     });
   }
 
-  async countByTypePerDay(eventType: AnalyticsEventType, since: Date): Promise<DailyCount[]> {
+  async countByTypePerDay(eventType: AnalyticsEventType, since: Date, until: Date): Promise<DailyCount[]> {
     const rows = await this.db
       .select({
         day: sql<string>`to_char(${analyticsEvents.createdAt}, 'YYYY-MM-DD')`,
         count: sql<number>`count(*)`,
       })
       .from(analyticsEvents)
-      .where(and(eq(analyticsEvents.eventType, eventType), gte(analyticsEvents.createdAt, since)))
+      .where(
+        and(
+          eq(analyticsEvents.eventType, eventType),
+          gte(analyticsEvents.createdAt, since),
+          lte(analyticsEvents.createdAt, until),
+        ),
+      )
       .groupBy(sql`1`)
       .orderBy(sql`1`);
     return rows.map((r) => ({ day: r.day, count: Number(r.count) }));
@@ -45,6 +51,7 @@ export class DrizzleAnalyticsEventRepository implements AnalyticsEventRepository
     eventType: AnalyticsEventType,
     field: 'path' | 'referrer',
     since: Date,
+    until: Date,
     limit: number,
   ): Promise<ValueCount[]> {
     const column = field === 'path' ? analyticsEvents.path : analyticsEvents.referrer;
@@ -55,6 +62,7 @@ export class DrizzleAnalyticsEventRepository implements AnalyticsEventRepository
         and(
           eq(analyticsEvents.eventType, eventType),
           gte(analyticsEvents.createdAt, since),
+          lte(analyticsEvents.createdAt, until),
           sql`${column} is not null`,
         ),
       )
@@ -64,7 +72,7 @@ export class DrizzleAnalyticsEventRepository implements AnalyticsEventRepository
     return rows.map((r) => ({ value: r.value ?? '', count: Number(r.count) }));
   }
 
-  async topSearchTerms(since: Date, limit: number): Promise<ValueCount[]> {
+  async topSearchTerms(since: Date, until: Date, limit: number): Promise<ValueCount[]> {
     const term = sql<string>`${analyticsEvents.metadata}->>'term'`;
     const rows = await this.db
       .select({ value: term, count: sql<number>`count(*)` })
@@ -73,6 +81,7 @@ export class DrizzleAnalyticsEventRepository implements AnalyticsEventRepository
         and(
           eq(analyticsEvents.eventType, 'search'),
           gte(analyticsEvents.createdAt, since),
+          lte(analyticsEvents.createdAt, until),
           sql`${analyticsEvents.metadata}->>'term' is not null`,
         ),
       )

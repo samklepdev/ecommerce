@@ -6,7 +6,8 @@ import type {
 } from '@/modules/analytics/application/ports/analytics-event-repository';
 
 export interface GetWebAnalyticsSummaryInput {
-  sinceDays: number;
+  since: Date;
+  until: Date;
 }
 
 export interface GetWebAnalyticsSummaryResult {
@@ -14,6 +15,7 @@ export interface GetWebAnalyticsSummaryResult {
   topPaths: ValueCount[];
   topReferrers: ValueCount[];
   topSearchTerms: ValueCount[];
+  cartChangesPerDay: DailyCount[];
 }
 
 const TOP_LIMIT = 10;
@@ -24,15 +26,17 @@ export class GetWebAnalyticsSummary
   constructor(private readonly events: AnalyticsEventRepository) {}
 
   async execute(input: GetWebAnalyticsSummaryInput): Promise<GetWebAnalyticsSummaryResult> {
-    const since = new Date(Date.now() - input.sinceDays * 24 * 60 * 60 * 1000);
+    const { since, until } = input;
 
-    const [pageViewsPerDay, topPaths, topReferrers, topSearchTerms] = await Promise.all([
-      this.events.countByTypePerDay('page_view', since),
-      this.events.topValues('page_view', 'path', since, TOP_LIMIT),
-      this.events.topValues('page_view', 'referrer', since, TOP_LIMIT),
-      this.events.topSearchTerms(since, TOP_LIMIT),
-    ]);
+    const [pageViewsPerDay, topPaths, topReferrers, topSearchTerms, cartChangesPerDay] =
+      await Promise.all([
+        this.events.countByTypePerDay('page_view', since, until),
+        this.events.topValues('page_view', 'path', since, until, TOP_LIMIT),
+        this.events.topValues('page_view', 'referrer', since, until, TOP_LIMIT),
+        this.events.topSearchTerms(since, until, TOP_LIMIT),
+        this.events.countByTypePerDay('cart_changed', since, until),
+      ]);
 
-    return { pageViewsPerDay, topPaths, topReferrers, topSearchTerms };
+    return { pageViewsPerDay, topPaths, topReferrers, topSearchTerms, cartChangesPerDay };
   }
 }
