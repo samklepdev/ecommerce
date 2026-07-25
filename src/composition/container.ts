@@ -79,6 +79,8 @@ import { ListAuditLogEntries } from '@/modules/audit/application/use-cases/list-
 import { DrizzleAnalyticsEventRepository } from '@/modules/analytics/infrastructure/drizzle-analytics-event-repository';
 import { RecordAnalyticsEvent } from '@/modules/analytics/application/use-cases/record-analytics-event';
 import { GetWebAnalyticsSummary } from '@/modules/analytics/application/use-cases/get-web-analytics-summary';
+import { ListAnalyticsEvents } from '@/modules/analytics/application/use-cases/list-analytics-events';
+import { GetEventsForIdentity } from '@/modules/analytics/application/use-cases/get-events-for-identity';
 import { ListAllProductsForAdmin } from '@/modules/catalog/application/use-cases/list-all-products-for-admin';
 import { DeleteProducts } from '@/modules/catalog/application/use-cases/delete-products';
 import { PublishProducts } from '@/modules/catalog/application/use-cases/publish-products';
@@ -181,6 +183,8 @@ export interface Container {
   recordAuditLogEntry: RecordAuditLogEntry;
   recordAnalyticsEvent: RecordAnalyticsEvent;
   getWebAnalyticsSummary: GetWebAnalyticsSummary;
+  listAnalyticsEvents: ListAnalyticsEvents;
+  getEventsForIdentity: GetEventsForIdentity;
   listAuditLogEntries: ListAuditLogEntries;
   listAllProductsForAdmin: ListAllProductsForAdmin;
   deleteProducts: DeleteProducts;
@@ -331,6 +335,8 @@ function build(): Container {
   const analyticsEventRepository = new DrizzleAnalyticsEventRepository(db);
   const recordAnalyticsEvent = new RecordAnalyticsEvent(analyticsEventRepository);
   const getWebAnalyticsSummary = new GetWebAnalyticsSummary(analyticsEventRepository);
+  const listAnalyticsEvents = new ListAnalyticsEvents(analyticsEventRepository);
+  const getEventsForIdentity = new GetEventsForIdentity(analyticsEventRepository);
   const listAuditLogEntries = new ListAuditLogEntries(auditLogRepository);
   const listAllProductsForAdmin = new ListAllProductsForAdmin(products);
   const deleteProducts = new DeleteProducts(products);
@@ -533,6 +539,8 @@ function build(): Container {
     recordAuditLogEntry,
     recordAnalyticsEvent,
     getWebAnalyticsSummary,
+    listAnalyticsEvents,
+    getEventsForIdentity,
     listAuditLogEntries,
     listAllProductsForAdmin,
     deleteProducts,
