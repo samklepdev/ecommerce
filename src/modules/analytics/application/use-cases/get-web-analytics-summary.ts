@@ -12,6 +12,7 @@ export interface GetWebAnalyticsSummaryInput {
 
 export interface GetWebAnalyticsSummaryResult {
   pageViewsPerDay: DailyCount[];
+  searchesPerDay: DailyCount[];
   topPaths: ValueCount[];
   topReferrers: ValueCount[];
   topSearchTerms: ValueCount[];
@@ -28,15 +29,16 @@ export class GetWebAnalyticsSummary
   async execute(input: GetWebAnalyticsSummaryInput): Promise<GetWebAnalyticsSummaryResult> {
     const { since, until } = input;
 
-    const [pageViewsPerDay, topPaths, topReferrers, topSearchTerms, cartChangesPerDay] =
+    const [pageViewsPerDay, searchesPerDay, topPaths, topReferrers, topSearchTerms, cartChangesPerDay] =
       await Promise.all([
         this.events.countByTypePerDay('page_view', since, until),
+        this.events.countByTypePerDay('search', since, until),
         this.events.topValues('page_view', 'path', since, until, TOP_LIMIT),
         this.events.topValues('page_view', 'referrer', since, until, TOP_LIMIT),
         this.events.topSearchTerms(since, until, TOP_LIMIT),
         this.events.countByTypePerDay('cart_changed', since, until),
       ]);
 
-    return { pageViewsPerDay, topPaths, topReferrers, topSearchTerms, cartChangesPerDay };
+    return { pageViewsPerDay, searchesPerDay, topPaths, topReferrers, topSearchTerms, cartChangesPerDay };
   }
 }
