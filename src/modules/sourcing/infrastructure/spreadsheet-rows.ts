@@ -61,5 +61,11 @@ async function parseXlsxRows(buffer: Buffer): Promise<Record<string, string>[]> 
  * not the filename — legacy binary `.xls` isn't supported. */
 export async function parseSpreadsheetRows(buffer: Buffer): Promise<Record<string, string>[]> {
   if (isXlsx(buffer)) return parseXlsxRows(buffer);
-  return parseCsv(buffer.toString('utf8'));
+  // Excel may save a "Unicode Text" CSV as UTF-16LE. Decode that BOM here;
+  // normal UTF-8 CSVs (with or without their own BOM) take the usual path.
+  const text =
+    buffer[0] === 0xff && buffer[1] === 0xfe
+      ? new TextDecoder('utf-16le').decode(buffer.subarray(2))
+      : buffer.toString('utf8');
+  return parseCsv(text);
 }

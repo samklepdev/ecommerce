@@ -10,6 +10,7 @@ import { parseDecimalToMinorUnits } from '@/shared/domain/parse-decimal-amount';
 function normalizeHeader(header: string): string {
   return header
     .trim()
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
@@ -51,8 +52,11 @@ function parseAvailable(raw: string | undefined): boolean {
  * derived from the name when omitted, currency defaults to USD, and price
  * is read as a decimal ("19.99"), not pre-computed minor units — matching
  * how a human fills in a spreadsheet rather than what an API returns.
- * Returns null (row skipped) when name, price, slug, or product URL can't
- * be resolved — every `SupplierOffer` requires a non-empty URL.
+ * Returns null (row skipped) when name, price, or slug can't be resolved.
+ * A spreadsheet is also useful as a catalog source when it has no supplier
+ * product URL, so those rows receive a stable URN source reference. This
+ * satisfies SupplierOffer's non-empty source invariant without pretending
+ * an HTTP product page exists.
  */
 export function toListingFromRow(rawRow: Record<string, string>): FeedListing | null {
   const row = normalizeRow(rawRow);
@@ -65,14 +69,17 @@ export function toListingFromRow(rawRow: Record<string, string>): FeedListing | 
 
   const slugSource = firstNonEmpty(row, ['slug', 'handle']) ?? name;
   const slug = slugify(slugSource);
-  const productUrl = firstNonEmpty(row, ['permalink', 'product_url', 'url', 'link']);
-  if (!slug || !productUrl) return null;
+  if (!slug) return null;
+  const externalId = firstNonEmpty(row, ['id', 'external_id', 'sku']) ?? slug;
+  const productUrl =
+    firstNonEmpty(row, ['permalink', 'product_url', 'url', 'link']) ??
+    `urn:spreadsheet-product:${encodeURIComponent(externalId)}`;
 
   const description = firstNonEmpty(row, ['description', 'desc']);
   const imageUrl = firstNonEmpty(row, ['image', 'image_url', 'photo']);
 
   return {
-    externalId: firstNonEmpty(row, ['id', 'external_id', 'sku']) ?? slug,
+    externalId,
     slug,
     name: decodeHtml(name),
     description: description ? decodeHtml(description) : null,
