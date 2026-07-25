@@ -1,15 +1,31 @@
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { analyticsEvents } from '@/shared/infrastructure/db/schema';
 import type {
   AnalyticsEventInput,
   AnalyticsEventRepository,
+  AnalyticsEventRow,
   AnalyticsEventType,
   DailyCount,
   ValueCount,
 } from '@/modules/analytics/application/ports/analytics-event-repository';
+
+function toRow(r: typeof analyticsEvents.$inferSelect): AnalyticsEventRow {
+  return {
+    id: r.id,
+    eventType: r.eventType as AnalyticsEventType,
+    sessionId: r.sessionId,
+    userId: r.userId,
+    path: r.path,
+    referrer: r.referrer,
+    userAgent: r.userAgent,
+    ipAddress: r.ipAddress,
+    metadata: r.metadata as Record<string, unknown> | null,
+    createdAt: r.createdAt,
+  };
+}
 
 export class DrizzleAnalyticsEventRepository implements AnalyticsEventRepository {
   constructor(private readonly db: DB) {}
@@ -89,5 +105,47 @@ export class DrizzleAnalyticsEventRepository implements AnalyticsEventRepository
       .orderBy(desc(sql`count(*)`))
       .limit(limit);
     return rows.map((r) => ({ value: r.value, count: Number(r.count) }));
+  }
+
+  async listByType(
+    eventType: AnalyticsEventType,
+    since: Date,
+    until: Date,
+    limit: number,
+    offset: number,
+  ): Promise<{ items: AnalyticsEventRow[]; total: number }> {
+    const whereClause = and(
+      eq(analyticsEvents.eventType, eventType),
+      gte(analyticsEvents.createdAt, since),
+      lte(analyticsEvents.createdAt, until),
+    );
+
+    const [rows, countRows] = await Promise.all([
+      this.db
+        .select()
+        .from(analyticsEvents)
+        .where(whereClause)
+        .orderBy(desc(analyticsEvents.createdAt))
+        .limit(limit)
+        .offset(offset),
+      this.db.select({ count: sql<number>`count(*)` }).from(analyticsEvents).where(whereClause),
+    ]);
+
+    return { items: rows.map(toRow), total: Number(countRows[0]?.count ?? 0) };
+  }
+
+  async listBySessionId(sessionId: string, since: Date, until: Date): Promise<AnalyticsEventRow[]> {
+    const rows = await this.db
+      .select()
+      .from(analyticsEvents)
+      .where(
+        and(
+          eq(analyticsEvents.sessionId, sessionId),
+          gte(analyticsEvents.createdAt, since),
+          lte(analyticsEvents.createdAt, until),
+        ),
+      )
+      .orderBy(asc(analyticsEvents.createdAt));
+    return rows.map(toRow);
   }
 }
