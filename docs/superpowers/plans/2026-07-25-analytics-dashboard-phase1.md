@@ -391,7 +391,11 @@ export function parseDateRange(
   const since = from ?? defaultSince;
   const until = to ? new Date(to.getTime() + MS_PER_DAY - 1) : now;
 
-  return since.getTime() > until.getTime() ? { since: until, until: since } : { since, until };
+  // Only swap if both from and to were explicitly provided and parsed
+  // successfully — if either fell back to a default, "inverted" is just an
+  // artifact of that default, not a real user-specified range.
+  const bothProvided = from !== null && to !== null;
+  return bothProvided && since.getTime() > until.getTime() ? { since: until, until: since } : { since, until };
 }
 ```
 
