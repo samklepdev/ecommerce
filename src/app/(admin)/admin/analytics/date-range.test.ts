@@ -33,16 +33,18 @@ describe('parseDateRange', () => {
     expect(until).toEqual(new Date('2026-01-10T23:59:59.999Z'));
   });
 
-  it('falls back to the default when a param is not a valid date', () => {
+  it('falls back to a window relative to `until` when `from` is not a valid date', () => {
     const { since, until } = parseDateRange({ from: 'not-a-date', to: '2026-01-10' });
 
-    expect(since).toEqual(new Date('2026-06-25T12:00:00Z'));
     expect(until).toEqual(new Date('2026-01-10T23:59:59.999Z'));
+    expect(since).toEqual(new Date('2025-12-11T23:59:59.999Z'));
+    expect(since.getTime()).toBeLessThanOrEqual(until.getTime());
   });
 
-  it('swaps an inverted range instead of erroring', () => {
+  it('swaps an inverted range instead of erroring, preserving whole-day boundaries', () => {
     const { since, until } = parseDateRange({ from: '2026-01-10', to: '2026-01-01' });
 
-    expect(since.getTime()).toBeLessThanOrEqual(until.getTime());
+    expect(since).toEqual(new Date('2026-01-01T00:00:00.000Z'));
+    expect(until).toEqual(new Date('2026-01-10T23:59:59.999Z'));
   });
 });

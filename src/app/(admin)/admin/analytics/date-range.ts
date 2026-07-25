@@ -30,15 +30,22 @@ export function parseDateRange(
   defaultDays = 30,
 ): DateRange {
   const now = new Date();
-  const defaultSince = new Date(now.getTime() - defaultDays * MS_PER_DAY);
 
-  const from = parseDateParam(searchParams.from);
-  const to = parseDateParam(searchParams.to);
+  let from = parseDateParam(searchParams.from);
+  let to = parseDateParam(searchParams.to);
 
-  const since = from ?? defaultSince;
+  // Swap the raw dates (before the inclusive-day expansion below) so an
+  // inverted explicit range doesn't get half-swapped with mismatched
+  // start/end-of-day boundaries.
+  if (from !== null && to !== null && from.getTime() > to.getTime()) {
+    [from, to] = [to, from];
+  }
+
   const until = to ? new Date(to.getTime() + MS_PER_DAY - 1) : now;
+  // A missing/invalid `from` defaults relative to `until`, not to `now` —
+  // otherwise a valid `to` far in the past pairs with a recent default
+  // `since` and silently produces an inverted, always-empty range.
+  const since = from ?? new Date(until.getTime() - defaultDays * MS_PER_DAY);
 
-  // Only swap if both from and to were explicitly provided and parsed successfully
-  const bothProvided = from !== null && to !== null;
-  return bothProvided && since.getTime() > until.getTime() ? { since: until, until: since } : { since, until };
+  return { since, until };
 }

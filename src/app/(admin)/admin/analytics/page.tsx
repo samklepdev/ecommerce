@@ -115,6 +115,17 @@ export default async function AdminAnalyticsPage({ searchParams }: AdminAnalytic
               <RevenueChart data={revenue.days} currency={revenue.currency} />
             )}
           </Card>
+          <Card className={styles.chartCard}>
+            <h3 className={styles.cardTitle}>Items sold per day</h3>
+            {revenue.days.length === 0 ? (
+              <p className={styles.empty}>No orders yet.</p>
+            ) : (
+              <DailyBarChart
+                data={revenue.days.map((d) => ({ day: d.day, count: d.totalQuantity }))}
+                label="items"
+              />
+            )}
+          </Card>
         </section>
 
         <section>
