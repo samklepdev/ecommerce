@@ -1,15 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { shouldRefreshOnStatusChange, type WidgetStatus } from './bitcoin-checkout-status';
 import styles from './BitcoinCheckout.module.css';
-
-type WidgetStatus = 'awaiting' | 'confirming' | 'paid' | 'failed' | 'expired' | 'cancelled' | 'refunded';
 
 interface StatusResponse {
   status: WidgetStatus;
@@ -90,6 +90,8 @@ export function BitcoinCheckout({
   const [copied, setCopied] = useState(false);
   const { status } = progress;
   const countdown = useCountdown(status === 'awaiting' ? expiresAt : null);
+  const router = useRouter();
+  const lastStatusRef = useRef<WidgetStatus | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,7 +101,12 @@ export function BitcoinCheckout({
         const res = await fetch(`/api/orders/${orderId}/status`, { cache: 'no-store' });
         if (!res.ok) return;
         const data = (await res.json()) as StatusResponse;
-        if (!cancelled) setProgress(data);
+        if (cancelled) return;
+        setProgress(data);
+        if (shouldRefreshOnStatusChange(lastStatusRef.current, data.status)) {
+          router.refresh();
+        }
+        lastStatusRef.current = data.status;
       } catch {
         // transient network error — next interval retries
       }
@@ -111,7 +118,7 @@ export function BitcoinCheckout({
       cancelled = true;
       clearInterval(interval);
     };
-  }, [orderId]);
+  }, [orderId, router]);
 
   async function copyAddress() {
     try {
