@@ -1,0 +1,25 @@
+.tooltip {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  font-size: 0.8125rem;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
+}
+
+.label {
+  color: var(--color-muted);
+  margin-bottom: var(--space-1);
+}
+
+.value {
+  font-weight: 600;
+}
+
+.changeUp {
+  color: var(--color-success);
+}
+
+.changeDown {
+  color: var(--color-danger);
+}
