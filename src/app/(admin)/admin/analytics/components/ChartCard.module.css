@@ -1,0 +1,9 @@
+.card {
+  margin-bottom: var(--space-4);
+}
+
+.title {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+  margin-bottom: var(--space-3);
+}
