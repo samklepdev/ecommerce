@@ -128,6 +128,7 @@ export class DrizzleOrderRepository
       await this.recordOrderEvent(tx, order.id, 'order_created', order.paymentStatus, {
         amountMinor: order.total.amountMinor,
         lineCount: order.lines.length,
+        quantity: order.lines.reduce((sum, line) => sum + line.quantity, 0),
       });
     });
   }
