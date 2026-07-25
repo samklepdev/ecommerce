@@ -82,7 +82,7 @@ export function ImportFeedForm({ suppliers }: ImportFeedFormProps) {
         <Field
           label="Spreadsheet file"
           htmlFor="spreadsheetFile"
-          hint="A .csv or .xlsx file with columns like name/slug/price/image/stock"
+          hint="A .csv or .xlsx file. Required columns: name (or title) and price. Product URL, slug, image, and stock are optional."
         >
           <Input type="file" id="spreadsheetFile" name="spreadsheetFile" accept=".csv,.xlsx" required />
         </Field>

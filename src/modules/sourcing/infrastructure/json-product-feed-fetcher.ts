@@ -114,10 +114,16 @@ export class JsonProductFeedFetcher implements SupplierFeedFetcher {
 
     const listings = rows.map(toListingFromRow).filter((l): l is FeedListing => l !== null);
     if (listings.length === 0) {
+      const detectedHeaders = Object.keys(rows[0] ?? {});
+      const headerDetails =
+        detectedHeaders.length > 0
+          ? ` Detected columns: ${detectedHeaders.join(', ')}.`
+          : ' No columns were detected.';
       return err({
         code: 'parse_error',
         message:
-          'Could not parse any product from the file — check for name/price/slug/product url columns',
+          'Could not parse any products. Required columns: name (or title) and price.' +
+          headerDetails,
       });
     }
 
