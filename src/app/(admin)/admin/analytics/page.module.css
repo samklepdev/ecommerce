@@ -20,70 +20,9 @@
   margin-bottom: var(--space-3);
 }
 
-.list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  font-size: 0.875rem;
-}
-
-.listRow {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.listValue {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .empty {
   color: var(--color-muted);
   font-size: 0.875rem;
-}
-
-.summaryRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-  margin-bottom: var(--space-4);
-}
-
-.summaryCard {
-  min-width: 200px;
-}
-
-.bigNumber {
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.cardLabel {
-  color: var(--color-muted);
-  font-size: 0.875rem;
-}
-
-.tableWrap {
-  overflow-x: auto;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.875rem;
-}
-
-.table th,
-.table td {
-  text-align: left;
-  padding: var(--space-3);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.table tbody tr:last-child td {
-  border-bottom: none;
 }
 
 .sectionHeaderRow {
@@ -92,8 +31,4 @@
   align-items: center;
   gap: var(--space-3);
   margin-bottom: var(--space-3);
-}
-
-.chartCard {
-  margin-bottom: var(--space-4);
 }

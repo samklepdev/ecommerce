@@ -3,16 +3,22 @@ import Link from 'next/link';
 import { getContainer } from '@/composition/container';
 import { requireAdmin } from '@/app/lib/session';
 import { satsToBtcString } from '@/modules/payments/domain/bip21';
+import { Money } from '@/shared/domain/money';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import type { ValueCount } from '@/modules/analytics/application/ports/analytics-event-repository';
-import { parseDateRange, type DateRangeSearchParams } from './date-range';
+import type { DailyCount, ValueCount } from '@/modules/analytics/application/ports/analytics-event-repository';
+import type { OnChainOrderActivity } from '@/modules/payments/application/use-cases/get-on-chain-activity-report';
+import { parseDateRange, MS_PER_DAY, type DateRangeSearchParams } from './date-range';
 import { DateRangePicker } from './components/DateRangePicker';
 import { DailyBarChart } from './components/DailyBarChart';
 import { RevenueChart } from './components/RevenueChart';
 import { OnChainChart } from './components/OnChainChart';
+import { StatCard } from './components/StatCard';
+import { StatCardRow } from './components/StatCardRow';
+import { DataTable, type DataTableColumn } from './components/DataTable';
+import { ChartCard } from './components/ChartCard';
 import styles from './page.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -21,19 +27,46 @@ interface AdminAnalyticsPageProps {
   searchParams: Promise<DateRangeSearchParams>;
 }
 
-function ValueCountList({ items, emptyLabel }: { items: ValueCount[]; emptyLabel: string }) {
-  if (items.length === 0) return <p className={styles.empty}>{emptyLabel}</p>;
+function sum(series: DailyCount[]): number {
+  return series.reduce((total, d) => total + d.count, 0);
+}
+
+function dailyAverage(total: number, since: Date, until: Date): string {
+  const days = Math.max(1, Math.round((until.getTime() - since.getTime()) / MS_PER_DAY));
+  return (total / days).toFixed(1);
+}
+
+const valueCountColumns: DataTableColumn<ValueCount>[] = [
+  { key: 'value', header: 'Value', render: (r) => r.value },
+  { key: 'count', header: 'Count', render: (r) => r.count },
+];
+
+function ValueCountTable({ items, emptyLabel }: { items: ValueCount[]; emptyLabel: string }) {
   return (
-    <ul className={styles.list}>
-      {items.map((item) => (
-        <li key={item.value} className={styles.listRow}>
-          <span className={styles.listValue}>{item.value}</span>
-          <span>{item.count}</span>
-        </li>
-      ))}
-    </ul>
+    <DataTable columns={valueCountColumns} rows={items} rowKey={(r) => r.value} emptyLabel={emptyLabel} />
   );
 }
+
+const orderActivityColumns: DataTableColumn<OnChainOrderActivity>[] = [
+  {
+    key: 'order',
+    header: 'Order',
+    render: (o) => <Link href={`/admin/orders/${o.orderId}`}>{o.orderId.slice(0, 8)}</Link>,
+  },
+  { key: 'address', header: 'Address', render: (o) => o.address },
+  { key: 'amount', header: 'Amount', render: (o) => `${satsToBtcString(o.expectedSats)} BTC` },
+  { key: 'confirmations', header: 'Confirmations', render: (o) => o.confirmations },
+  {
+    key: 'flags',
+    header: 'Flags',
+    render: (o) => (
+      <>
+        {o.underpaid && <Badge tone="danger">Underpaid</Badge>}
+        {o.overpaid && <Badge tone="warning">Overpaid</Badge>}
+      </>
+    ),
+  },
+];
 
 export default async function AdminAnalyticsPage({ searchParams }: AdminAnalyticsPageProps) {
   await requireAdmin();
@@ -45,6 +78,12 @@ export default async function AdminAnalyticsPage({ searchParams }: AdminAnalytic
     getOnChainActivityReport.execute({ since, until }),
     getRevenueSummary.execute({ since, until }),
   ]);
+
+  const totalViews = sum(web.pageViewsPerDay);
+  const totalSearches = sum(web.searchesPerDay);
+  const totalCartChanges = sum(web.cartChangesPerDay);
+  const totalRevenueMinor = revenue.days.reduce((total, d) => total + d.totalMinor, 0);
+  const totalItemsSold = revenue.days.reduce((total, d) => total + d.totalQuantity, 0);
 
   return (
     <PageContainer>
@@ -59,22 +98,25 @@ export default async function AdminAnalyticsPage({ searchParams }: AdminAnalytic
             <h2 className={styles.sectionTitle}>Page views</h2>
             <Link href="/admin/analytics/page-views">View details →</Link>
           </div>
-          <Card className={styles.chartCard}>
-            <h3 className={styles.cardTitle}>Page views per day</h3>
+          <StatCardRow>
+            <StatCard label="Total views" value={String(totalViews)} />
+            <StatCard label="Daily average" value={dailyAverage(totalViews, since, until)} />
+          </StatCardRow>
+          <ChartCard title="Page views per day">
             {web.pageViewsPerDay.length === 0 ? (
               <p className={styles.empty}>No data yet.</p>
             ) : (
               <DailyBarChart data={web.pageViewsPerDay} label="views" />
             )}
-          </Card>
+          </ChartCard>
           <div className={styles.grid}>
             <Card>
               <h3 className={styles.cardTitle}>Top pages</h3>
-              <ValueCountList items={web.topPaths} emptyLabel="No page views yet." />
+              <ValueCountTable items={web.topPaths} emptyLabel="No page views yet." />
             </Card>
             <Card>
               <h3 className={styles.cardTitle}>Top referrers</h3>
-              <ValueCountList items={web.topReferrers} emptyLabel="No referrer data yet." />
+              <ValueCountTable items={web.topReferrers} emptyLabel="No referrer data yet." />
             </Card>
           </div>
         </section>
@@ -84,9 +126,20 @@ export default async function AdminAnalyticsPage({ searchParams }: AdminAnalytic
             <h2 className={styles.sectionTitle}>Searches</h2>
             <Link href="/admin/analytics/searches">View details →</Link>
           </div>
+          <StatCardRow>
+            <StatCard label="Total searches" value={String(totalSearches)} />
+            <StatCard label="Daily average" value={dailyAverage(totalSearches, since, until)} />
+          </StatCardRow>
+          <ChartCard title="Searches per day">
+            {web.searchesPerDay.length === 0 ? (
+              <p className={styles.empty}>No data yet.</p>
+            ) : (
+              <DailyBarChart data={web.searchesPerDay} label="searches" />
+            )}
+          </ChartCard>
           <Card>
             <h3 className={styles.cardTitle}>Top search terms</h3>
-            <ValueCountList items={web.topSearchTerms} emptyLabel="No searches yet." />
+            <ValueCountTable items={web.topSearchTerms} emptyLabel="No searches yet." />
           </Card>
         </section>
 
@@ -95,28 +148,33 @@ export default async function AdminAnalyticsPage({ searchParams }: AdminAnalytic
             <h2 className={styles.sectionTitle}>Cart activity</h2>
             <Link href="/admin/analytics/cart">View details →</Link>
           </div>
-          <Card className={styles.chartCard}>
-            <h3 className={styles.cardTitle}>Cart changes per day</h3>
+          <StatCardRow>
+            <StatCard label="Total cart changes" value={String(totalCartChanges)} />
+            <StatCard label="Daily average" value={dailyAverage(totalCartChanges, since, until)} />
+          </StatCardRow>
+          <ChartCard title="Cart changes per day">
             {web.cartChangesPerDay.length === 0 ? (
               <p className={styles.empty}>No data yet.</p>
             ) : (
               <DailyBarChart data={web.cartChangesPerDay} label="cart changes" />
             )}
-          </Card>
+          </ChartCard>
         </section>
 
         <section>
           <h2 className={styles.sectionTitle}>Revenue</h2>
-          <Card className={styles.chartCard}>
-            <h3 className={styles.cardTitle}>Revenue per day</h3>
+          <StatCardRow>
+            <StatCard label="Total revenue" value={Money.of(totalRevenueMinor, revenue.currency).toDisplayString()} />
+            <StatCard label="Items sold" value={String(totalItemsSold)} />
+          </StatCardRow>
+          <ChartCard title="Revenue per day">
             {revenue.days.length === 0 ? (
               <p className={styles.empty}>No orders yet.</p>
             ) : (
               <RevenueChart data={revenue.days} currency={revenue.currency} />
             )}
-          </Card>
-          <Card className={styles.chartCard}>
-            <h3 className={styles.cardTitle}>Items sold per day</h3>
+          </ChartCard>
+          <ChartCard title="Items sold per day">
             {revenue.days.length === 0 ? (
               <p className={styles.empty}>No orders yet.</p>
             ) : (
@@ -125,7 +183,7 @@ export default async function AdminAnalyticsPage({ searchParams }: AdminAnalytic
                 label="items"
               />
             )}
-          </Card>
+          </ChartCard>
         </section>
 
         <section>
@@ -138,60 +196,26 @@ export default async function AdminAnalyticsPage({ searchParams }: AdminAnalytic
             sats (accurate in the common exact-payment case) — underpaid/overpaid orders are
             flagged below rather than silently folded into the total.
           </p>
-          <div className={styles.summaryRow}>
-            <Card className={styles.summaryCard}>
-              <p className={styles.bigNumber}>{satsToBtcString(onChain.totalSats)} BTC</p>
-              <p className={styles.cardLabel}>Total received (proxy)</p>
-            </Card>
-            <Card className={styles.summaryCard}>
-              <p className={styles.bigNumber}>{onChain.addressCount}</p>
-              <p className={styles.cardLabel}>Distinct addresses</p>
-            </Card>
-          </div>
-          <Card className={styles.chartCard}>
-            <h3 className={styles.cardTitle}>Sats received per day</h3>
+          <StatCardRow>
+            <StatCard label="Total received (proxy)" value={`${satsToBtcString(onChain.totalSats)} BTC`} />
+            <StatCard label="Distinct addresses" value={String(onChain.addressCount)} />
+          </StatCardRow>
+          <ChartCard title="Sats received per day">
             {onChain.satsPerDay.length === 0 ? (
               <p className={styles.empty}>No data yet.</p>
             ) : (
               <OnChainChart data={onChain.satsPerDay} />
             )}
-          </Card>
+          </ChartCard>
 
           <Card>
             <h3 className={styles.cardTitle}>Paid orders</h3>
-            {onChain.orders.length === 0 ? (
-              <p className={styles.empty}>No paid orders in this window.</p>
-            ) : (
-              <div className={styles.tableWrap}>
-                <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      <th>Order</th>
-                      <th>Address</th>
-                      <th>Amount</th>
-                      <th>Confirmations</th>
-                      <th>Flags</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {onChain.orders.map((o) => (
-                      <tr key={o.orderId}>
-                        <td>
-                          <Link href={`/admin/orders/${o.orderId}`}>{o.orderId.slice(0, 8)}</Link>
-                        </td>
-                        <td>{o.address}</td>
-                        <td>{satsToBtcString(o.expectedSats)} BTC</td>
-                        <td>{o.confirmations}</td>
-                        <td>
-                          {o.underpaid && <Badge tone="danger">Underpaid</Badge>}
-                          {o.overpaid && <Badge tone="warning">Overpaid</Badge>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <DataTable
+              columns={orderActivityColumns}
+              rows={onChain.orders}
+              rowKey={(o) => o.orderId}
+              emptyLabel="No paid orders in this window."
+            />
           </Card>
         </section>
       </Stack>
