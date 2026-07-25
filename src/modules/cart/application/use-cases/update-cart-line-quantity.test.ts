@@ -107,7 +107,7 @@ describe('UpdateCartLineQuantity', () => {
         eventType: 'cart_changed',
         sessionId: 'u1',
         userId: 'u1',
-        metadata: { variantId, quantity: 4, lineCount: 1 },
+        metadata: { lines: [{ variantId, quantity: 4 }] },
       },
     ]);
   });
