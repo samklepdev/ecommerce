@@ -1,10 +1,11 @@
 'use client';
 
-import { Bar, BarChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from 'recharts';
 
 import type { DailyCount } from '@/modules/analytics/application/ports/analytics-event-repository';
 import { withPreviousValue } from './chart-tooltip-math';
 import { createChartTooltip } from './ChartTooltip';
+import { CHART_COLORS, CHART_GRID_STROKE, CHART_TICK_STYLE } from './chart-theme';
 
 export interface DailyBarChartProps {
   data: DailyCount[];
@@ -19,10 +20,11 @@ export function DailyBarChart({ data, label }: DailyBarChartProps) {
   return (
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={points}>
-        <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-        <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+        <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} vertical={false} />
+        <XAxis dataKey="label" tick={CHART_TICK_STYLE} />
+        <YAxis allowDecimals={false} tick={CHART_TICK_STYLE} />
         <RechartsTooltip content={tooltip} />
-        <Bar dataKey="value" fill="var(--color-accent)" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="value" fill={CHART_COLORS.accent} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

@@ -1,11 +1,12 @@
 'use client';
 
-import { Bar, BarChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from 'recharts';
 
 import { Money } from '@/shared/domain/money';
 import type { DailyRevenue } from '@/modules/orders/application/use-cases/get-revenue-summary';
 import { withPreviousValue } from './chart-tooltip-math';
 import { createChartTooltip } from './ChartTooltip';
+import { CHART_COLORS, CHART_GRID_STROKE, CHART_TICK_STYLE } from './chart-theme';
 
 export interface RevenueChartProps {
   data: DailyRevenue[];
@@ -20,10 +21,11 @@ export function RevenueChart({ data, currency }: RevenueChartProps) {
   return (
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={points}>
-        <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-        <YAxis allowDecimals={false} tick={{ fontSize: 12 }} tickFormatter={format} />
+        <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} vertical={false} />
+        <XAxis dataKey="label" tick={CHART_TICK_STYLE} />
+        <YAxis allowDecimals={false} tick={CHART_TICK_STYLE} tickFormatter={format} />
         <RechartsTooltip content={tooltip} />
-        <Bar dataKey="value" fill="var(--color-success)" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="value" fill={CHART_COLORS.success} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
