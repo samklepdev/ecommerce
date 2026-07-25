@@ -1,4 +1,8 @@
+import { cookies } from 'next/headers';
+import { after } from 'next/server';
+
 import { getContainer } from '@/composition/container';
+import { getSessionUser, GUEST_SESSION_COOKIE } from '@/app/lib/session';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
 import { Input } from '@/components/ui/Input';
@@ -57,6 +61,26 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   });
   const totalPages = Math.max(1, Math.ceil(total / DEFAULT_PAGE_SIZE));
   let page = requestedPage;
+
+  if (q) {
+    const searchTerm = q;
+    const resultCount = total;
+    after(async () => {
+      const { recordAnalyticsEvent } = getContainer();
+      try {
+        const [user, cookieStore] = await Promise.all([getSessionUser(), cookies()]);
+        await recordAnalyticsEvent.execute({
+          eventType: 'search',
+          sessionId: user ? user.id : (cookieStore.get(GUEST_SESSION_COOKIE)?.value ?? null),
+          userId: user?.id ?? null,
+          path: '/products',
+          metadata: { term: searchTerm, resultCount },
+        });
+      } catch {
+        // Best-effort — a tracking failure must never surface to a visitor.
+      }
+    });
+  }
 
   // Only re-fetch in the rare case the requested page is past the end
   // (e.g. a stale bookmarked link after items were removed) — everything

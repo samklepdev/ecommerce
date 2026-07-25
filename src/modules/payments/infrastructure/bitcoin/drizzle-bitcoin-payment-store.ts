@@ -1,15 +1,36 @@
-import { and, eq, gt } from 'drizzle-orm';
+import { and, eq, gt, gte } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
-import { bitcoinPaymentIntents } from '@/shared/infrastructure/db/schema';
+import { bitcoinPaymentIntents, orders } from '@/shared/infrastructure/db/schema';
 import { PAYMENT_EXPIRY_GRACE_MS } from '@/shared/domain/payment-expiry-grace';
 import type {
   BitcoinPaymentIntent,
   BitcoinPaymentStore,
 } from '@/modules/payments/application/ports/bitcoin-ports';
+import type {
+  OnChainActivityReportRepository,
+  OnChainOrderActivity,
+} from '@/modules/payments/application/use-cases/get-on-chain-activity-report';
 
-export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore {
+export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore, OnChainActivityReportRepository {
   constructor(private readonly db: DB) {}
+
+  async listConfirmedWithOrderInfo(since: Date): Promise<OnChainOrderActivity[]> {
+    const rows = await this.db
+      .select({
+        orderId: orders.id,
+        address: bitcoinPaymentIntents.address,
+        expectedSats: bitcoinPaymentIntents.expectedSats,
+        underpaid: bitcoinPaymentIntents.underpaid,
+        overpaid: bitcoinPaymentIntents.overpaid,
+        confirmations: bitcoinPaymentIntents.confirmations,
+        paidAt: orders.updatedAt,
+      })
+      .from(bitcoinPaymentIntents)
+      .innerJoin(orders, eq(orders.id, bitcoinPaymentIntents.orderId))
+      .where(and(eq(orders.paymentStatus, 'paid'), gte(orders.updatedAt, since)));
+    return rows;
+  }
 
   async save(intent: BitcoinPaymentIntent): Promise<void> {
     await this.db

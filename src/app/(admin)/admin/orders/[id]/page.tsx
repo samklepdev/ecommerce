@@ -8,6 +8,7 @@ import { RefundOrderButton } from './RefundOrderButton';
 import { FailOrderButton } from './FailOrderButton';
 import { MarkDeliveredButton } from './MarkDeliveredButton';
 import { OrderNotesEditor } from './OrderNotesEditor';
+import { OrderEventsTimeline } from './OrderEventsTimeline';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,12 +20,15 @@ export default async function AdminOrderDetailPage({ params }: AdminOrderDetailP
   await requireAdmin();
   const { id } = await params;
 
-  const { getOrderDetail, getShipmentsForOrder } = getContainer();
+  const { getOrderDetail, getShipmentsForOrder, listOrderEvents } = getContainer();
 
   const order = await getOrderDetail.execute({ orderId: id });
   if (!order) notFound();
 
-  const shipments = await getShipmentsForOrder.execute({ orderId: order.id });
+  const [shipments, events] = await Promise.all([
+    getShipmentsForOrder.execute({ orderId: order.id }),
+    listOrderEvents.execute({ orderId: order.id }),
+  ]);
 
   return (
     <>
@@ -42,6 +46,7 @@ export default async function AdminOrderDetailPage({ params }: AdminOrderDetailP
       <FailOrderButton orderId={order.id} paymentStatus={order.paymentStatus} />
       <MarkDeliveredButton orderId={order.id} fulfillmentStatus={order.fulfillmentStatus} />
       <OrderNotesEditor orderId={order.id} notes={order.notes} />
+      <OrderEventsTimeline events={events} />
     </>
   );
 }

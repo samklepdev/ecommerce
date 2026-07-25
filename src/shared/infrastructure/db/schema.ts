@@ -148,6 +148,28 @@ export const auditLog = pgTable(
   }),
 );
 
+/** Best-effort web analytics — page views, searches, cart changes.
+ * Admin-only (`/admin/analytics`), never exposed to customers, since this
+ * stores IP addresses and user-agents. */
+export const analyticsEvents = pgTable(
+  'analytics_events',
+  {
+    id: text('id').primaryKey(),
+    eventType: text('event_type').notNull(), // page_view | search | cart_changed
+    sessionId: text('session_id'), // guest_session_id or the logged-in user's id
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    path: text('path'),
+    referrer: text('referrer'),
+    userAgent: text('user_agent'),
+    ipAddress: text('ip_address'),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    typeCreatedAtIdx: index('analytics_events_type_created_at_idx').on(t.eventType, t.createdAt),
+  }),
+);
+
 export const products = pgTable(
   'products',
   {
@@ -351,6 +373,26 @@ export const orders = pgTable(
     stuckAwaitingConfirmationScanIdx: index(
       'orders_payment_status_awaiting_confirmation_since_idx',
     ).on(t.paymentStatus, t.awaitingConfirmationSince),
+  }),
+);
+
+/** Time-series history of an order's status transitions — the `orders`
+ * table only holds current state. No `fromStatus` column: the ordered
+ * timeline itself shows the sequence. */
+export const orderEvents = pgTable(
+  'order_events',
+  {
+    id: text('id').primaryKey(),
+    orderId: text('order_id')
+      .notNull()
+      .references(() => orders.id, { onDelete: 'cascade' }),
+    eventType: text('event_type').notNull(), // order_created | payment_status_changed | fulfillment_status_changed
+    status: text('status').notNull(), // the new value, e.g. 'paid', 'shipped', 'expired'
+    metadata: jsonb('metadata'), // amountMinor + lineCount on order_created
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    orderIdx: index('order_events_order_id_idx').on(t.orderId),
   }),
 );
 

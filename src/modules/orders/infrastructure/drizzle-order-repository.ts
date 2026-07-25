@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, ilike, inArray, isNotNull, lt } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
-import { orderLines, orders, productVariants, products } from '@/shared/infrastructure/db/schema';
+import { orderLines, orderEvents, orders, productVariants, products } from '@/shared/infrastructure/db/schema';
 import { Money } from '@/shared/domain/money';
 import { PAYMENT_EXPIRY_GRACE_MS } from '@/shared/domain/payment-expiry-grace';
 import type { Order } from '@/modules/orders/domain/order';
@@ -16,6 +16,10 @@ import type {
 import type { StaleCheckoutOrderRepository } from '@/modules/checkout/application/use-cases/expire-stale-checkouts';
 import type { MarkAwaitingConfirmationOrderRepository } from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
 import type { UpdateOrderNotesRepository } from '@/modules/orders/application/use-cases/update-order-notes';
+import type {
+  ListOrderEventsRepository,
+  OrderEventRecord,
+} from '@/modules/orders/application/use-cases/list-order-events';
 import type { StuckAwaitingConfirmationOrderRepository } from '@/modules/orders/application/use-cases/fail-stuck-awaiting-confirmation-orders';
 import type {
   PaidOrderLine,
@@ -49,6 +53,7 @@ export class DrizzleOrderRepository
     StaleCheckoutOrderRepository,
     MarkAwaitingConfirmationOrderRepository,
     UpdateOrderNotesRepository,
+    ListOrderEventsRepository,
     StuckAwaitingConfirmationOrderRepository,
     OrderFulfillmentRepository,
     PaidOrderLinesRepository,
@@ -58,6 +63,39 @@ export class DrizzleOrderRepository
     CancelOrderRepository
 {
   constructor(private readonly db: DB) {}
+
+  /** Inserts one `order_events` row — shared by every method below that
+   * mutates an order's status, so the status write and its event row
+   * always commit together inside the same transaction. */
+  private async recordOrderEvent(
+    tx: Pick<DB, 'insert'>,
+    orderId: string,
+    eventType: string,
+    status: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<void> {
+    await tx.insert(orderEvents).values({
+      id: randomUUID(),
+      orderId,
+      eventType,
+      status,
+      metadata: metadata ?? null,
+    });
+  }
+
+  async listForOrder(orderId: string): Promise<OrderEventRecord[]> {
+    const rows = await this.db.query.orderEvents.findMany({
+      where: eq(orderEvents.orderId, orderId),
+      orderBy: (e, { asc }) => [asc(e.createdAt)],
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      eventType: r.eventType,
+      status: r.status,
+      metadata: (r.metadata as Record<string, unknown> | null) ?? null,
+      createdAt: r.createdAt,
+    }));
+  }
 
   /** Real production path: persist an order + its lines from a priced cart. */
   async create(order: Order): Promise<void> {
@@ -87,6 +125,10 @@ export class DrizzleOrderRepository
           })),
         );
       }
+      await this.recordOrderEvent(tx, order.id, 'order_created', order.paymentStatus, {
+        amountMinor: order.total.amountMinor,
+        lineCount: order.lines.length,
+      });
     });
   }
 
@@ -181,14 +223,19 @@ export class DrizzleOrderRepository
 
   /** Guarded, idempotent: returns false if another pass already expired this order. */
   async tryExpire(orderId: string): Promise<boolean> {
-    const result = await this.db
-      .update(orders)
-      .set({ paymentStatus: 'expired', updatedAt: new Date() })
-      .where(
-        and(eq(orders.id, orderId), inArray(orders.paymentStatus, ['pending', 'awaiting_payment'])),
-      )
-      .returning({ id: orders.id });
-    return result.length > 0;
+    return this.db.transaction(async (tx) => {
+      const result = await tx
+        .update(orders)
+        .set({ paymentStatus: 'expired', updatedAt: new Date() })
+        .where(
+          and(eq(orders.id, orderId), inArray(orders.paymentStatus, ['pending', 'awaiting_payment'])),
+        )
+        .returning({ id: orders.id });
+      if (result.length > 0) {
+        await this.recordOrderEvent(tx, orderId, 'payment_status_changed', 'expired');
+      }
+      return result.length > 0;
+    });
   }
 
   /** Guarded so `awaitingConfirmationSince` is only ever stamped on the
@@ -196,10 +243,16 @@ export class DrizzleOrderRepository
    * call while already awaiting_confirmation matches zero rows and is a
    * no-op, so the timestamp keeps reflecting first entry. */
   async markAwaitingConfirmation(orderId: string): Promise<void> {
-    await this.db
-      .update(orders)
-      .set({ paymentStatus: 'awaiting_confirmation', awaitingConfirmationSince: new Date(), updatedAt: new Date() })
-      .where(and(eq(orders.id, orderId), eq(orders.paymentStatus, 'awaiting_payment')));
+    await this.db.transaction(async (tx) => {
+      const result = await tx
+        .update(orders)
+        .set({ paymentStatus: 'awaiting_confirmation', awaitingConfirmationSince: new Date(), updatedAt: new Date() })
+        .where(and(eq(orders.id, orderId), eq(orders.paymentStatus, 'awaiting_payment')))
+        .returning({ id: orders.id });
+      if (result.length > 0) {
+        await this.recordOrderEvent(tx, orderId, 'payment_status_changed', 'awaiting_confirmation');
+      }
+    });
   }
 
   async findStuckAwaitingConfirmationOrderIds(cutoff: Date): Promise<string[]> {
@@ -215,30 +268,40 @@ export class DrizzleOrderRepository
 
   /** Guarded, idempotent: returns false if another pass already resolved this order. */
   async tryFailStuckAwaitingConfirmation(orderId: string): Promise<boolean> {
-    const result = await this.db
-      .update(orders)
-      .set({ paymentStatus: 'failed', updatedAt: new Date() })
-      .where(and(eq(orders.id, orderId), eq(orders.paymentStatus, 'awaiting_confirmation')))
-      .returning({ id: orders.id });
-    return result.length > 0;
+    return this.db.transaction(async (tx) => {
+      const result = await tx
+        .update(orders)
+        .set({ paymentStatus: 'failed', updatedAt: new Date() })
+        .where(and(eq(orders.id, orderId), eq(orders.paymentStatus, 'awaiting_confirmation')))
+        .returning({ id: orders.id });
+      if (result.length > 0) {
+        await this.recordOrderEvent(tx, orderId, 'payment_status_changed', 'failed');
+      }
+      return result.length > 0;
+    });
   }
 
   /** Guarded, idempotent, same shape as `tryExpire` — `ownerUserId: null`
    * skips the ownership filter entirely (the guest order page's existing
    * trust model: order id alone is the access capability). */
   async cancelOrder(orderId: string, ownerUserId: string | null): Promise<boolean> {
-    const result = await this.db
-      .update(orders)
-      .set({ paymentStatus: 'cancelled', updatedAt: new Date() })
-      .where(
-        and(
-          eq(orders.id, orderId),
-          inArray(orders.paymentStatus, ['pending', 'awaiting_payment']),
-          ownerUserId === null ? undefined : eq(orders.userId, ownerUserId),
-        ),
-      )
-      .returning({ id: orders.id });
-    return result.length > 0;
+    return this.db.transaction(async (tx) => {
+      const result = await tx
+        .update(orders)
+        .set({ paymentStatus: 'cancelled', updatedAt: new Date() })
+        .where(
+          and(
+            eq(orders.id, orderId),
+            inArray(orders.paymentStatus, ['pending', 'awaiting_payment']),
+            ownerUserId === null ? undefined : eq(orders.userId, ownerUserId),
+          ),
+        )
+        .returning({ id: orders.id });
+      if (result.length > 0) {
+        await this.recordOrderEvent(tx, orderId, 'payment_status_changed', 'cancelled');
+      }
+      return result.length > 0;
+    });
   }
 
   async markAwaitingPayment(
@@ -246,15 +309,18 @@ export class DrizzleOrderRepository
     reference: string,
     paymentWindowExpiresAt: Date,
   ): Promise<void> {
-    await this.db
-      .update(orders)
-      .set({
-        paymentStatus: 'awaiting_payment',
-        paymentReference: reference,
-        paymentWindowExpiresAt,
-        updatedAt: new Date(),
-      })
-      .where(eq(orders.id, orderId));
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(orders)
+        .set({
+          paymentStatus: 'awaiting_payment',
+          paymentReference: reference,
+          paymentWindowExpiresAt,
+          updatedAt: new Date(),
+        })
+        .where(eq(orders.id, orderId));
+      await this.recordOrderEvent(tx, orderId, 'payment_status_changed', 'awaiting_payment');
+    });
   }
 
   async getPaymentStatus(orderId: string): Promise<PaymentStatus | null> {
@@ -266,10 +332,13 @@ export class DrizzleOrderRepository
   }
 
   async setPaymentStatus(orderId: string, status: PaymentStatus): Promise<void> {
-    await this.db
-      .update(orders)
-      .set({ paymentStatus: status, updatedAt: new Date() })
-      .where(eq(orders.id, orderId));
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(orders)
+        .set({ paymentStatus: status, updatedAt: new Date() })
+        .where(eq(orders.id, orderId));
+      await this.recordOrderEvent(tx, orderId, 'payment_status_changed', status);
+    });
   }
 
   async recordPaymentRecovery(orderId: string, from: 'expired' | 'cancelled'): Promise<void> {
@@ -288,10 +357,13 @@ export class DrizzleOrderRepository
   }
 
   async setFulfillmentStatus(orderId: string, status: FulfillmentStatus): Promise<void> {
-    await this.db
-      .update(orders)
-      .set({ fulfillmentStatus: status, updatedAt: new Date() })
-      .where(eq(orders.id, orderId));
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(orders)
+        .set({ fulfillmentStatus: status, updatedAt: new Date() })
+        .where(eq(orders.id, orderId));
+      await this.recordOrderEvent(tx, orderId, 'fulfillment_status_changed', status);
+    });
   }
 
   async getSummary(orderId: string): Promise<OrderSummary | null> {
