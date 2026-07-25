@@ -148,8 +148,11 @@ feature" checklist).
   always a manual, out-of-band BTC send — this just records that it
   happened), a "Mark delivered" action once an order has shipped
   (there's no carrier webhook, so this is how delivery gets recorded),
-  and a free-text internal notes field for ops context (never shown to
-  the customer). A "Recovered" badge flags any order where a late
+  a free-text internal notes field for ops context (never shown to
+  the customer), and a Timeline showing every payment/fulfillment status
+  transition with a timestamp (tracking starts from when this feature
+  shipped — orders placed before it have no history). A "Recovered"
+  badge flags any order where a late
   on-chain payment arrived after the order had already been cancelled or
   expired — worth a manual look, since it's a rare edge case by design.
 - **Reviews** (`/admin/reviews`) — moderation queue for storefront product
@@ -177,6 +180,18 @@ feature" checklist).
   supplier-cost tweaks, etc.)
   aren't logged — this is a curated trail of the actions worth a
   who/when record, not a complete activity feed.
+- **Analytics** (`/admin/analytics`) — best-effort, in-house event
+  tracking (no third-party analytics tool, no data leaves the server).
+  Web: page views per day, top pages, top referrers, top search terms,
+  over the last 30 days. On-chain: total BTC received and distinct
+  addresses used, with a per-order table flagging any underpaid/overpaid
+  orders — totals use each order's expected amount as a stand-in for
+  actually-received sats (accurate in the common exact-payment case; no
+  change to the live payment-confirmation path to get an exact figure).
+  Page views, searches, and cart changes are captured server-side
+  (IP address and user-agent included) — this data is admin-only, never
+  exposed to customers or third parties; worth a retention policy before
+  going live with real traffic.
 
 ## Payments (non-custodial on-chain Bitcoin)
 

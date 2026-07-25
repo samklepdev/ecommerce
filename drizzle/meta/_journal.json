@@ -134,6 +134,13 @@
       "when": 1784951657394,
       "tag": "0018_happy_rawhide_kid",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1784953399812,
+      "tag": "0019_opposite_johnny_storm",
+      "breakpoints": true
     }
   ]
 }

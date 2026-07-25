@@ -14,6 +14,7 @@ import { MarkOrderDelivered } from '@/modules/orders/application/use-cases/mark-
 import { CancelOrder } from '@/modules/orders/application/use-cases/cancel-order';
 import { MarkAwaitingConfirmation } from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
 import { UpdateOrderNotes } from '@/modules/orders/application/use-cases/update-order-notes';
+import { ListOrderEvents } from '@/modules/orders/application/use-cases/list-order-events';
 import { FailStuckAwaitingConfirmationOrders } from '@/modules/orders/application/use-cases/fail-stuck-awaiting-confirmation-orders';
 import { FailOrder } from '@/modules/orders/application/use-cases/fail-order';
 import { PlaceOrder } from '@/modules/orders/application/use-cases/place-order';
@@ -49,6 +50,7 @@ import { HdAddressDeriver } from '@/modules/payments/infrastructure/bitcoin/addr
 import { EsploraChainDataProvider } from '@/modules/payments/infrastructure/bitcoin/esplora-chain-data-provider';
 import { RedisAddressIndexAllocator } from '@/modules/payments/infrastructure/bitcoin/redis-address-index-allocator';
 import { DrizzleBitcoinPaymentStore } from '@/modules/payments/infrastructure/bitcoin/drizzle-bitcoin-payment-store';
+import { GetOnChainActivityReport } from '@/modules/payments/application/use-cases/get-on-chain-activity-report';
 import { MempoolRateProvider } from '@/modules/payments/infrastructure/bitcoin/mempool-rate-provider';
 
 import { DrizzleOrderRepository } from '@/modules/orders/infrastructure/drizzle-order-repository';
@@ -73,6 +75,9 @@ import { BulkAssignCategory } from '@/modules/catalog/application/use-cases/bulk
 import { DrizzleAuditLogRepository } from '@/modules/audit/infrastructure/drizzle-audit-log-repository';
 import { RecordAuditLogEntry } from '@/modules/audit/application/use-cases/record-audit-log-entry';
 import { ListAuditLogEntries } from '@/modules/audit/application/use-cases/list-audit-log-entries';
+import { DrizzleAnalyticsEventRepository } from '@/modules/analytics/infrastructure/drizzle-analytics-event-repository';
+import { RecordAnalyticsEvent } from '@/modules/analytics/application/use-cases/record-analytics-event';
+import { GetWebAnalyticsSummary } from '@/modules/analytics/application/use-cases/get-web-analytics-summary';
 import { ListAllProductsForAdmin } from '@/modules/catalog/application/use-cases/list-all-products-for-admin';
 import { DeleteProducts } from '@/modules/catalog/application/use-cases/delete-products';
 import { PublishProducts } from '@/modules/catalog/application/use-cases/publish-products';
@@ -173,6 +178,8 @@ export interface Container {
   applyMarkupToVariants: ApplyMarkupToVariants;
   bulkAssignCategory: BulkAssignCategory;
   recordAuditLogEntry: RecordAuditLogEntry;
+  recordAnalyticsEvent: RecordAnalyticsEvent;
+  getWebAnalyticsSummary: GetWebAnalyticsSummary;
   listAuditLogEntries: ListAuditLogEntries;
   listAllProductsForAdmin: ListAllProductsForAdmin;
   deleteProducts: DeleteProducts;
@@ -250,6 +257,7 @@ export interface Container {
   cancelOrder: CancelOrder;
   markAwaitingConfirmation: MarkAwaitingConfirmation;
   updateOrderNotes: UpdateOrderNotes;
+  listOrderEvents: ListOrderEvents;
   failStuckAwaitingConfirmationOrders: FailStuckAwaitingConfirmationOrders;
   failOrder: FailOrder;
   watchBitcoinPayments: WatchBitcoinPayments;
@@ -277,6 +285,7 @@ export interface Container {
 
   orders: DrizzleOrderRepository;
   paymentStore: DrizzleBitcoinPaymentStore;
+  getOnChainActivityReport: GetOnChainActivityReport;
 }
 
 function build(): Container {
@@ -289,6 +298,7 @@ function build(): Container {
   const indexAllocator = new RedisAddressIndexAllocator(redis);
   const rates = new MempoolRateProvider(env.BTC_ESPLORA_URL);
   const paymentStore = new DrizzleBitcoinPaymentStore(db);
+  const getOnChainActivityReport = new GetOnChainActivityReport(paymentStore);
   const chain = new EsploraChainDataProvider(env.BTC_ESPLORA_URL);
 
   const btcGateway = new OnChainBitcoinPaymentGateway(
@@ -316,6 +326,9 @@ function build(): Container {
   const bulkAssignCategory = new BulkAssignCategory(products);
   const auditLogRepository = new DrizzleAuditLogRepository(db);
   const recordAuditLogEntry = new RecordAuditLogEntry(auditLogRepository);
+  const analyticsEventRepository = new DrizzleAnalyticsEventRepository(db);
+  const recordAnalyticsEvent = new RecordAnalyticsEvent(analyticsEventRepository);
+  const getWebAnalyticsSummary = new GetWebAnalyticsSummary(analyticsEventRepository);
   const listAuditLogEntries = new ListAuditLogEntries(auditLogRepository);
   const listAllProductsForAdmin = new ListAllProductsForAdmin(products);
   const deleteProducts = new DeleteProducts(products);
@@ -325,9 +338,9 @@ function build(): Container {
   // --- cart ---
   const carts = new RedisCartRepository(redis);
   const getCart = new GetCart(carts);
-  const addToCart = new AddToCart(carts, products);
+  const addToCart = new AddToCart(carts, products, analyticsEventRepository);
   const removeFromCart = new RemoveFromCart(carts);
-  const updateCartLineQuantity = new UpdateCartLineQuantity(carts);
+  const updateCartLineQuantity = new UpdateCartLineQuantity(carts, analyticsEventRepository);
   const repriceCart = new RepriceCart(carts, products);
   const mergeGuestCart = new MergeGuestCart(carts);
 
@@ -480,6 +493,7 @@ function build(): Container {
   const cancelOrder = new CancelOrder(orders, paymentStore);
   const markAwaitingConfirmation = new MarkAwaitingConfirmation(orders);
   const updateOrderNotes = new UpdateOrderNotes(orders);
+  const listOrderEvents = new ListOrderEvents(orders);
   const failStuckAwaitingConfirmationOrders = new FailStuckAwaitingConfirmationOrders(orders);
   const failOrder = new FailOrder(orders);
   // One unified number for both the actual gate and the customer-facing
@@ -514,6 +528,8 @@ function build(): Container {
     applyMarkupToVariants,
     bulkAssignCategory,
     recordAuditLogEntry,
+    recordAnalyticsEvent,
+    getWebAnalyticsSummary,
     listAuditLogEntries,
     listAllProductsForAdmin,
     deleteProducts,
@@ -585,6 +601,7 @@ function build(): Container {
     cancelOrder,
     markAwaitingConfirmation,
     updateOrderNotes,
+    listOrderEvents,
     failStuckAwaitingConfirmationOrders,
     failOrder,
     watchBitcoinPayments,
@@ -610,6 +627,7 @@ function build(): Container {
     getPaymentSessionForOrder,
     orders,
     paymentStore,
+    getOnChainActivityReport,
   };
 }
 

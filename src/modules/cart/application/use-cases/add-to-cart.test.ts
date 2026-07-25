@@ -8,6 +8,20 @@ import { ProductVariant } from '@/modules/catalog/domain/product-variant';
 import { Money } from '@/shared/domain/money';
 import type { CartRepository } from '@/modules/cart/application/ports/cart-repository';
 import type { ProductRepository } from '@/modules/catalog/application/ports/product-repository';
+import type {
+  AnalyticsEventInput,
+  AnalyticsEventRepository,
+} from '@/modules/analytics/application/ports/analytics-event-repository';
+
+function makeFakeEvents() {
+  const recorded: AnalyticsEventInput[] = [];
+  const repo: Partial<AnalyticsEventRepository> = {
+    async record(event) {
+      recorded.push(event);
+    },
+  };
+  return { repo: repo as AnalyticsEventRepository, recorded };
+}
 
 function makeVariant(id: string, unitAmountMinor: number) {
   return ProductVariant.create({
@@ -101,5 +115,65 @@ describe('AddToCart', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe('variant_not_found');
     expect(saved).toHaveLength(0);
+  });
+
+  it('records a cart_changed analytics event when a repository is provided', async () => {
+    const variantId = randomUUID();
+    const variant = makeVariant(variantId, 1000);
+    const { repo: carts } = makeFakeCarts(null);
+    const products = makeFakeProducts(new Map([[variantId, variant]]));
+    const { repo: events, recorded } = makeFakeEvents();
+
+    await new AddToCart(carts, products, events).execute({
+      owner: { type: 'guest', sessionId: 's1' },
+      variantId,
+      quantity: 2,
+    });
+
+    expect(recorded).toEqual([
+      {
+        eventType: 'cart_changed',
+        sessionId: 's1',
+        userId: null,
+        metadata: { variantId, quantity: 2, lineCount: 1 },
+      },
+    ]);
+  });
+
+  it('does not record an event when no repository is provided', async () => {
+    const variantId = randomUUID();
+    const variant = makeVariant(variantId, 1000);
+    const { repo: carts } = makeFakeCarts(null);
+    const products = makeFakeProducts(new Map([[variantId, variant]]));
+
+    const result = await new AddToCart(carts, products).execute({
+      owner: { type: 'guest', sessionId: 's1' },
+      variantId,
+      quantity: 1,
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('still adds the line when analytics recording fails', async () => {
+    const variantId = randomUUID();
+    const variant = makeVariant(variantId, 1000);
+    const { repo: carts, saved } = makeFakeCarts(null);
+    const products = makeFakeProducts(new Map([[variantId, variant]]));
+    const failingEvents: Partial<AnalyticsEventRepository> = {
+      record: async () => {
+        throw new Error('db unavailable');
+      },
+    };
+    const events = failingEvents as AnalyticsEventRepository;
+
+    const result = await new AddToCart(carts, products, events).execute({
+      owner: { type: 'guest', sessionId: 's1' },
+      variantId,
+      quantity: 1,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(saved).toHaveLength(1);
   });
 });

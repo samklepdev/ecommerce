@@ -50,6 +50,7 @@ export async function Header() {
                   <DropdownItem href="/admin/orders">Orders</DropdownItem>
                   <DropdownItem href="/admin/reviews">Reviews</DropdownItem>
                   <DropdownItem href="/admin/coupons">Coupons</DropdownItem>
+                  <DropdownItem href="/admin/analytics">Analytics</DropdownItem>
                   <DropdownItem href="/admin/users">Users</DropdownItem>
                   <DropdownItem href="/admin/settings">Settings</DropdownItem>
                   <DropdownItem href="/admin/audit-log">Audit log</DropdownItem>

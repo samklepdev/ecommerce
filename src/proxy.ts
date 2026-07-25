@@ -23,11 +23,19 @@ export function proxy(request: NextRequest): NextResponse {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
+  // Pass the resolved pathname through as a request header — Server
+  // Components have no other way to read the current route (no
+  // usePathname equivalent), and page-view analytics needs it. Pure
+  // in-memory header set, no DB/Redis I/O, so it doesn't add a round trip
+  // here.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', request.nextUrl.pathname);
+
   if (request.cookies.get(GUEST_SESSION_COOKIE)) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
-  const response = NextResponse.next();
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.cookies.set(GUEST_SESSION_COOKIE, randomUUID(), {
     httpOnly: true,
     sameSite: 'lax',
