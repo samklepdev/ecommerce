@@ -10,6 +10,7 @@ import {
 } from '@/app/actions/admin/fulfillment';
 import { SupplierOrderReferenceEditor } from './SupplierOrderReferenceEditor';
 import { SupplierOrderTrackingEditor } from './SupplierOrderTrackingEditor';
+import { FulfillmentBulkActions } from './FulfillmentBulkActions';
 import { KNOWN_CARRIERS, carrierLabel } from '@/shared/domain/carrier-tracking';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
@@ -146,6 +147,9 @@ export default async function AdminFulfillmentPage({ searchParams }: AdminFulfil
             const order = orderSummaries.get(orderId);
             const address = order?.shippingAddress;
             const hasShippedSibling = hasShippedSiblingByOrderId.get(orderId) ?? false;
+            const bulkFormId = `fulfillment-bulk-${orderId}`;
+            const hasNeedsOrdering = group.some((so) => so.status === 'needs_ordering');
+            const hasOrdered = group.some((so) => so.status === 'ordered');
 
             return (
               <div key={orderId}>
@@ -156,9 +160,20 @@ export default async function AdminFulfillmentPage({ searchParams }: AdminFulfil
                   {group.map((so) => (
                     <Card key={so.id}>
                       <div className={styles.cardHeader}>
-                        <h3 className={styles.supplierName}>
-                          {supplierNameById.get(so.supplierId) ?? so.supplierId}
-                        </h3>
+                        <div className={styles.cardHeaderLeft}>
+                          {(so.status === 'needs_ordering' || so.status === 'ordered') && (
+                            <input
+                              type="checkbox"
+                              name="supplierOrderIds"
+                              value={so.id}
+                              form={bulkFormId}
+                              aria-label={`Select supplier order for ${supplierNameById.get(so.supplierId) ?? so.supplierId}`}
+                            />
+                          )}
+                          <h3 className={styles.supplierName}>
+                            {supplierNameById.get(so.supplierId) ?? so.supplierId}
+                          </h3>
+                        </div>
                         <Badge tone={supplierOrderStatusTone(so.status)}>{so.status}</Badge>
                       </div>
 
@@ -280,6 +295,12 @@ export default async function AdminFulfillmentPage({ searchParams }: AdminFulfil
                     </Card>
                   ))}
                 </Stack>
+                <FulfillmentBulkActions
+                  orderId={orderId}
+                  formId={bulkFormId}
+                  hasNeedsOrdering={hasNeedsOrdering}
+                  hasOrdered={hasOrdered}
+                />
               </div>
             );
           })}

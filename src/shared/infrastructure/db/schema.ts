@@ -205,6 +205,35 @@ export const productImages = pgTable(
   }),
 );
 
+/** One review per user per product (not per-variant). Pending until an
+ * admin approves it — see `Review.status` for the moderation states. */
+export const reviews = pgTable(
+  'reviews',
+  {
+    id: text('id').primaryKey(),
+    productId: text('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    // set null (not cascade) — a review should outlive the reviewer's
+    // account, same rationale as orders.user_id.
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    // Free-text, captured at submission time — `User` has no display-name
+    // concept today, and showing the raw email would be a privacy leak.
+    authorDisplayName: text('author_display_name').notNull(),
+    rating: integer('rating').notNull(),
+    title: text('title'),
+    body: text('body').notNull(),
+    status: text('status').notNull().default('pending'), // pending | approved | rejected
+    isVerifiedPurchase: boolean('is_verified_purchase').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    productStatusIdx: index('reviews_product_status_idx').on(t.productId, t.status),
+    statusIdx: index('reviews_status_idx').on(t.status),
+    userProductUnique: uniqueIndex('reviews_user_product_unique').on(t.userId, t.productId),
+  }),
+);
+
 export const suppliers = pgTable('suppliers', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -284,6 +313,8 @@ export const orders = pgTable(
     // touched again on repeat watcher passes) — FailStuckAwaitingConfirmationOrders
     // scans this column for orders that have sat there too long.
     awaitingConfirmationSince: timestamp('awaiting_confirmation_since', { withTimezone: true }),
+    // Internal ops notes — admin-only, never shown to customers.
+    notes: text('notes'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

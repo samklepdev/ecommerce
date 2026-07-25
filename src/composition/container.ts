@@ -13,6 +13,7 @@ import { MarkOrderRefunded } from '@/modules/orders/application/use-cases/mark-o
 import { MarkOrderDelivered } from '@/modules/orders/application/use-cases/mark-order-delivered';
 import { CancelOrder } from '@/modules/orders/application/use-cases/cancel-order';
 import { MarkAwaitingConfirmation } from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
+import { UpdateOrderNotes } from '@/modules/orders/application/use-cases/update-order-notes';
 import { FailStuckAwaitingConfirmationOrders } from '@/modules/orders/application/use-cases/fail-stuck-awaiting-confirmation-orders';
 import { FailOrder } from '@/modules/orders/application/use-cases/fail-order';
 import { PlaceOrder } from '@/modules/orders/application/use-cases/place-order';
@@ -20,6 +21,9 @@ import { CreateSupplierOrdersForPaidOrder } from '@/modules/orders/application/u
 import { MarkSupplierOrderOrdered } from '@/modules/orders/application/use-cases/mark-supplier-order-ordered';
 import { MarkSupplierOrderShipped } from '@/modules/orders/application/use-cases/mark-supplier-order-shipped';
 import { CancelSupplierOrder } from '@/modules/orders/application/use-cases/cancel-supplier-order';
+import { BulkMarkSupplierOrdersOrdered } from '@/modules/orders/application/use-cases/bulk-mark-supplier-orders-ordered';
+import { BulkMarkSupplierOrdersShipped } from '@/modules/orders/application/use-cases/bulk-mark-supplier-orders-shipped';
+import { BulkCancelSupplierOrders } from '@/modules/orders/application/use-cases/bulk-cancel-supplier-orders';
 import { UpdateSupplierOrderReference } from '@/modules/orders/application/use-cases/update-supplier-order-reference';
 import { UpdateSupplierOrderTrackingNumber } from '@/modules/orders/application/use-cases/update-supplier-order-tracking-number';
 import { ListSupplierOrdersByStatus } from '@/modules/orders/application/use-cases/list-supplier-orders-by-status';
@@ -100,6 +104,7 @@ import { ListSavedAddresses } from '@/modules/addresses/application/use-cases/li
 import { AddSavedAddress } from '@/modules/addresses/application/use-cases/add-saved-address';
 import { DeleteSavedAddress } from '@/modules/addresses/application/use-cases/delete-saved-address';
 import { SetDefaultSavedAddress } from '@/modules/addresses/application/use-cases/set-default-saved-address';
+import { UpdateSavedAddress } from '@/modules/addresses/application/use-cases/update-saved-address';
 import { DeleteAccount } from '@/modules/identity/application/use-cases/delete-account';
 import { RequestEmailVerification } from '@/modules/identity/application/use-cases/request-email-verification';
 import { VerifyEmail } from '@/modules/identity/application/use-cases/verify-email';
@@ -117,6 +122,12 @@ import { MarkWelcomeEmailOpened } from '@/modules/notifications/application/use-
 import { GetWelcomeEmailStatus } from '@/modules/notifications/application/use-cases/get-welcome-email-status';
 
 import { DrizzleSupplierRepository } from '@/modules/sourcing/infrastructure/drizzle-supplier-repository';
+import { DrizzleReviewRepository } from '@/modules/reviews/infrastructure/drizzle-review-repository';
+import { SubmitReview } from '@/modules/reviews/application/use-cases/submit-review';
+import { GetProductReviews } from '@/modules/reviews/application/use-cases/get-product-reviews';
+import { ListReviewsForModeration } from '@/modules/reviews/application/use-cases/list-reviews-for-moderation';
+import { ApproveReview } from '@/modules/reviews/application/use-cases/approve-review';
+import { RejectReview } from '@/modules/reviews/application/use-cases/reject-review';
 import { DrizzleSupplierOfferRepository } from '@/modules/sourcing/infrastructure/drizzle-supplier-offer-repository';
 import { JsonProductFeedFetcher } from '@/modules/sourcing/infrastructure/json-product-feed-fetcher';
 import { HtmlUrlContentExtractor } from '@/modules/sourcing/infrastructure/html-url-content-extractor';
@@ -190,6 +201,7 @@ export interface Container {
   addSavedAddress: AddSavedAddress;
   deleteSavedAddress: DeleteSavedAddress;
   setDefaultSavedAddress: SetDefaultSavedAddress;
+  updateSavedAddress: UpdateSavedAddress;
   deleteAccount: DeleteAccount;
   requestEmailVerification: RequestEmailVerification;
   verifyEmail: VerifyEmail;
@@ -200,6 +212,12 @@ export interface Container {
   resendOrderConfirmations: ResendOrderConfirmations;
   markWelcomeEmailOpened: MarkWelcomeEmailOpened;
   getWelcomeEmailStatus: GetWelcomeEmailStatus;
+
+  submitReview: SubmitReview;
+  getProductReviews: GetProductReviews;
+  listReviewsForModeration: ListReviewsForModeration;
+  approveReview: ApproveReview;
+  rejectReview: RejectReview;
 
   listSuppliers: ListSuppliers;
   createSupplier: CreateSupplier;
@@ -224,6 +242,7 @@ export interface Container {
   markOrderDelivered: MarkOrderDelivered;
   cancelOrder: CancelOrder;
   markAwaitingConfirmation: MarkAwaitingConfirmation;
+  updateOrderNotes: UpdateOrderNotes;
   failStuckAwaitingConfirmationOrders: FailStuckAwaitingConfirmationOrders;
   failOrder: FailOrder;
   watchBitcoinPayments: WatchBitcoinPayments;
@@ -233,6 +252,9 @@ export interface Container {
   markSupplierOrderOrdered: MarkSupplierOrderOrdered;
   markSupplierOrderShipped: MarkSupplierOrderShipped;
   cancelSupplierOrder: CancelSupplierOrder;
+  bulkMarkSupplierOrdersOrdered: BulkMarkSupplierOrdersOrdered;
+  bulkMarkSupplierOrdersShipped: BulkMarkSupplierOrdersShipped;
+  bulkCancelSupplierOrders: BulkCancelSupplierOrders;
   updateSupplierOrderReference: UpdateSupplierOrderReference;
   updateSupplierOrderTrackingNumber: UpdateSupplierOrderTrackingNumber;
   listSupplierOrdersByStatus: ListSupplierOrdersByStatus;
@@ -322,6 +344,7 @@ function build(): Container {
   const addSavedAddress = new AddSavedAddress(savedAddresses);
   const deleteSavedAddress = new DeleteSavedAddress(savedAddresses);
   const setDefaultSavedAddress = new SetDefaultSavedAddress(savedAddresses);
+  const updateSavedAddress = new UpdateSavedAddress(savedAddresses);
   const deleteAccount = new DeleteAccount(users);
 
   // --- notifications ---
@@ -352,6 +375,14 @@ function build(): Container {
   );
   const verifyEmail = new VerifyEmail(users, emailVerificationRepository);
   const resetPassword = new ResetPassword(users, passwordResetRepository);
+
+  // --- reviews ---
+  const reviews = new DrizzleReviewRepository(db);
+  const submitReview = new SubmitReview(reviews, products);
+  const getProductReviews = new GetProductReviews(reviews);
+  const listReviewsForModeration = new ListReviewsForModeration(reviews);
+  const approveReview = new ApproveReview(reviews);
+  const rejectReview = new RejectReview(reviews);
 
   // --- sourcing ---
   const suppliers = new DrizzleSupplierRepository(db);
@@ -416,6 +447,9 @@ function build(): Container {
   const markSupplierOrderOrdered = new MarkSupplierOrderOrdered(supplierOrders);
   const markSupplierOrderShipped = new MarkSupplierOrderShipped(supplierOrders, orders);
   const cancelSupplierOrder = new CancelSupplierOrder(supplierOrders, orders);
+  const bulkMarkSupplierOrdersOrdered = new BulkMarkSupplierOrdersOrdered(markSupplierOrderOrdered);
+  const bulkMarkSupplierOrdersShipped = new BulkMarkSupplierOrdersShipped(markSupplierOrderShipped);
+  const bulkCancelSupplierOrders = new BulkCancelSupplierOrders(cancelSupplierOrder);
   const updateSupplierOrderReference = new UpdateSupplierOrderReference(supplierOrders);
   const updateSupplierOrderTrackingNumber = new UpdateSupplierOrderTrackingNumber(supplierOrders);
   const listSupplierOrdersByStatus = new ListSupplierOrdersByStatus(supplierOrders);
@@ -434,6 +468,7 @@ function build(): Container {
   const markOrderDelivered = new MarkOrderDelivered(orders);
   const cancelOrder = new CancelOrder(orders, paymentStore);
   const markAwaitingConfirmation = new MarkAwaitingConfirmation(orders);
+  const updateOrderNotes = new UpdateOrderNotes(orders);
   const failStuckAwaitingConfirmationOrders = new FailStuckAwaitingConfirmationOrders(orders);
   const failOrder = new FailOrder(orders);
   // One unified number for both the actual gate and the customer-facing
@@ -498,6 +533,7 @@ function build(): Container {
     addSavedAddress,
     deleteSavedAddress,
     setDefaultSavedAddress,
+    updateSavedAddress,
     deleteAccount,
     requestEmailVerification,
     verifyEmail,
@@ -508,6 +544,11 @@ function build(): Container {
     resendOrderConfirmations,
     markWelcomeEmailOpened,
     getWelcomeEmailStatus,
+    submitReview,
+    getProductReviews,
+    listReviewsForModeration,
+    approveReview,
+    rejectReview,
     listSuppliers,
     createSupplier,
     updateSupplier,
@@ -529,6 +570,7 @@ function build(): Container {
     markOrderDelivered,
     cancelOrder,
     markAwaitingConfirmation,
+    updateOrderNotes,
     failStuckAwaitingConfirmationOrders,
     failOrder,
     watchBitcoinPayments,
@@ -537,6 +579,9 @@ function build(): Container {
     markSupplierOrderOrdered,
     markSupplierOrderShipped,
     cancelSupplierOrder,
+    bulkMarkSupplierOrdersOrdered,
+    bulkMarkSupplierOrdersShipped,
+    bulkCancelSupplierOrders,
     updateSupplierOrderReference,
     updateSupplierOrderTrackingNumber,
     listSupplierOrdersByStatus,

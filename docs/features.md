@@ -27,7 +27,11 @@ feature" checklist).
   (falling back to the newest storewide products if the category is thin
   or the product has none), and a "Recently viewed" row shows the last few
   products the visitor looked at, remembered in their browser across
-  visits.
+  visits. A reviews section shows the average rating and every approved
+  review (rating, title, body, author display name, a "Verified purchase"
+  badge when the reviewer has a paid order for the product); a logged-in
+  visitor who hasn't already reviewed it can submit one (login required,
+  one review per product), which stays hidden until an admin approves it.
 - **Cart** (`/cart`) — line items showing the product's image, name, and
   price, a quantity stepper (persists immediately, no separate save step)
   grouped with a trash-icon remove button, running subtotal, link to
@@ -69,7 +73,7 @@ feature" checklist).
   change email (re-triggers verification), delete account (password
   confirmation required; past orders are kept but unlinked from the
   account); a banner + resend button while the email is unverified; a
-  saved-address book (add, delete, set default — used to autofill
+  saved-address book (add, edit in place, delete, set default — used to autofill
   checkout); (`/account/orders`) — order history list and detail (same
   view as the guest order page, plus the login wall). Orders that are
   still pre-payment (`pending`/`awaiting_payment`) can be cancelled right
@@ -120,19 +124,26 @@ feature" checklist).
   which turns into a clickable tracking link on the customer-facing order
   page); both are editable afterward if mistyped. Cancel a supplier
   order — once every supplier order on a customer order is cancelled, the
-  order itself is marked cancelled automatically. A banner surfaces any
-  paid order line that couldn't be sourced (no supplier offer exists for
-  that variant) so it doesn't silently vanish. Filter by status.
+  order itself is marked cancelled automatically. Select several supplier
+  orders on the same customer order and mark-ordered/mark-shipped/cancel
+  them together with one shared reference or tracking number, instead of
+  one row at a time. A banner surfaces any paid order line that couldn't
+  be sourced (no supplier offer exists for that variant) so it doesn't
+  silently vanish. Filter by status.
 - **Orders** (`/admin/orders`) — every order in the store, searchable by
   customer email; (`/admin/orders/[id]`) — full detail (same view
   customers see) plus a "Mark refunded" action for orders that have
   already had a manual on-chain refund sent (refunds themselves are
   always a manual, out-of-band BTC send — this just records that it
-  happened), and a "Mark delivered" action once an order has shipped
-  (there's no carrier webhook, so this is how delivery gets recorded). A
-  "Recovered" badge flags any order where a late on-chain payment arrived
-  after the order had already been cancelled or expired — worth a manual
-  look, since it's a rare edge case by design.
+  happened), a "Mark delivered" action once an order has shipped
+  (there's no carrier webhook, so this is how delivery gets recorded),
+  and a free-text internal notes field for ops context (never shown to
+  the customer). A "Recovered" badge flags any order where a late
+  on-chain payment arrived after the order had already been cancelled or
+  expired — worth a manual look, since it's a rare edge case by design.
+- **Reviews** (`/admin/reviews`) — moderation queue for storefront product
+  reviews, defaulting to pending; approve (makes it public) or reject.
+  Filter by status.
 - **Users** (`/admin/users`) — look up an account by its exact email, see
   their profile and order history, promote them to admin or revoke an
   existing admin's access (an admin can't revoke their own). (Promoting
@@ -145,9 +156,9 @@ feature" checklist).
 - **Audit log** (`/admin/audit-log`) — a durable, searchable-by-scrolling
   record of who did what and when, for the sensitive/destructive admin
   actions: refunds, admin promotions and demotions, variant price
-  changes, bulk markup, supplier-order cancellations, product deletions,
-  manually failing a stuck order, and shipping-rate changes. Routine
-  catalog edits (images,
+  changes, bulk markup, supplier-order cancellations and mark-ordered/
+  mark-shipped (single and bulk), product deletions, manually failing a
+  stuck order, and shipping-rate changes. Routine catalog edits (images,
   supplier-cost tweaks, etc.)
   aren't logged — this is a curated trail of the actions worth a
   who/when record, not a complete activity feed.

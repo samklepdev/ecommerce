@@ -126,3 +126,37 @@ export async function markOrderDeliveredAction(
   revalidatePath('/admin/orders');
   return { message: 'Order marked delivered.' };
 }
+
+const UpdateOrderNotesSchema = z.object({
+  orderId: z.string().min(1),
+  notes: z.string().optional(),
+});
+
+export interface UpdateOrderNotesActionResult {
+  message?: string;
+  error?: string;
+}
+
+/** Internal ops notes — admin-only, never shown to customers. Routine
+ * catalog/ops edit, same as marking a supplier order shipped — not
+ * audit-logged. */
+export async function updateOrderNotesAction(
+  _prevState: UpdateOrderNotesActionResult | undefined,
+  formData: FormData,
+): Promise<UpdateOrderNotesActionResult> {
+  await requireAdmin();
+  const parsed = UpdateOrderNotesSchema.safeParse({
+    orderId: formData.get('orderId'),
+    notes: formData.get('notes') || undefined,
+  });
+  if (!parsed.success) return { error: 'Missing order.' };
+
+  const { updateOrderNotes } = getContainer();
+  await updateOrderNotes.execute({
+    orderId: parsed.data.orderId,
+    notes: parsed.data.notes?.trim() || null,
+  });
+
+  revalidatePath(`/admin/orders/${parsed.data.orderId}`);
+  return { message: 'Notes saved.' };
+}

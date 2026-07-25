@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { RefundOrderButton } from './RefundOrderButton';
 import { FailOrderButton } from './FailOrderButton';
 import { MarkDeliveredButton } from './MarkDeliveredButton';
+import { OrderNotesEditor } from './OrderNotesEditor';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,6 +41,7 @@ export default async function AdminOrderDetailPage({ params }: AdminOrderDetailP
       <RefundOrderButton orderId={order.id} paymentStatus={order.paymentStatus} />
       <FailOrderButton orderId={order.id} paymentStatus={order.paymentStatus} />
       <MarkDeliveredButton orderId={order.id} fulfillmentStatus={order.fulfillmentStatus} />
+      <OrderNotesEditor orderId={order.id} notes={order.notes} />
     </>
   );
 }

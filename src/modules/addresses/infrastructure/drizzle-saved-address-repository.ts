@@ -3,7 +3,10 @@ import { and, eq, ne } from 'drizzle-orm';
 import type { DB } from '@/shared/infrastructure/db/client';
 import { savedAddresses } from '@/shared/infrastructure/db/schema';
 import { SavedAddress } from '@/modules/addresses/domain/saved-address';
-import type { SavedAddressRepository } from '@/modules/addresses/application/ports/saved-address-repository';
+import type {
+  SavedAddressFields,
+  SavedAddressRepository,
+} from '@/modules/addresses/application/ports/saved-address-repository';
 
 type Row = typeof savedAddresses.$inferSelect;
 
@@ -47,6 +50,23 @@ export class DrizzleSavedAddressRepository implements SavedAddressRepository {
       country: address.country,
       isDefault: address.isDefault,
     });
+  }
+
+  async update(id: string, userId: string, details: SavedAddressFields): Promise<boolean> {
+    const result = await this.db
+      .update(savedAddresses)
+      .set({
+        name: details.name,
+        line1: details.line1,
+        line2: details.line2 ?? null,
+        city: details.city,
+        region: details.region,
+        postalCode: details.postalCode,
+        country: details.country,
+      })
+      .where(and(eq(savedAddresses.id, id), eq(savedAddresses.userId, userId)))
+      .returning({ id: savedAddresses.id });
+    return result.length > 0;
   }
 
   async delete(id: string, userId: string): Promise<boolean> {
