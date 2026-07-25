@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, ilike, inArray, isNotNull, lt } from 'drizzle-orm';
+import { and, eq, gte, ilike, inArray, isNotNull, lt, lte, sql } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { orderLines, orderEvents, orders, productVariants, products } from '@/shared/infrastructure/db/schema';
@@ -20,6 +20,10 @@ import type {
   ListOrderEventsRepository,
   OrderEventRecord,
 } from '@/modules/orders/application/use-cases/list-order-events';
+import type {
+  DailyRevenue,
+  RevenueSummaryRepository,
+} from '@/modules/orders/application/use-cases/get-revenue-summary';
 import type { StuckAwaitingConfirmationOrderRepository } from '@/modules/orders/application/use-cases/fail-stuck-awaiting-confirmation-orders';
 import type {
   PaidOrderLine,
@@ -60,7 +64,8 @@ export class DrizzleOrderRepository
     OrderSummaryRepository,
     OrderHistoryRepository,
     UnfulfillableOrderLinesRepository,
-    CancelOrderRepository
+    CancelOrderRepository,
+    RevenueSummaryRepository
 {
   constructor(private readonly db: DB) {}
 
@@ -95,6 +100,36 @@ export class DrizzleOrderRepository
       metadata: (r.metadata as Record<string, unknown> | null) ?? null,
       createdAt: r.createdAt,
     }));
+  }
+
+  async getDailyRevenue(since: Date, until: Date): Promise<{ currency: string | null; days: DailyRevenue[] }> {
+    const rows = await this.db
+      .select({
+        day: sql<string>`to_char(${orderEvents.createdAt}, 'YYYY-MM-DD')`,
+        totalMinor: sql<number>`sum((${orderEvents.metadata}->>'amountMinor')::bigint)`,
+        totalQuantity: sql<number>`sum(coalesce((${orderEvents.metadata}->>'quantity')::bigint, 0))`,
+        orderCount: sql<number>`count(*)`,
+        currency: orders.currency,
+      })
+      .from(orderEvents)
+      .innerJoin(orders, eq(orders.id, orderEvents.orderId))
+      .where(
+        and(
+          eq(orderEvents.eventType, 'order_created'),
+          gte(orderEvents.createdAt, since),
+          lte(orderEvents.createdAt, until),
+        ),
+      )
+      .groupBy(sql`1`, orders.currency)
+      .orderBy(sql`1`);
+
+    const days: DailyRevenue[] = rows.map((r) => ({
+      day: r.day,
+      totalMinor: Number(r.totalMinor),
+      orderCount: Number(r.orderCount),
+      totalQuantity: Number(r.totalQuantity),
+    }));
+    return { currency: rows[0]?.currency ?? null, days };
   }
 
   /** Real production path: persist an order + its lines from a priced cart. */
