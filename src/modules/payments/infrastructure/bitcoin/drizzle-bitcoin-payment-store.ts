@@ -1,4 +1,4 @@
-import { and, eq, gt, gte } from 'drizzle-orm';
+import { and, eq, gt, gte, lte } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { bitcoinPaymentIntents, orders } from '@/shared/infrastructure/db/schema';
@@ -15,7 +15,7 @@ import type {
 export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore, OnChainActivityReportRepository {
   constructor(private readonly db: DB) {}
 
-  async listConfirmedWithOrderInfo(since: Date): Promise<OnChainOrderActivity[]> {
+  async listConfirmedWithOrderInfo(since: Date, until: Date): Promise<OnChainOrderActivity[]> {
     const rows = await this.db
       .select({
         orderId: orders.id,
@@ -28,7 +28,13 @@ export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore, OnChainA
       })
       .from(bitcoinPaymentIntents)
       .innerJoin(orders, eq(orders.id, bitcoinPaymentIntents.orderId))
-      .where(and(eq(orders.paymentStatus, 'paid'), gte(orders.updatedAt, since)));
+      .where(
+        and(
+          eq(orders.paymentStatus, 'paid'),
+          gte(orders.updatedAt, since),
+          lte(orders.updatedAt, until),
+        ),
+      );
     return rows;
   }
 
