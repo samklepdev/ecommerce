@@ -1,11 +1,16 @@
 'use server';
 
+import { createHash } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { getContainer } from '@/composition/container';
 import { requireAdmin } from '@/app/lib/session';
 import { parseDecimalToMinorUnits } from '@/shared/domain/parse-decimal-amount';
+import {
+  isAllowedJsonFeedUpload,
+  isAllowedSpreadsheetUpload,
+} from '@/app/actions/admin/feed-upload-validation';
 
 const CreateSupplierSchema = z.object({
   name: z.string().min(1),
@@ -126,6 +131,10 @@ const ImportFeedSchema = z
       jsonFile: z
         .instanceof(File)
         .refine((f) => f.size <= MAX_FEED_JSON_BYTES, 'The file must be 5MB or smaller.')
+        .refine(
+          isAllowedJsonFeedUpload,
+          'Only .json, .js, or .ts files with a matching content type are allowed.',
+        )
         .optional(),
       jsonText: z.string().optional(),
     }),
@@ -135,7 +144,11 @@ const ImportFeedSchema = z
       spreadsheetFile: z
         .instanceof(File)
         .refine((f) => f.size > 0, 'Choose a .csv or .xlsx file.')
-        .refine((f) => f.size <= MAX_FEED_JSON_BYTES, 'The file must be 5MB or smaller.'),
+        .refine((f) => f.size <= MAX_FEED_JSON_BYTES, 'The file must be 5MB or smaller.')
+        .refine(
+          isAllowedSpreadsheetUpload,
+          'Only .csv or .xlsx files with a matching content type are allowed.',
+        ),
     }),
   ])
   .refine(
@@ -176,6 +189,13 @@ export async function importProductsFromFeedAction(
     };
   }
 
+  const spreadsheetUpload =
+    parsed.data.sourceType === 'spreadsheet'
+      ? {
+          name: parsed.data.spreadsheetFile.name,
+          buffer: Buffer.from(await parsed.data.spreadsheetFile.arrayBuffer()),
+        }
+      : null;
   const { importProductsFromFeed } = getContainer();
   const result = await importProductsFromFeed.execute(
     parsed.data.sourceType === 'url'
@@ -197,7 +217,7 @@ export async function importProductsFromFeedAction(
         : {
             supplierId: parsed.data.supplierId,
             source: 'spreadsheet',
-            fileBuffer: Buffer.from(await parsed.data.spreadsheetFile.arrayBuffer()),
+            fileBuffer: spreadsheetUpload!.buffer,
           },
   );
 
@@ -205,7 +225,10 @@ export async function importProductsFromFeedAction(
   revalidatePath('/products');
 
   if (result.status !== 'ok') {
-    return { error: result.message ?? 'Import failed.' };
+    const uploadDetails = spreadsheetUpload
+      ? ` Uploaded file: ${spreadsheetUpload.name} (${spreadsheetUpload.buffer.length} bytes, SHA-256 ${createHash('sha256').update(spreadsheetUpload.buffer).digest('hex').slice(0, 12)}).`
+      : '';
+    return { error: (result.message ?? 'Import failed.') + uploadDetails };
   }
   return { message: `Imported ${result.created}, skipped ${result.skipped} already in the catalog.` };
 }

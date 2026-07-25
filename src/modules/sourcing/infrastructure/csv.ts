@@ -5,7 +5,17 @@
  * skipped. No external dependency — the grammar is small enough to not be
  * worth one.
  */
+function delimiterFor(text: string): ',' | ';' | '\t' {
+  const firstRecord = text.split(/\r?\n/, 1)[0] ?? '';
+  const counts = ([',', ';', '\t'] as const).map((delimiter) => ({
+    delimiter,
+    count: firstRecord.split(delimiter).length - 1,
+  }));
+  return counts.sort((a, b) => b.count - a.count)[0]?.delimiter ?? ',';
+}
+
 export function parseCsv(text: string): Record<string, string>[] {
+  const delimiter = delimiterFor(text);
   const rows: string[][] = [];
   let row: string[] = [];
   let field = '';
@@ -30,7 +40,7 @@ export function parseCsv(text: string): Record<string, string>[] {
 
     if (char === '"') {
       inQuotes = true;
-    } else if (char === ',') {
+    } else if (char === delimiter) {
       row.push(field);
       field = '';
     } else if (char === '\r') {
@@ -51,7 +61,7 @@ export function parseCsv(text: string): Record<string, string>[] {
 
   const [header, ...dataRows] = rows;
   if (!header) return [];
-  const keys = header.map((h) => h.trim());
+  const keys = header.map((h, index) => (index === 0 ? h.replace(/^\uFEFF/, '') : h).trim());
 
   return dataRows
     .filter((r) => r.some((cell) => cell.trim() !== ''))
