@@ -122,6 +122,8 @@ import { JsonProductFeedFetcher } from '@/modules/sourcing/infrastructure/json-p
 import { HtmlUrlContentExtractor } from '@/modules/sourcing/infrastructure/html-url-content-extractor';
 import { ListSuppliers } from '@/modules/sourcing/application/use-cases/list-suppliers';
 import { CreateSupplier } from '@/modules/sourcing/application/use-cases/create-supplier';
+import { UpdateSupplier } from '@/modules/sourcing/application/use-cases/update-supplier';
+import { SetSupplierActive } from '@/modules/sourcing/application/use-cases/set-supplier-active';
 import { CreateSupplierOffer } from '@/modules/sourcing/application/use-cases/create-supplier-offer';
 import { UpdateSupplierOfferCost } from '@/modules/sourcing/application/use-cases/update-supplier-offer-cost';
 import { SetPreferredSupplierOffer } from '@/modules/sourcing/application/use-cases/set-preferred-supplier-offer';
@@ -201,6 +203,8 @@ export interface Container {
 
   listSuppliers: ListSuppliers;
   createSupplier: CreateSupplier;
+  updateSupplier: UpdateSupplier;
+  setSupplierActive: SetSupplierActive;
   createSupplierOffer: CreateSupplierOffer;
   updateSupplierOfferCost: UpdateSupplierOfferCost;
   setPreferredSupplierOffer: SetPreferredSupplierOffer;
@@ -354,6 +358,8 @@ function build(): Container {
   const supplierOffers = new DrizzleSupplierOfferRepository(db);
   const listSuppliers = new ListSuppliers(suppliers);
   const createSupplier = new CreateSupplier(suppliers);
+  const updateSupplier = new UpdateSupplier(suppliers);
+  const setSupplierActive = new SetSupplierActive(suppliers);
   const createSupplierOffer = new CreateSupplierOffer(supplierOffers);
   const updateSupplierOfferCost = new UpdateSupplierOfferCost(supplierOffers);
   const setPreferredSupplierOffer = new SetPreferredSupplierOffer(supplierOffers);
@@ -504,6 +510,8 @@ function build(): Container {
     getWelcomeEmailStatus,
     listSuppliers,
     createSupplier,
+    updateSupplier,
+    setSupplierActive,
     createSupplierOffer,
     updateSupplierOfferCost,
     setPreferredSupplierOffer,

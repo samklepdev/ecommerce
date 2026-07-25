@@ -45,6 +45,7 @@ export async function Header() {
                   <DropdownDivider />
                   <DropdownItem href="/admin">Dashboard</DropdownItem>
                   <DropdownItem href="/admin/products">Products</DropdownItem>
+                  <DropdownItem href="/admin/suppliers">Suppliers</DropdownItem>
                   <DropdownItem href="/admin/fulfillment">Fulfillment</DropdownItem>
                   <DropdownItem href="/admin/orders">Orders</DropdownItem>
                   <DropdownItem href="/admin/users">Users</DropdownItem>

@@ -18,4 +18,20 @@ describe('Supplier.create', () => {
       'non-empty name',
     );
   });
+
+  it('defaults isActive to true when not specified', () => {
+    const supplier = Supplier.create({ id: '1', name: 'Acme', url: 'https://acme.example.com', notes: null });
+    expect(supplier.isActive).toBe(true);
+  });
+
+  it('respects an explicit isActive value', () => {
+    const supplier = Supplier.create({
+      id: '1',
+      name: 'Acme',
+      url: 'https://acme.example.com',
+      notes: null,
+      isActive: false,
+    });
+    expect(supplier.isActive).toBe(false);
+  });
 });

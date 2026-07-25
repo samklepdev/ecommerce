@@ -1,0 +1,79 @@
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
+
+import { getContainer } from '@/composition/container';
+import { requireAdmin } from '@/app/lib/session';
+
+const UpdateSupplierSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  url: z.string().url(),
+  notes: z.string().optional(),
+});
+
+export interface UpdateSupplierActionResult {
+  message?: string;
+  error?: string;
+}
+
+export async function updateSupplierAction(
+  _prevState: UpdateSupplierActionResult | undefined,
+  formData: FormData,
+): Promise<UpdateSupplierActionResult> {
+  await requireAdmin();
+  const parsed = UpdateSupplierSchema.safeParse({
+    id: formData.get('id'),
+    name: formData.get('name'),
+    url: formData.get('url'),
+    notes: formData.get('notes') || undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Enter a name and a valid URL.' };
+  }
+
+  const { updateSupplier } = getContainer();
+  await updateSupplier.execute({
+    id: parsed.data.id,
+    name: parsed.data.name,
+    url: parsed.data.url,
+    notes: parsed.data.notes ?? null,
+  });
+
+  revalidatePath('/admin/suppliers');
+  revalidatePath('/admin/products');
+  return { message: 'Supplier updated.' };
+}
+
+const SetSupplierActiveSchema = z.object({
+  id: z.string().min(1),
+  isActive: z.enum(['true', 'false']),
+});
+
+export interface SetSupplierActiveActionResult {
+  message?: string;
+  error?: string;
+}
+
+/** Deactivating drops the supplier out of "source from" dropdowns (new
+ * product, new supplier offer) without touching existing offers/orders. */
+export async function setSupplierActiveAction(
+  _prevState: SetSupplierActiveActionResult | undefined,
+  formData: FormData,
+): Promise<SetSupplierActiveActionResult> {
+  await requireAdmin();
+  const parsed = SetSupplierActiveSchema.safeParse({
+    id: formData.get('id'),
+    isActive: formData.get('isActive'),
+  });
+  if (!parsed.success) return { error: 'Missing supplier.' };
+
+  const { setSupplierActive } = getContainer();
+  const isActive = parsed.data.isActive === 'true';
+  await setSupplierActive.execute({ id: parsed.data.id, isActive });
+
+  revalidatePath('/admin/suppliers');
+  revalidatePath('/admin/products');
+  return { message: isActive ? 'Supplier reactivated.' : 'Supplier deactivated.' };
+}

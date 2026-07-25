@@ -8,7 +8,13 @@ import type { SupplierRepository } from '@/modules/sourcing/application/ports/su
 type SupplierRow = typeof suppliers.$inferSelect;
 
 function toSupplier(row: SupplierRow): Supplier {
-  return Supplier.create({ id: row.id, name: row.name, url: row.url, notes: row.notes });
+  return Supplier.create({
+    id: row.id,
+    name: row.name,
+    url: row.url,
+    notes: row.notes,
+    isActive: row.isActive,
+  });
 }
 
 export class DrizzleSupplierRepository implements SupplierRepository {
@@ -31,5 +37,16 @@ export class DrizzleSupplierRepository implements SupplierRepository {
       url: supplier.url,
       notes: supplier.notes,
     });
+  }
+
+  async update(id: string, details: { name: string; url: string; notes: string | null }): Promise<void> {
+    await this.db
+      .update(suppliers)
+      .set({ name: details.name, url: details.url, notes: details.notes, updatedAt: new Date() })
+      .where(eq(suppliers.id, id));
+  }
+
+  async setActive(id: string, isActive: boolean): Promise<void> {
+    await this.db.update(suppliers).set({ isActive, updatedAt: new Date() }).where(eq(suppliers.id, id));
   }
 }

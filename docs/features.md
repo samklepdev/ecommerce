@@ -91,6 +91,11 @@ feature" checklist).
   supplier orders needing action, orders awaiting confirmation, recovered
   orders needing review), each linking to the relevant page, plus quick
   links to every admin section.
+- **Suppliers** (`/admin/suppliers`) — edit a supplier's name/URL/notes, and
+  deactivate one that's gone out of business or had a URL go stale.
+  Deactivating drops it out of "source from" pickers (new product, new
+  supplier offer) without touching any existing offers or orders that
+  already reference it — it stays selectable in admin filters/history.
 - **Products** (`/admin/products`) — create a product + its first variant
   + a preferred supplier offer in one form; add further variants to an
   existing product afterward (a new variant starts with no supplier
