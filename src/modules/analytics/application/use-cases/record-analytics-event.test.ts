@@ -19,6 +19,12 @@ describe('RecordAnalyticsEvent', () => {
       async topSearchTerms() {
         return [];
       },
+      async listByType() {
+        return { items: [], total: 0 };
+      },
+      async listBySessionId() {
+        return [];
+      },
     };
 
     const input: AnalyticsEventInput = {
