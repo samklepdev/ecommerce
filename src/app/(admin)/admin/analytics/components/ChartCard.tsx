@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 
-import { Card } from '@/components/ui/Card';
 import styles from './ChartCard.module.css';
 
 export interface ChartCardProps {
@@ -8,14 +7,16 @@ export interface ChartCardProps {
   children: ReactNode;
 }
 
-/** Wraps a chart in the `Card` + title treatment previously copy-pasted as
- * `<Card className={styles.chartCard}><h3 className={styles.cardTitle}>`
- * everywhere a chart appeared. */
+/** An elevated panel holding one chart or table, with its heading.
+ *
+ * Renders its own surface rather than wrapping the shared `Card`: `Card` uses
+ * --color-surface, which is also `StatCard`'s background, so reusing it left
+ * every panel on the page the same flat grey. */
 export function ChartCard({ title, children }: ChartCardProps) {
   return (
-    <Card className={styles.card}>
+    <section className={styles.card}>
       <h3 className={styles.title}>{title}</h3>
       {children}
-    </Card>
+    </section>
   );
 }

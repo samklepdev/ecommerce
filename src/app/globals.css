@@ -5,6 +5,13 @@
   --color-muted: #6b7280;
   --color-border: #e5e7eb;
   --color-surface: #f9fafb;
+  /* Elevated sits *above* the page, surface sits *in* it. Cards that carry a
+     chart or table use elevated + shadow so they read as distinct panels
+     rather than merging into the flat wall of surface-grey around them. */
+  --color-elevated: #ffffff;
+  /* Row tints are translucent so striping stays visible on either base. */
+  --color-row-stripe: rgba(17, 24, 39, 0.028);
+  --color-row-hover: rgba(37, 99, 235, 0.07);
 
   --color-accent: #2563eb;
   --color-accent-foreground: #ffffff;
@@ -39,6 +46,9 @@
     --color-muted: #9ca3af;
     --color-border: #27272a;
     --color-surface: #17171a;
+    --color-elevated: #1c1c20;
+    --color-row-stripe: rgba(255, 255, 255, 0.035);
+    --color-row-hover: rgba(59, 130, 246, 0.16);
 
     --color-accent: #3b82f6;
     --color-accent-foreground: #0a0a0a;

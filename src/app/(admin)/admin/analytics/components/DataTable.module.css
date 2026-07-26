@@ -3,10 +3,11 @@
   font-size: 0.875rem;
 }
 
+/* No border/radius here on purpose — a DataTable always sits inside a card
+   that already draws them, and nesting the two produced a visible
+   box-in-a-box. Callers own the chrome; this owns only the table. */
 .wrap {
   overflow-x: auto;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
 }
 
 .table {
@@ -35,10 +36,12 @@
   border-bottom: none;
 }
 
+/* Translucent tints, not --color-surface: the striping was previously the
+   exact background colour of the card it sat on, so it rendered as nothing. */
 .table tbody tr:nth-child(even) td {
-  background: var(--color-surface);
+  background: var(--color-row-stripe);
 }
 
 .table tbody tr:hover td {
-  background: var(--color-border);
+  background: var(--color-row-hover);
 }

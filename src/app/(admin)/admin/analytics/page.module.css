@@ -14,12 +14,6 @@
   gap: var(--space-4);
 }
 
-.cardTitle {
-  font-size: 0.875rem;
-  color: var(--color-muted);
-  margin-bottom: var(--space-3);
-}
-
 .empty {
   color: var(--color-muted);
   font-size: 0.875rem;

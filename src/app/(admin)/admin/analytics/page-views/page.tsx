@@ -104,12 +104,14 @@ export default async function PageViewsPage({ searchParams }: PageViewsPageProps
           )}
         </ChartCard>
 
-        <DataTable
-          columns={columns}
-          rows={items}
-          rowKey={(r) => r.id}
-          emptyLabel="No page views in this window."
-        />
+        <ChartCard title="Recent page views">
+          <DataTable
+            columns={columns}
+            rows={items}
+            rowKey={(r) => r.id}
+            emptyLabel="No page views in this window."
+          />
+        </ChartCard>
 
         <Pagination page={page} totalPages={totalPages} buildHref={(p) => buildHref(since, until, p)} />
       </Stack>

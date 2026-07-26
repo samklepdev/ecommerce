@@ -6,7 +6,6 @@ import { satsToBtcString } from '@/modules/payments/domain/bip21';
 import { Money } from '@/shared/domain/money';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
-import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import type { DailyCount, ValueCount } from '@/modules/analytics/application/ports/analytics-event-repository';
 import type { OnChainOrderActivity } from '@/modules/payments/application/use-cases/get-on-chain-activity-report';
@@ -87,11 +86,11 @@ export default async function AdminAnalyticsPage({ searchParams }: AdminAnalytic
 
   return (
     <PageContainer>
-      <Stack gap={5}>
-        <div>
+      <Stack gap={6}>
+        <Stack gap={3}>
           <h1>Analytics</h1>
           <DateRangePicker since={since} until={until} action="/admin/analytics" />
-        </div>
+        </Stack>
 
         <section>
           <div className={styles.sectionHeaderRow}>
@@ -110,14 +109,12 @@ export default async function AdminAnalyticsPage({ searchParams }: AdminAnalytic
             )}
           </ChartCard>
           <div className={styles.grid}>
-            <Card>
-              <h3 className={styles.cardTitle}>Top pages</h3>
+            <ChartCard title="Top pages">
               <ValueCountTable items={web.topPaths} emptyLabel="No page views yet." />
-            </Card>
-            <Card>
-              <h3 className={styles.cardTitle}>Top referrers</h3>
+            </ChartCard>
+            <ChartCard title="Top referrers">
               <ValueCountTable items={web.topReferrers} emptyLabel="No referrer data yet." />
-            </Card>
+            </ChartCard>
           </div>
         </section>
 
@@ -137,10 +134,9 @@ export default async function AdminAnalyticsPage({ searchParams }: AdminAnalytic
               <DailyBarChart data={web.searchesPerDay} label="searches" />
             )}
           </ChartCard>
-          <Card>
-            <h3 className={styles.cardTitle}>Top search terms</h3>
+          <ChartCard title="Top search terms">
             <ValueCountTable items={web.topSearchTerms} emptyLabel="No searches yet." />
-          </Card>
+          </ChartCard>
         </section>
 
         <section>
@@ -208,15 +204,14 @@ export default async function AdminAnalyticsPage({ searchParams }: AdminAnalytic
             )}
           </ChartCard>
 
-          <Card>
-            <h3 className={styles.cardTitle}>Paid orders</h3>
+          <ChartCard title="Paid orders">
             <DataTable
               columns={orderActivityColumns}
               rows={onChain.orders}
               rowKey={(o) => o.orderId}
               emptyLabel="No paid orders in this window."
             />
-          </Card>
+          </ChartCard>
         </section>
       </Stack>
     </PageContainer>
