@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { GeoJSON, MapContainer } from 'react-leaflet';
-import type { Layer, PathOptions, StyleFunction } from 'leaflet';
+import { GeoJSON, MapContainer, useMap, useMapEvents } from 'react-leaflet';
+import { LatLngBounds, type Layer, type PathOptions, type StyleFunction } from 'leaflet';
 import type { Feature, FeatureCollection, Geometry } from 'geojson';
 
 // Bundled from node_modules, not Leaflet's CDN: the CSP allows no external
@@ -27,6 +27,36 @@ export interface WorldMapProps {
 
 const world = worldGeoJson as FeatureCollection<Geometry, CountryProps>;
 
+/** Stops a drag from wandering off into empty grey either side of the
+ * world. Latitude is clamped short of the poles, where the Mercator
+ * projection stretches to infinity. */
+const WORLD_BOUNDS = new LatLngBounds([-60, -180], [85, 180]);
+
+/**
+ * Wheel-zoom is off until the map is clicked, and off again once the
+ * pointer leaves.
+ *
+ * The admin content area scrolls, so a map that grabbed the wheel on hover
+ * would trap the page every time you scrolled past it. Clicking is an
+ * explicit "I'm using the map now"; the buttons and drag work regardless.
+ */
+function WheelZoomOnFocus({ onChange }: { onChange: (enabled: boolean) => void }) {
+  const map = useMap();
+
+  useMapEvents({
+    click() {
+      map.scrollWheelZoom.enable();
+      onChange(true);
+    },
+    mouseout() {
+      map.scrollWheelZoom.disable();
+      onChange(false);
+    },
+  });
+
+  return null;
+}
+
 /**
  * Page views as a country choropleth.
  *
@@ -38,6 +68,7 @@ const world = worldGeoJson as FeatureCollection<Geometry, CountryProps>;
  */
 export function WorldMap({ countries }: WorldMapProps) {
   const [hovered, setHovered] = useState<CountryViews | null>(null);
+  const [wheelZoom, setWheelZoom] = useState(false);
 
   // Country names come from our own database and the geometry from Natural
   // Earth, so they're joined on ISO code rather than on name — "United
@@ -107,21 +138,24 @@ export function WorldMap({ countries }: WorldMapProps) {
     <div className={styles.wrap}>
       <MapContainer
         className={styles.map}
-        // Whole-world view. Zoom and drag are off: this is a figure to read,
-        // not a map to navigate, and a chart the reader can accidentally
-        // scroll away from is a chart they have to fix before using.
         center={[20, 0]}
-        zoom={1}
-        minZoom={1}
-        maxZoom={1}
-        zoomControl={false}
+        zoom={2}
+        minZoom={2}
+        maxZoom={7}
+        maxBounds={WORLD_BOUNDS}
+        // Springs back rather than hard-stopping at the edge, which reads as
+        // the map being broken.
+        maxBoundsViscosity={0.8}
+        zoomControl
+        // Enabled on click by WheelZoomOnFocus — see there for why.
         scrollWheelZoom={false}
-        dragging={false}
-        doubleClickZoom={false}
-        touchZoom={false}
-        keyboard={false}
+        dragging
+        doubleClickZoom
+        touchZoom
+        keyboard
         attributionControl={false}
       >
+        <WheelZoomOnFocus onChange={setWheelZoom} />
         <GeoJSON data={world} style={style} onEachFeature={onEachCountry} />
       </MapContainer>
 
@@ -151,7 +185,11 @@ export function WorldMap({ countries }: WorldMapProps) {
 
       {/* Natural Earth is public domain and asks for no attribution, but
           saying where the geometry came from costs a line. */}
-      <p className={styles.credit}>Country outlines: Natural Earth (public domain)</p>
+      <p className={styles.credit}>
+        {wheelZoom ? 'Scroll to zoom · pointer out to release' : 'Drag to pan · click the map to scroll-zoom'}
+        {' · '}
+        Country outlines: Natural Earth (public domain)
+      </p>
     </div>
   );
 }
