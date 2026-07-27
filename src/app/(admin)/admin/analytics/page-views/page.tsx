@@ -1,120 +1,92 @@
 import { getContainer } from '@/composition/container';
 import { requireAdmin } from '@/app/lib/session';
-import { PageContainer } from '@/components/ui/PageContainer';
-import { Stack } from '@/components/ui/Stack';
 import { Pagination } from '@/components/ui/Pagination';
 import { parsePage } from '@/components/ui/paginate';
-import type { AnalyticsEventRow } from '@/modules/analytics/application/ports/analytics-event-repository';
-import { parseDateRange, type DateRangeSearchParams } from '../date-range';
-import { DateRangePicker } from '../components/DateRangePicker';
-import { StatCard } from '../components/StatCard';
-import { StatCardRow } from '../components/StatCardRow';
-import { DataTable, type DataTableColumn } from '../components/DataTable';
-import { ChartCard } from '../components/ChartCard';
-import { DailyBarChart } from '../components/DailyBarChart';
-import styles from './page.module.css';
+import { parseDateRange } from '../date-range';
+import { alignToDays, eachDayKey } from '../series';
+import { formatCount } from '../format';
+import { exportHref, pageHref, type DrillDownSearchParams } from '../drill-down';
+import { DrillDownHeader } from '../components/DrillDownHeader';
+import { DailyColumnChart } from '../components/DailyColumnChart';
+import { RankedList } from '../components/RankedList';
+import { EventLogTable } from '../components/EventLogTable';
+import styles from '../drill-down.module.css';
 
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 25;
+const BASE_PATH = '/admin/analytics/page-views';
 
 interface PageViewsPageProps {
-  searchParams: Promise<DateRangeSearchParams & { page?: string }>;
-}
-
-const columns: DataTableColumn<AnalyticsEventRow>[] = [
-  { key: 'when', header: 'When', render: (r) => r.createdAt.toLocaleString() },
-  { key: 'path', header: 'Path', render: (r) => r.path ?? '—' },
-  { key: 'referrer', header: 'Referrer', render: (r) => r.referrer ?? '—' },
-  { key: 'session', header: 'Session', render: (r) => (r.sessionId ? r.sessionId.slice(0, 12) : '—') },
-];
-
-function buildHref(since: Date, until: Date, nextPage: number): string {
-  const params = new URLSearchParams();
-  params.set('from', since.toISOString().slice(0, 10));
-  params.set('to', until.toISOString().slice(0, 10));
-  if (nextPage > 1) params.set('page', String(nextPage));
-  return `/admin/analytics/page-views?${params.toString()}`;
+  searchParams: Promise<DrillDownSearchParams>;
 }
 
 export default async function PageViewsPage({ searchParams }: PageViewsPageProps) {
   await requireAdmin();
-  const resolvedParams = await searchParams;
-  const { since, until } = parseDateRange(resolvedParams);
-  const requestedPage = parsePage(resolvedParams.page);
+  const params = await searchParams;
+  const range = parseDateRange(params);
+  const { since, until } = range;
+  const page = parsePage(params.page);
 
   const { getWebAnalyticsSummary, listAnalyticsEvents } = getContainer();
-
-  const [summary, listResult] = await Promise.all([
+  const [summary, listed] = await Promise.all([
     getWebAnalyticsSummary.execute({ since, until }),
     listAnalyticsEvents.execute({
       eventType: 'page_view',
       since,
       until,
       limit: PAGE_SIZE,
-      offset: (requestedPage - 1) * PAGE_SIZE,
+      offset: (page - 1) * PAGE_SIZE,
     }),
   ]);
 
-  let { items, total } = listResult;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  let page = requestedPage;
-
-  if (requestedPage > totalPages) {
-    page = totalPages;
-    ({ items, total } = await listAnalyticsEvents.execute({
-      eventType: 'page_view',
-      since,
-      until,
-      limit: PAGE_SIZE,
-      offset: (page - 1) * PAGE_SIZE,
-    }));
-  }
-
-  const totalViews = summary.pageViewsPerDay.reduce((sum, d) => sum + d.count, 0);
+  const dayKeys = eachDayKey(since, until);
+  const perDay = alignToDays(dayKeys, summary.pageViewsPerDay, (d) => d.day, (d) => d.count);
+  const total = perDay.reduce((t, v) => t + v, 0);
+  const totalPages = Math.max(1, Math.ceil(listed.total / PAGE_SIZE));
 
   return (
-    <PageContainer>
-      <Stack gap={5}>
-        <div className={styles.headerRow}>
-          <h1>Page views</h1>
-          <div className={styles.links}>
-            <a href={`/admin/analytics/users`} className={styles.exportLink}>
-              View by user
-            </a>
-            <a
-              href={`/api/admin/analytics/page-views/export?from=${since.toISOString().slice(0, 10)}&to=${until.toISOString().slice(0, 10)}`}
-              className={styles.exportLink}
-            >
-              Export CSV
-            </a>
-          </div>
-        </div>
-        <DateRangePicker since={since} until={until} action="/admin/analytics/page-views" />
+    <div className={styles.page}>
+      <DrillDownHeader
+        title="Page views"
+        since={since}
+        until={until}
+        basePath={BASE_PATH}
+        exportHref={exportHref('page-views', range)}
+      />
 
-        <StatCardRow>
-          <StatCard label="Total views" value={String(totalViews)} />
-        </StatCardRow>
+      <div className={styles.card}>
+        <h2 className={styles.cardTitle}>Views per day</h2>
+        <p className={styles.meta}>
+          {formatCount(total)} views · {(total / Math.max(1, dayKeys.length)).toFixed(1)} a day
+        </p>
+        <DailyColumnChart
+          points={dayKeys.map((day, i) => ({ day, value: perDay[i] ?? 0 }))}
+          peakSuffix="views peak"
+          emptyLabel="No page views in this range."
+        />
+      </div>
 
-        <ChartCard title="Views per day">
-          {summary.pageViewsPerDay.length === 0 ? (
-            <p className={styles.empty}>No data yet.</p>
-          ) : (
-            <DailyBarChart data={summary.pageViewsPerDay} label="views" />
-          )}
-        </ChartCard>
+      <div className={styles.split}>
+        <RankedList title="Top pages" items={summary.topPaths} unit="views" />
+        <RankedList title="Top referrers" items={summary.topReferrers} unit="sessions" />
+      </div>
 
-        <ChartCard title="Recent page views">
-          <DataTable
-            columns={columns}
-            rows={items}
-            rowKey={(r) => r.id}
-            emptyLabel="No page views in this window."
-          />
-        </ChartCard>
+      <div className={styles.card}>
+        <h2 className={styles.cardTitle}>Recent page views</h2>
+        <EventLogTable
+          rows={listed.items}
+          detailHeader="Path"
+          detail={(row) => row.path ?? '—'}
+          emptyLabel="No page views in this range."
+        />
+      </div>
 
-        <Pagination page={page} totalPages={totalPages} buildHref={(p) => buildHref(since, until, p)} />
-      </Stack>
-    </PageContainer>
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        buildHref={(p) => pageHref(BASE_PATH, range, p)}
+      />
+    </div>
   );
 }

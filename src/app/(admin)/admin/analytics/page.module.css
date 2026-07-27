@@ -1,28 +1,260 @@
-.meta {
-  color: var(--color-muted);
-  font-size: 0.875rem;
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.sectionTitle {
-  font-size: 1.125rem;
-  margin-bottom: var(--space-3);
+/* header ----------------------------------------------------------- */
+.pageHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 4px;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--space-4);
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.empty {
-  color: var(--color-muted);
-  font-size: 0.875rem;
+/* The one piece of ornament on the page, and it says something: accent
+   over amber is fiat over sats, the two units this dashboard pairs. */
+.brandMark {
+  width: 10px;
+  height: 22px;
+  flex: none;
+  background: linear-gradient(180deg, var(--accent) 0 55%, var(--amber) 55% 100%);
 }
 
-.sectionHeaderRow {
+.brand h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.rangeText {
+  font-family: var(--ui-mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* shared ----------------------------------------------------------- */
+.eyebrow {
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 18px 20px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.cardTitle {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+/* hero ------------------------------------------------------------- */
+.hero {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+}
+
+.heroHead {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
+  align-items: flex-end;
+  gap: 28px;
+  flex-wrap: wrap;
+  padding: 26px 28px 22px;
+}
+
+.heroPrimary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.heroValue {
+  font-size: clamp(38px, 5.4vw, 54px);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.delta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--ui-mono);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.up {
+  color: var(--accent);
+}
+
+.down {
+  color: var(--rose);
+}
+
+.deltaNote {
+  color: var(--faint);
+  letter-spacing: 0.02em;
+}
+
+.heroStats {
+  display: flex;
+  gap: 34px;
+  margin: 0;
+  padding: 0;
+}
+
+.heroStats dt {
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: 6px;
+}
+
+.heroStats dd {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums;
+}
+
+.amberText {
+  color: var(--amber);
+  font-family: var(--ui-mono);
+  font-size: 15px;
+}
+
+/* The headline carries the big delta; a stat's own change rides alongside
+   its value so the row stays one line tall. */
+.statDelta {
+  margin-left: 8px;
+  font-family: var(--ui-mono);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+/* sections --------------------------------------------------------- */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+/* grids ------------------------------------------------------------ */
+.panels,
+.lists {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+/* on-chain --------------------------------------------------------- */
+.onchain {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--line-strong);
+  padding-bottom: 10px;
+}
+
+.sectionHead h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.sectionHead a {
+  font-family: var(--ui-mono);
+  font-size: 11.5px;
+  color: var(--accent);
+}
+
+.sectionHead a:hover {
+  text-decoration: underline;
+}
+
+.note {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  max-width: 70ch;
+}
+
+/* responsive ------------------------------------------------------- */
+@media (max-width: 940px) {
+  .panels,
+  .lists {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lists > *:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .heroStats {
+    gap: 24px;
+  }
+}
+
+@media (max-width: 640px) {
+  .panels,
+  .lists {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lists > *:last-child {
+    grid-column: auto;
+  }
+
+  .heroHead {
+    padding: 20px;
+  }
+
+  .heroStats {
+    flex-wrap: wrap;
+    gap: 18px 28px;
+  }
 }

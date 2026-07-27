@@ -53,6 +53,7 @@ import { RedisAddressIndexAllocator } from '@/modules/payments/infrastructure/bi
 import { DrizzleBitcoinPaymentStore } from '@/modules/payments/infrastructure/bitcoin/drizzle-bitcoin-payment-store';
 import { GetOnChainActivityReport } from '@/modules/payments/application/use-cases/get-on-chain-activity-report';
 import { MempoolRateProvider } from '@/modules/payments/infrastructure/bitcoin/mempool-rate-provider';
+import type { BtcRateProvider } from '@/modules/payments/application/ports/bitcoin-ports';
 
 import { DrizzleOrderRepository } from '@/modules/orders/infrastructure/drizzle-order-repository';
 import { DrizzleSupplierOrderRepository } from '@/modules/orders/infrastructure/drizzle-supplier-order-repository';
@@ -167,6 +168,9 @@ import { SetShippingRate } from '@/modules/shipping/application/use-cases/set-sh
 export interface Container {
   db: DB;
   rateLimiter: RateLimiter;
+  /** fiat -> sats, for dual-denominated display prices. Presentation only —
+   * an order's binding quote is locked by the gateway at checkout. */
+  btcRates: BtcRateProvider;
 
   listProducts: ListProducts;
   listProductCategories: ListProductCategories;
@@ -524,6 +528,9 @@ function build(): Container {
   return {
     db,
     rateLimiter,
+    /** fiat -> sats, for dual-denominated display prices. Presentation only
+     * — an order's actual quote is locked by the gateway at checkout. */
+    btcRates: rates,
     listProducts,
     listProductCategories,
     updateProductCategory,

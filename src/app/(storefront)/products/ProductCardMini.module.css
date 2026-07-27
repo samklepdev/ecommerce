@@ -1,75 +1,130 @@
 .card {
+  background: var(--surface);
+  border: 1px solid var(--line);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  transition: border-color 0.15s ease;
+  min-width: 0;
+  transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
 }
 
 .card:hover {
-  border-color: var(--color-accent);
+  border-color: var(--line-strong);
+  background: var(--surface-hi);
+  transform: translateY(-2px);
 }
 
-.mediaLink {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  color: inherit;
-  text-decoration: none;
-  font-weight: 500;
+.unavailable {
+  opacity: 0.62;
 }
 
-/* Reserves space for exactly two lines, whether this title actually wraps
-   or not — so content below it always starts at the same vertical offset
-   across every card in a row, regardless of title length. Anything longer
-   than two lines truncates with an ellipsis instead of pushing further
-   down. */
-.title {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+.unavailable:hover {
+  transform: none;
+}
+
+.media {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 170px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-hi);
+  color: var(--accent);
   overflow: hidden;
-  line-height: 1.3;
-  min-height: calc(1.3em * 2);
+}
+
+.card:hover .media :global(svg) {
+  opacity: 1;
 }
 
 .imageStack {
   position: relative;
   width: 100%;
-  aspect-ratio: 1 / 1;
-}
-
-.image {
-  width: 100%;
   height: 100%;
-  aspect-ratio: 1 / 1;
-  object-fit: cover;
-  border-radius: var(--radius-sm);
-  background: var(--background);
 }
 
+.image,
 .hoverImage {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: var(--radius-sm);
+}
+
+/* The second image sits on top and fades in, so the swap has no flash of
+   empty space while it loads. */
+.hoverImage {
   opacity: 0;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.18s ease;
 }
 
 .card:hover .hoverImage {
   opacity: 1;
 }
 
-.imagePlaceholder {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  border-radius: var(--radius-sm);
-  background: var(--color-border);
+.stockTag {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-family: var(--ui-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rose);
+  border: 1px solid var(--rose);
+  background: var(--canvas);
+  padding: 3px 7px;
+}
+
+.body {
+  padding: 16px 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1;
+}
+
+.eyebrow {
+  font-family: var(--ui-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  line-height: 1.3;
+}
+
+.name a:hover {
+  color: var(--accent);
 }
 
 .price {
-  color: var(--color-muted);
-  font-size: 0.875rem;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 6px;
+  flex-wrap: wrap;
+}
+
+.fiat {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Amber for anything denominated in sats — the same rule the admin console
+   follows, so the two halves of the app agree on what the colour means. */
+.sats {
+  font-family: var(--ui-mono);
+  font-size: 11.5px;
+  color: var(--amber);
+  font-variant-numeric: tabular-nums;
 }

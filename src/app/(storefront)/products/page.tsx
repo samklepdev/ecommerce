@@ -1,12 +1,9 @@
+import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { after } from 'next/server';
 
 import { getContainer } from '@/composition/container';
 import { getSessionUser, GUEST_SESSION_COOKIE } from '@/app/lib/session';
-import { PageContainer } from '@/components/ui/PageContainer';
-import { Stack } from '@/components/ui/Stack';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
 import { Pagination } from '@/components/ui/Pagination';
 import { DEFAULT_PAGE_SIZE, parsePage } from '@/components/ui/paginate';
 import type { Product } from '@/modules/catalog/domain/product';
@@ -15,6 +12,7 @@ import { AddToCartRow } from './AddToCartRow';
 import { CategoryFilterSelect } from './CategoryFilterSelect';
 import { SortSelect } from './SortSelect';
 import { ProductCardMini, toProductCardSummary } from './ProductCardMini';
+import { formatSats, tryGetSatsRate } from './sats-pricing';
 import styles from './page.module.css';
 
 // Dynamic, not ISR — search/category/page are query-param-driven per
@@ -22,6 +20,8 @@ import styles from './page.module.css';
 // becomes a bottleneck, cache per distinct query-param combination instead
 // of reverting to a single static revalidate.)
 export const dynamic = 'force-dynamic';
+
+const countFormat = new Intl.NumberFormat('en-US');
 
 interface ProductsPageProps {
   searchParams: Promise<{ q?: string; category?: string; sort?: ProductSort; page?: string }>;
@@ -47,7 +47,8 @@ async function resolveQuickAddVariant(
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const { q, category, sort, page: pageParam } = await searchParams;
-  const { listProducts, listProductCategories, getPreferredOfferForVariant } = getContainer();
+  const { listProducts, listProductCategories, getPreferredOfferForVariant, btcRates } =
+    getContainer();
 
   const categories = await listProductCategories.execute();
 
@@ -105,6 +106,11 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     ),
   );
 
+  // Cached ~30s inside the provider, and null when the feed is unreachable —
+  // the catalog then shows fiat alone rather than failing.
+  const currency = pagedProducts[0]?.cheapestVariantPrice?.currency ?? 'USD';
+  const satsPerUnit = await tryGetSatsRate(btcRates, currency);
+
   function buildHref(nextPage: number): string {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
@@ -115,18 +121,38 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     return query ? `/products?${query}` : '/products';
   }
 
+  const hasFilters = Boolean(q || category);
+
   return (
-    <PageContainer>
-      <Stack gap={5}>
-        <h1>Products</h1>
+    <div className={styles.root}>
+      <div className={styles.page}>
+        <div className={styles.pageHead}>
+          <h1>Products</h1>
+          <p className={styles.lede}>
+            Hardware and backup gear for holding your own keys. Every price settles on-chain —
+            no custodian in the middle.
+          </p>
+        </div>
 
         <div className={styles.filters}>
           <form className={styles.searchForm}>
-            <Input type="text" name="q" defaultValue={q} placeholder="Search products" />
-            <Button type="submit" variant="secondary">
+            {/* Category and sort ride along so searching doesn't silently
+                drop the filters already applied. */}
+            {category && <input type="hidden" name="category" value={category} />}
+            {sort && sort !== 'newest' && <input type="hidden" name="sort" value={sort} />}
+            <input
+              type="text"
+              name="q"
+              defaultValue={q}
+              placeholder="Search products"
+              aria-label="Search products"
+              className={styles.searchInput}
+            />
+            <button type="submit" className={styles.searchButton}>
               Search
-            </Button>
+            </button>
           </form>
+
           <div className={styles.dropdownGroup}>
             {categories.length > 0 && (
               <CategoryFilterSelect categories={categories} selectedCategory={category} />
@@ -135,20 +161,47 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           </div>
         </div>
 
+        <div className={styles.resultBar}>
+          <span className={styles.resultCount}>
+            {countFormat.format(total)} {total === 1 ? 'product' : 'products'}
+            {totalPages > 1 && ` · page ${page} of ${totalPages}`}
+          </span>
+          {hasFilters && (
+            <Link href="/products" className={styles.clearLink}>
+              Clear filters
+            </Link>
+          )}
+        </div>
+
         {pagedProducts.length === 0 ? (
-          <p className={styles.empty}>No products found.</p>
+          <div className={styles.empty}>
+            <p className={styles.emptyTitle}>Nothing matches those filters.</p>
+            <p className={styles.emptyBody}>
+              Try a broader search term, or browse the full catalog.
+            </p>
+            <Link href="/products" className={styles.emptyAction}>
+              Show all products
+            </Link>
+          </div>
         ) : (
           <div className={styles.grid}>
             {pagedProducts.map((product) => {
               const quickAdd = quickAddByProductId.get(product.id) ?? null;
+              const price = product.cheapestVariantPrice;
+
               return (
-                <ProductCardMini key={product.id} product={toProductCardSummary(product)}>
+                <ProductCardMini
+                  key={product.id}
+                  product={toProductCardSummary(product)}
+                  satsDisplay={
+                    price && satsPerUnit !== null
+                      ? formatSats(price.amountMinor, satsPerUnit)
+                      : null
+                  }
+                  unavailable={quickAdd ? !quickAdd.isAvailable : false}
+                >
                   {quickAdd && (
-                    <AddToCartRow
-                      variantId={quickAdd.variant.id}
-                      priceDisplay={quickAdd.variant.price.toDisplayString()}
-                      disabled={!quickAdd.isAvailable}
-                    />
+                    <AddToCartRow variantId={quickAdd.variant.id} disabled={!quickAdd.isAvailable} />
                   )}
                 </ProductCardMini>
               );
@@ -156,8 +209,12 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           </div>
         )}
 
-        <Pagination page={page} totalPages={totalPages} buildHref={buildHref} />
-      </Stack>
-    </PageContainer>
+        {totalPages > 1 && (
+          <div className={styles.pagination}>
+            <Pagination page={page} totalPages={totalPages} buildHref={buildHref} />
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

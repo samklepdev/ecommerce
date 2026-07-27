@@ -5,18 +5,16 @@ import { useActionState, useState } from 'react';
 import { addToCartAction, type AddToCartActionResult } from '@/app/actions/cart';
 import { useAddToCartFeedback } from '@/app/lib/use-add-to-cart-feedback';
 import { MAX_CART_LINE_QUANTITY } from '@/modules/cart/domain/cart-line';
-import { Button } from '@/components/ui/Button';
 import styles from './AddToCartRow.module.css';
 
 interface AddToCartRowProps {
   variantId: string;
-  priceDisplay: string;
   disabled?: boolean;
 }
 
 const initialState: AddToCartActionResult = {};
 
-export function AddToCartRow({ variantId, priceDisplay, disabled = false }: AddToCartRowProps) {
+export function AddToCartRow({ variantId, disabled = false }: AddToCartRowProps) {
   const [quantity, setQuantity] = useState(1);
   const [state, formAction, isPending] = useActionState(addToCartAction, initialState);
   useAddToCartFeedback(state);
@@ -48,11 +46,11 @@ export function AddToCartRow({ variantId, priceDisplay, disabled = false }: AddT
         </button>
       </div>
 
-      <span className={styles.price}>{priceDisplay}</span>
-
-      <Button type="submit" disabled={disabled || isPending} className={styles.addButton}>
-        {disabled ? 'Out of stock' : 'Add'}
-      </Button>
+      {/* No price here: the card above shows it in both fiat and sats, and
+          repeating it in the action row made the tile read as two prices. */}
+      <button type="submit" className={styles.addButton} disabled={disabled || isPending}>
+        {disabled ? 'Unavailable' : isPending ? 'Adding…' : 'Add to cart'}
+      </button>
     </form>
   );
 }
