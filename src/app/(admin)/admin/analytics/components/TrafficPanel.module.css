@@ -1,0 +1,48 @@
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 18px 20px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.panel:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+}
+
+.eyebrow {
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.value {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.spark {
+  width: 100%;
+  height: 40px;
+  display: block;
+}
+
+/* Holds the sparkline's slot so a panel with no data is the same height as
+   the ones beside it. */
+.sparkEmpty {
+  height: 40px;
+}
+
+.foot {
+  font-family: var(--ui-mono);
+  font-size: 11px;
+  color: var(--faint);
+}

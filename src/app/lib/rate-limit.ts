@@ -1,5 +1,6 @@
 import { headers } from 'next/headers';
 
+import { env } from '@/config/env';
 import { getContainer } from '@/composition/container';
 import type { RateLimitResult } from '@/shared/application/ports/rate-limiter';
 
@@ -8,6 +9,14 @@ import type { RateLimitResult } from '@/shared/application/ports/rate-limiter';
  * deployment behind nothing does not) — the rate limiters keyed on this are
  * spoofable if that assumption doesn't hold for your deployment target. */
 export async function getClientIp(): Promise<string> {
+  // Checked first, and unconditionally: locally the header *is* present, set
+  // to the loopback address `::1`, which resolves to no country. A fallback
+  // that only applied when the header was missing would therefore never fire
+  // — the whole point of the override is to replace a useless real value.
+  // `env` forces this to undefined outside development, so it cannot put a
+  // fabricated address into real data.
+  if (env.ANALYTICS_DEV_IP) return env.ANALYTICS_DEV_IP;
+
   const headerStore = await headers();
   const forwardedFor = headerStore.get('x-forwarded-for');
   return forwardedFor?.split(',')[0]?.trim() || 'unknown';

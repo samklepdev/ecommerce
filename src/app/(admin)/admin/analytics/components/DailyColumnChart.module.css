@@ -1,0 +1,51 @@
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 130px;
+}
+
+.col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.col span {
+  display: block;
+  width: 100%;
+  background: var(--column-fill);
+  opacity: 0.42;
+  transition: opacity 0.15s ease;
+  min-height: 2px;
+}
+
+.col:hover span {
+  opacity: 0.9;
+}
+
+.accent {
+  --column-fill: var(--accent);
+}
+
+.amber {
+  --column-fill: var(--amber);
+}
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  color: var(--faint);
+}
+
+.empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}

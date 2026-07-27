@@ -1,75 +1,106 @@
-import Link from 'next/link';
-
 import { getContainer } from '@/composition/container';
 import { requireAdmin } from '@/app/lib/session';
-import { PageContainer } from '@/components/ui/PageContainer';
-import { Stack } from '@/components/ui/Stack';
-import { Card } from '@/components/ui/Card';
-import styles from './page.module.css';
+import { Money } from '@/shared/domain/money';
+import { parseDateRange } from './analytics/date-range';
+import { alignToDays, eachDayKey } from './analytics/series';
+import { AdminOverview, type AttentionQueue, type OrderRow } from './AdminOverview';
 
 export const dynamic = 'force-dynamic';
 
+const RECENT_ORDER_LIMIT = 8;
+
+/** Thin by design: fetch, shape, hand to `AdminOverview`. */
 export default async function AdminDashboardPage() {
   await requireAdmin();
 
-  const { listUnfulfillableOrderLines, listSupplierOrdersNeedingAction, listAllOrdersForAdmin } =
-    getContainer();
+  // The overview always shows the last 30 days; it has no range control of
+  // its own, and /admin/analytics is where you go to change the window.
+  const { since, until } = parseDateRange({});
 
-  const [unfulfillableLines, supplierOrdersNeedingAction, allOrders] = await Promise.all([
-    listUnfulfillableOrderLines.execute(),
-    listSupplierOrdersNeedingAction.execute(),
-    listAllOrdersForAdmin.execute({}),
-  ]);
+  const {
+    listUnfulfillableOrderLines,
+    listSupplierOrdersNeedingAction,
+    listAllOrdersForAdmin,
+    getRevenueSummary,
+    getWebAnalyticsSummary,
+  } = getContainer();
 
-  const awaitingConfirmationCount = allOrders.filter(
+  const [unfulfillableLines, supplierOrdersNeedingAction, allOrders, revenue, web] =
+    await Promise.all([
+      listUnfulfillableOrderLines.execute(),
+      listSupplierOrdersNeedingAction.execute(),
+      listAllOrdersForAdmin.execute({}),
+      getRevenueSummary.execute({ since, until }),
+      getWebAnalyticsSummary.execute({ since, until }),
+    ]);
+
+  const awaitingConfirmation = allOrders.filter(
     (o) => o.paymentStatus === 'awaiting_confirmation',
   ).length;
-  const recoveredCount = allOrders.filter((o) => o.paymentRecoveredFrom !== null).length;
+  const recovered = allOrders.filter((o) => o.paymentRecoveredFrom !== null).length;
+
+  // Ordered by how much a delay costs: money that may never settle first,
+  // then orders that can't ship, then everything else.
+  const queues: AttentionQueue[] = [
+    {
+      label: 'Orders awaiting confirmation',
+      count: awaitingConfirmation,
+      href: '/admin/orders',
+      hint: 'Seen on-chain but not yet deep enough to fulfil',
+    },
+    {
+      label: 'Unsourced order lines',
+      count: unfulfillableLines.length,
+      href: '/admin/fulfillment',
+      hint: 'Paid, with no supplier offer to buy from',
+    },
+    {
+      label: 'Supplier orders needing action',
+      count: supplierOrdersNeedingAction.length,
+      href: '/admin/fulfillment',
+      hint: 'Placed but not yet ordered or shipped',
+    },
+    {
+      label: 'Recovered orders to review',
+      count: recovered,
+      href: '/admin/orders',
+      hint: 'Payment landed after the order had expired',
+    },
+  ];
+
+  const dayKeys = eachDayKey(since, until);
+  const revenueByDay = alignToDays(dayKeys, revenue.days, (d) => d.day, (d) => d.totalMinor);
+  const viewsByDay = alignToDays(dayKeys, web.pageViewsPerDay, (d) => d.day, (d) => d.count);
+
+  const ordersInWindow = allOrders.filter((o) => o.createdAt >= since && o.createdAt <= until);
+
+  const recentOrders: OrderRow[] = [...allOrders]
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, RECENT_ORDER_LIMIT)
+    .map((o) => ({
+      id: o.id,
+      customerEmail: o.customerEmail,
+      placed: o.createdAt.toISOString().slice(0, 10),
+      amountLabel: Money.of(o.amountMinor, o.currency).toDisplayString(),
+      paymentStatus: o.paymentStatus,
+      fulfillmentStatus: o.fulfillmentStatus,
+    }));
 
   return (
-    <PageContainer>
-      <Stack gap={5}>
-        <h1>Dashboard</h1>
-
-        <div className={styles.metricsGrid}>
-          <Link href="/admin/fulfillment" className={styles.metricLink}>
-            <Card className={styles.metricCard}>
-              <span className={styles.metricValue}>{unfulfillableLines.length}</span>
-              <span className={styles.metricLabel}>Unsourced order lines</span>
-            </Card>
-          </Link>
-          <Link href="/admin/fulfillment" className={styles.metricLink}>
-            <Card className={styles.metricCard}>
-              <span className={styles.metricValue}>{supplierOrdersNeedingAction.length}</span>
-              <span className={styles.metricLabel}>Supplier orders needing action</span>
-            </Card>
-          </Link>
-          <Link href="/admin/orders" className={styles.metricLink}>
-            <Card className={styles.metricCard}>
-              <span className={styles.metricValue}>{awaitingConfirmationCount}</span>
-              <span className={styles.metricLabel}>Orders awaiting confirmation</span>
-            </Card>
-          </Link>
-          <Link href="/admin/orders" className={styles.metricLink}>
-            <Card className={styles.metricCard}>
-              <span className={styles.metricValue}>{recoveredCount}</span>
-              <span className={styles.metricLabel}>Recovered orders needing review</span>
-            </Card>
-          </Link>
-        </div>
-
-        <Card className={styles.section}>
-          <h2 className={styles.sectionTitle}>Quick links</h2>
-          <div className={styles.linksRow}>
-            <Link href="/admin/products">Products</Link>
-            <Link href="/admin/fulfillment">Fulfillment</Link>
-            <Link href="/admin/orders">Orders</Link>
-            <Link href="/admin/users">Users</Link>
-            <Link href="/admin/settings">Settings</Link>
-            <Link href="/admin/audit-log">Audit log</Link>
-          </div>
-        </Card>
-      </Stack>
-    </PageContainer>
+    <AdminOverview
+      since={since}
+      until={until}
+      windowDays={Math.max(1, dayKeys.length)}
+      queues={queues}
+      revenueLabel={Money.of(
+        revenue.days.reduce((t, d) => t + d.totalMinor, 0),
+        revenue.currency,
+      ).toDisplayString()}
+      ordersCount={ordersInWindow.length}
+      itemsSold={revenue.days.reduce((t, d) => t + d.totalQuantity, 0)}
+      pageViews={viewsByDay.reduce((t, v) => t + v, 0)}
+      revenuePerDay={dayKeys.map((day, i) => ({ day, value: revenueByDay[i] ?? 0 }))}
+      recentOrders={recentOrders}
+    />
   );
 }

@@ -53,6 +53,7 @@ import { RedisAddressIndexAllocator } from '@/modules/payments/infrastructure/bi
 import { DrizzleBitcoinPaymentStore } from '@/modules/payments/infrastructure/bitcoin/drizzle-bitcoin-payment-store';
 import { GetOnChainActivityReport } from '@/modules/payments/application/use-cases/get-on-chain-activity-report';
 import { MempoolRateProvider } from '@/modules/payments/infrastructure/bitcoin/mempool-rate-provider';
+import type { BtcRateProvider } from '@/modules/payments/application/ports/bitcoin-ports';
 
 import { DrizzleOrderRepository } from '@/modules/orders/infrastructure/drizzle-order-repository';
 import { DrizzleSupplierOrderRepository } from '@/modules/orders/infrastructure/drizzle-supplier-order-repository';
@@ -78,7 +79,10 @@ import { RecordAuditLogEntry } from '@/modules/audit/application/use-cases/recor
 import { ListAuditLogEntries } from '@/modules/audit/application/use-cases/list-audit-log-entries';
 import { DrizzleAnalyticsEventRepository } from '@/modules/analytics/infrastructure/drizzle-analytics-event-repository';
 import { RecordAnalyticsEvent } from '@/modules/analytics/application/use-cases/record-analytics-event';
+import { MmdbIpGeoLookup } from '@/modules/analytics/infrastructure/geo/mmdb-ip-geo-lookup';
 import { GetWebAnalyticsSummary } from '@/modules/analytics/application/use-cases/get-web-analytics-summary';
+import { ListAnalyticsEvents } from '@/modules/analytics/application/use-cases/list-analytics-events';
+import { GetEventsForIdentity } from '@/modules/analytics/application/use-cases/get-events-for-identity';
 import { ListAllProductsForAdmin } from '@/modules/catalog/application/use-cases/list-all-products-for-admin';
 import { DeleteProducts } from '@/modules/catalog/application/use-cases/delete-products';
 import { PublishProducts } from '@/modules/catalog/application/use-cases/publish-products';
@@ -165,6 +169,9 @@ import { SetShippingRate } from '@/modules/shipping/application/use-cases/set-sh
 export interface Container {
   db: DB;
   rateLimiter: RateLimiter;
+  /** fiat -> sats, for dual-denominated display prices. Presentation only —
+   * an order's binding quote is locked by the gateway at checkout. */
+  btcRates: BtcRateProvider;
 
   listProducts: ListProducts;
   listProductCategories: ListProductCategories;
@@ -181,6 +188,8 @@ export interface Container {
   recordAuditLogEntry: RecordAuditLogEntry;
   recordAnalyticsEvent: RecordAnalyticsEvent;
   getWebAnalyticsSummary: GetWebAnalyticsSummary;
+  listAnalyticsEvents: ListAnalyticsEvents;
+  getEventsForIdentity: GetEventsForIdentity;
   listAuditLogEntries: ListAuditLogEntries;
   listAllProductsForAdmin: ListAllProductsForAdmin;
   deleteProducts: DeleteProducts;
@@ -329,8 +338,14 @@ function build(): Container {
   const auditLogRepository = new DrizzleAuditLogRepository(db);
   const recordAuditLogEntry = new RecordAuditLogEntry(auditLogRepository);
   const analyticsEventRepository = new DrizzleAnalyticsEventRepository(db);
-  const recordAnalyticsEvent = new RecordAnalyticsEvent(analyticsEventRepository);
+  // Local database read, no per-request network call — see the README in
+  // modules/analytics/infrastructure/geo for licence, refresh and why a
+  // server should hold the archive outside the repo.
+  const ipGeo = new MmdbIpGeoLookup(env.IP_GEO_DB_PATH);
+  const recordAnalyticsEvent = new RecordAnalyticsEvent(analyticsEventRepository, ipGeo);
   const getWebAnalyticsSummary = new GetWebAnalyticsSummary(analyticsEventRepository);
+  const listAnalyticsEvents = new ListAnalyticsEvents(analyticsEventRepository);
+  const getEventsForIdentity = new GetEventsForIdentity(analyticsEventRepository);
   const listAuditLogEntries = new ListAuditLogEntries(auditLogRepository);
   const listAllProductsForAdmin = new ListAllProductsForAdmin(products);
   const deleteProducts = new DeleteProducts(products);
@@ -518,6 +533,9 @@ function build(): Container {
   return {
     db,
     rateLimiter,
+    /** fiat -> sats, for dual-denominated display prices. Presentation only
+     * — an order's actual quote is locked by the gateway at checkout. */
+    btcRates: rates,
     listProducts,
     listProductCategories,
     updateProductCategory,
@@ -533,6 +551,8 @@ function build(): Container {
     recordAuditLogEntry,
     recordAnalyticsEvent,
     getWebAnalyticsSummary,
+    listAnalyticsEvents,
+    getEventsForIdentity,
     listAuditLogEntries,
     listAllProductsForAdmin,
     deleteProducts,

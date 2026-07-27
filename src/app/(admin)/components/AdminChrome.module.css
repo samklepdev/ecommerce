@@ -1,0 +1,128 @@
+/* The admin console's palette lives here rather than in globals.css so the
+   storefront keeps its own look. Everything inside the shell reads these
+   variables — the analytics dashboard by their own names (--accent, --ink,
+   --line), and the shared primitives (Card, Badge, Button, Input) through
+   the --color-* names they already used. Re-theming admin is a change to
+   this one block. */
+.shell {
+  /* Navy, taken from the sidebar and carried through the whole console:
+     --ink is literally the rail's colour, so headings and the rail read as
+     one material. Amber stays as the second working colour because it means
+     something specific here — sats and on-chain settlement. */
+  --canvas: #eef1f6;
+  --surface: #ffffff;
+  --navy: #101c33;
+  --ink: var(--navy);
+  --muted: #5a6880;
+  --faint: #8894aa;
+  --line: #dfe5ee;
+  --line-strong: #c6d0de;
+  --accent: #22467f;
+  --accent-bright: #3a6bc4;
+  /* States sit on top of their country's fill, so they need to read as
+     the same hue several steps lighter rather than a different colour. */
+  --accent-light: #7e9cd4;
+  --slate: #5a6880;
+  --amber: #b87503;
+  --rose: #a3231b;
+
+  --admin-sidebar-bg: var(--navy);
+  --admin-sidebar-fg: #c9d3e3;
+  --admin-sidebar-muted: #7b89a3;
+  --admin-sidebar-active: rgba(255, 255, 255, 0.07);
+  /* The mid navy is too close to the rail to register as an indicator, so
+     the active marker steps up to the bright end of the same hue. */
+  --admin-sidebar-accent: #5b8ae0;
+  --admin-topbar-height: 4.5rem;
+  --admin-sidebar-width: 17rem;
+
+  /* Bridge to the shared primitives' token names. */
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --color-elevated: var(--surface);
+  --color-surface: #f6f8fa;
+  --color-border: var(--line);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-foreground: #ffffff;
+  --color-success: var(--accent);
+  --color-warning: var(--amber);
+  --color-danger: var(--rose);
+  --color-row-stripe: rgba(16, 28, 51, 0.022);
+  --color-row-hover: rgba(34, 70, 127, 0.05);
+
+  /* Flat by design: this look is built from rules and weight, not from
+     rounded, shadowed cards floating over the page. */
+  --radius-sm: 0;
+  --radius-md: 0;
+  --shadow-sm: none;
+  --shadow-card: none;
+
+  /* The console commits to one light treatment, so it does not follow the
+     OS colour scheme. Pinning color-scheme keeps native controls (date
+     pickers, scrollbars) light with it instead of turning dark alone. */
+  color-scheme: light;
+
+  display: flex;
+  flex: 1;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--ui-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Desktop is an app shell: the whole thing is exactly one viewport tall and
+   never scrolls, so the rail is pinned by construction and only `.main`
+   moves. Below the breakpoint the rail is an overlay drawer, so the page
+   scrolls normally instead. */
+@media (min-width: 1024px) {
+  .shell {
+    /* `flex: none` matters: the shell is a flex item of the column-flex
+       body, where `flex: 1` sets flex-basis 0% and that — not `height` —
+       decides the main size. With flex:1 the 100vh below was ignored, the
+       shell grew to fit its content, and the rail collapsed with it. */
+    flex: none;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .main {
+    overflow-y: auto;
+    min-height: 0;
+  }
+}
+
+.shell a:focus-visible,
+.shell button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  /* Without this the sidebar's fixed width plus a wide table pushes the
+     whole shell into a horizontal scroll instead of scrolling the table. */
+  min-width: 0;
+}
+
+.content {
+  flex: 1;
+  padding: 28px 20px 72px;
+}
+
+@media (min-width: 640px) {
+  .content {
+    padding: 28px 24px 72px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell *,
+  .shell *::before,
+  .shell *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

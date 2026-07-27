@@ -1,0 +1,97 @@
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 18px 20px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.title {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.empty {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.list li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  font-size: 13px;
+}
+
+.bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--accent);
+  opacity: 0.07;
+}
+
+.name {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink);
+}
+
+/* The address is supporting evidence, not the subject — it recedes and is
+   the first thing to go when the column gets tight. */
+.ip {
+  position: relative;
+  font-family: var(--ui-mono);
+  font-size: 11px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+@media (max-width: 1200px) {
+  .ip {
+    display: none;
+  }
+}
+
+.views {
+  position: relative;
+  font-family: var(--ui-mono);
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.foot {
+  margin-top: 12px;
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* The country qualifier on a region row — "Victoria" exists in Australia
+   and Canada, so the region alone is ambiguous. */
+.sub {
+  color: var(--faint);
+  font-size: 11.5px;
+}

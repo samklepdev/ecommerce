@@ -1,19 +1,12 @@
-import Link from 'next/link';
-
 import { getContainer } from '@/composition/container';
 import { requireAdmin } from '@/app/lib/session';
+import { env } from '@/config/env';
 import { satsToBtcString } from '@/modules/payments/domain/bip21';
-import { PageContainer } from '@/components/ui/PageContainer';
-import { Stack } from '@/components/ui/Stack';
-import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
-import type { ValueCount } from '@/modules/analytics/application/ports/analytics-event-repository';
-import { parseDateRange, type DateRangeSearchParams } from './date-range';
-import { DateRangePicker } from './components/DateRangePicker';
-import { DailyBarChart } from './components/DailyBarChart';
-import { RevenueChart } from './components/RevenueChart';
-import { OnChainChart } from './components/OnChainChart';
-import styles from './page.module.css';
+import { Money } from '@/shared/domain/money';
+import { parseDateRange, previousWindow, type DateRangeSearchParams } from './date-range';
+import { percentChange } from './delta';
+import { alignToDays, eachDayKey } from './series';
+import { AnalyticsDashboard } from './AnalyticsDashboard';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,180 +14,78 @@ interface AdminAnalyticsPageProps {
   searchParams: Promise<DateRangeSearchParams>;
 }
 
-function ValueCountList({ items, emptyLabel }: { items: ValueCount[]; emptyLabel: string }) {
-  if (items.length === 0) return <p className={styles.empty}>{emptyLabel}</p>;
-  return (
-    <ul className={styles.list}>
-      {items.map((item) => (
-        <li key={item.value} className={styles.listRow}>
-          <span className={styles.listValue}>{item.value}</span>
-          <span>{item.count}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
+/** Thin by design: fetch, shape, hand to `AnalyticsDashboard`. All the
+ * markup lives there so it can be rendered without infrastructure. */
 export default async function AdminAnalyticsPage({ searchParams }: AdminAnalyticsPageProps) {
   await requireAdmin();
   const { since, until } = parseDateRange(await searchParams);
+  const prior = previousWindow({ since, until });
 
   const { getWebAnalyticsSummary, getOnChainActivityReport, getRevenueSummary } = getContainer();
-  const [web, onChain, revenue] = await Promise.all([
+
+  // The prior window only feeds the deltas. It runs alongside the current
+  // one rather than after it, so it costs queries, not latency.
+  const [web, onChain, revenue, priorWeb, priorRevenue] = await Promise.all([
     getWebAnalyticsSummary.execute({ since, until }),
     getOnChainActivityReport.execute({ since, until }),
     getRevenueSummary.execute({ since, until }),
+    getWebAnalyticsSummary.execute(prior),
+    getRevenueSummary.execute(prior),
   ]);
 
+  // One spine for every series on this page. The repositories return only
+  // days that had activity, and the hero reads revenue and sats by a shared
+  // index — without this, a gap in one would slide the other out of step.
+  const dayKeys = eachDayKey(since, until);
+  const satsByDay = alignToDays(dayKeys, onChain.satsPerDay, (d) => d.day, (d) => d.sats);
+  const viewsPerDay = alignToDays(dayKeys, web.pageViewsPerDay, (d) => d.day, (d) => d.count);
+  const searchesPerDay = alignToDays(dayKeys, web.searchesPerDay, (d) => d.day, (d) => d.count);
+  const cartChangesPerDay = alignToDays(dayKeys, web.cartChangesPerDay, (d) => d.day, (d) => d.count);
+
+  // `alignToDays` returns one value per day key, so these indexes always
+  // land; the `?? 0` fallbacks are for noUncheckedIndexedAccess.
+  //
+  // `TrafficBand` is a client component, so it gets plain numbers only —
+  // handing a client component formatter functions is what produced an
+  // earlier server error.
+  const bandPoints = dayKeys.map((day, i) => ({
+    day,
+    views: viewsPerDay[i] ?? 0,
+    cartChanges: cartChangesPerDay[i] ?? 0,
+    searches: searchesPerDay[i] ?? 0,
+  }));
+
+  const satsPerDay = dayKeys.map((day, i) => ({ day, sats: satsByDay[i] ?? 0 }));
+
+  const sum = (values: number[]) => values.reduce((t, v) => t + v, 0);
+  const totalViews = sum(viewsPerDay);
+  const priorViews = priorWeb.pageViewsPerDay.reduce((t, d) => t + d.count, 0);
+
+  const totalRevenueMinor = revenue.days.reduce((t, d) => t + d.totalMinor, 0);
+  const priorRevenueMinor = priorRevenue.days.reduce((t, d) => t + d.totalMinor, 0);
+
   return (
-    <PageContainer>
-      <Stack gap={5}>
-        <div>
-          <h1>Analytics</h1>
-          <DateRangePicker since={since} until={until} action="/admin/analytics" />
-        </div>
-
-        <section>
-          <div className={styles.sectionHeaderRow}>
-            <h2 className={styles.sectionTitle}>Page views</h2>
-            <Link href="/admin/analytics/page-views">View details →</Link>
-          </div>
-          <Card className={styles.chartCard}>
-            <h3 className={styles.cardTitle}>Page views per day</h3>
-            {web.pageViewsPerDay.length === 0 ? (
-              <p className={styles.empty}>No data yet.</p>
-            ) : (
-              <DailyBarChart data={web.pageViewsPerDay} label="views" />
-            )}
-          </Card>
-          <div className={styles.grid}>
-            <Card>
-              <h3 className={styles.cardTitle}>Top pages</h3>
-              <ValueCountList items={web.topPaths} emptyLabel="No page views yet." />
-            </Card>
-            <Card>
-              <h3 className={styles.cardTitle}>Top referrers</h3>
-              <ValueCountList items={web.topReferrers} emptyLabel="No referrer data yet." />
-            </Card>
-          </div>
-        </section>
-
-        <section>
-          <div className={styles.sectionHeaderRow}>
-            <h2 className={styles.sectionTitle}>Searches</h2>
-            <Link href="/admin/analytics/searches">View details →</Link>
-          </div>
-          <Card>
-            <h3 className={styles.cardTitle}>Top search terms</h3>
-            <ValueCountList items={web.topSearchTerms} emptyLabel="No searches yet." />
-          </Card>
-        </section>
-
-        <section>
-          <div className={styles.sectionHeaderRow}>
-            <h2 className={styles.sectionTitle}>Cart activity</h2>
-            <Link href="/admin/analytics/cart">View details →</Link>
-          </div>
-          <Card className={styles.chartCard}>
-            <h3 className={styles.cardTitle}>Cart changes per day</h3>
-            {web.cartChangesPerDay.length === 0 ? (
-              <p className={styles.empty}>No data yet.</p>
-            ) : (
-              <DailyBarChart data={web.cartChangesPerDay} label="cart changes" />
-            )}
-          </Card>
-        </section>
-
-        <section>
-          <h2 className={styles.sectionTitle}>Revenue</h2>
-          <Card className={styles.chartCard}>
-            <h3 className={styles.cardTitle}>Revenue per day</h3>
-            {revenue.days.length === 0 ? (
-              <p className={styles.empty}>No orders yet.</p>
-            ) : (
-              <RevenueChart data={revenue.days} currency={revenue.currency} />
-            )}
-          </Card>
-          <Card className={styles.chartCard}>
-            <h3 className={styles.cardTitle}>Items sold per day</h3>
-            {revenue.days.length === 0 ? (
-              <p className={styles.empty}>No orders yet.</p>
-            ) : (
-              <DailyBarChart
-                data={revenue.days.map((d) => ({ day: d.day, count: d.totalQuantity }))}
-                label="items"
-              />
-            )}
-          </Card>
-        </section>
-
-        <section>
-          <div className={styles.sectionHeaderRow}>
-            <h2 className={styles.sectionTitle}>On-chain activity</h2>
-            <Link href="/admin/analytics/on-chain">View details →</Link>
-          </div>
-          <p className={styles.meta}>
-            Totals use each order&apos;s expected amount as a stand-in for actually-received
-            sats (accurate in the common exact-payment case) — underpaid/overpaid orders are
-            flagged below rather than silently folded into the total.
-          </p>
-          <div className={styles.summaryRow}>
-            <Card className={styles.summaryCard}>
-              <p className={styles.bigNumber}>{satsToBtcString(onChain.totalSats)} BTC</p>
-              <p className={styles.cardLabel}>Total received (proxy)</p>
-            </Card>
-            <Card className={styles.summaryCard}>
-              <p className={styles.bigNumber}>{onChain.addressCount}</p>
-              <p className={styles.cardLabel}>Distinct addresses</p>
-            </Card>
-          </div>
-          <Card className={styles.chartCard}>
-            <h3 className={styles.cardTitle}>Sats received per day</h3>
-            {onChain.satsPerDay.length === 0 ? (
-              <p className={styles.empty}>No data yet.</p>
-            ) : (
-              <OnChainChart data={onChain.satsPerDay} />
-            )}
-          </Card>
-
-          <Card>
-            <h3 className={styles.cardTitle}>Paid orders</h3>
-            {onChain.orders.length === 0 ? (
-              <p className={styles.empty}>No paid orders in this window.</p>
-            ) : (
-              <div className={styles.tableWrap}>
-                <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      <th>Order</th>
-                      <th>Address</th>
-                      <th>Amount</th>
-                      <th>Confirmations</th>
-                      <th>Flags</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {onChain.orders.map((o) => (
-                      <tr key={o.orderId}>
-                        <td>
-                          <Link href={`/admin/orders/${o.orderId}`}>{o.orderId.slice(0, 8)}</Link>
-                        </td>
-                        <td>{o.address}</td>
-                        <td>{satsToBtcString(o.expectedSats)} BTC</td>
-                        <td>{o.confirmations}</td>
-                        <td>
-                          {o.underpaid && <Badge tone="danger">Underpaid</Badge>}
-                          {o.overpaid && <Badge tone="warning">Overpaid</Badge>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
-        </section>
-      </Stack>
-    </PageContainer>
+    <AnalyticsDashboard
+      since={since}
+      until={until}
+      windowDays={Math.max(1, dayKeys.length)}
+      bandPoints={bandPoints}
+      satsPerDay={satsPerDay}
+      totalViews={totalViews}
+      viewsDelta={percentChange(totalViews, priorViews)}
+      totalRevenueLabel={Money.of(totalRevenueMinor, revenue.currency).toDisplayString()}
+      revenueDelta={percentChange(totalRevenueMinor, priorRevenueMinor)}
+      totalSatsLabel={satsToBtcString(onChain.totalSats)}
+      totalItems={revenue.days.reduce((t, d) => t + d.totalQuantity, 0)}
+      addressCount={onChain.addressCount}
+      viewsPerDay={viewsPerDay}
+      searchesPerDay={searchesPerDay}
+      cartChangesPerDay={cartChangesPerDay}
+      topPaths={web.topPaths}
+      topReferrers={web.topReferrers}
+      topSearchTerms={web.topSearchTerms}
+      orders={onChain.orders}
+      requiredConfirmations={env.BTC_REQUIRED_CONFIRMATIONS}
+    />
   );
 }

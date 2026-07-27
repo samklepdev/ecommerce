@@ -1,0 +1,36 @@
+.confs {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.pips {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.pip {
+  width: 5px;
+  height: 12px;
+  background: var(--line-strong);
+  display: block;
+}
+
+.on {
+  background: var(--amber);
+}
+
+.text {
+  font-family: var(--ui-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.settled .text {
+  color: var(--accent);
+}
+
+.pending .text {
+  color: var(--faint);
+  font-style: italic;
+}

@@ -1,47 +1,320 @@
-.metricsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: var(--space-3);
-}
-
-.metricLink {
-  color: inherit;
-  text-decoration: none;
-}
-
-.metricCard {
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  transition: border-color 0.15s ease;
+  gap: 20px;
 }
 
-.metricLink:hover .metricCard {
-  border-color: var(--color-accent);
+.pageHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
-.metricValue {
-  font-size: 2rem;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brandMark {
+  width: 10px;
+  height: 22px;
+  flex: none;
+  background: linear-gradient(180deg, var(--accent) 0 55%, var(--amber) 55% 100%);
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 20px;
   font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
-.metricLabel {
-  color: var(--color-muted);
-  font-size: 0.875rem;
+.rangeText {
+  font-family: var(--ui-mono);
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: 16px;
 }
 
-.sectionTitle {
-  font-size: 1.125rem;
-}
-
-.linksRow {
+.sectionHead {
   display: flex;
-  gap: var(--space-4);
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--line-strong);
+  padding-bottom: 10px;
+}
+
+.sectionHead h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.sectionHead a {
+  font-family: var(--ui-mono);
+  font-size: 11.5px;
+  color: var(--accent);
+}
+
+.sectionHead a:hover {
+  text-decoration: underline;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 18px 20px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* attention queues -------------------------------------------------- */
+.allClear {
+  margin: 0;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.queues {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 16px;
+}
+
+/* Amber left edge, not red: these are things to do, not things that have
+   gone wrong. Red is reserved for underpaid/failed on the analytics side. */
+.queue {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 18px 20px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--amber);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.queue:hover {
+  border-color: var(--line-strong);
+  border-left-color: var(--amber);
+  transform: translateY(-1px);
+}
+
+.queueCount {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.queueLabel {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.queueHint {
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--faint);
+}
+
+/* stats ------------------------------------------------------------- */
+.stats {
+  display: flex;
   flex-wrap: wrap;
+  gap: 34px;
+  margin: 0 0 22px;
+  padding: 0;
+}
+
+.stats dt {
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: 6px;
+}
+
+.stats dd {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* recent orders ----------------------------------------------------- */
+.orders {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.orders th {
+  text-align: left;
+  font-family: var(--ui-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+  font-weight: 500;
+  padding: 0 12px 10px;
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+}
+
+.orders td {
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.orders tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* One stretched link per row, same as the analytics ledger: the whole row
+   opens the order without putting six anchors in the tab order. */
+.orders tbody tr {
+  position: relative;
+}
+
+.orderLink::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.orders tbody tr:hover {
+  background: var(--color-row-hover);
+  cursor: pointer;
+}
+
+.orders tbody tr:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.rt {
+  text-align: right;
+}
+
+.orderLink {
+  font-family: var(--ui-mono);
+  font-size: 12.5px;
+  color: var(--accent);
+}
+
+.email {
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.muted {
+  font-family: var(--ui-mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.amount {
+  font-family: var(--ui-mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pill {
+  display: inline-block;
+  font-family: var(--ui-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+.ok {
+  color: var(--accent);
+}
+
+.bad {
+  color: var(--rose);
+}
+
+.working {
+  color: var(--amber);
+}
+
+.neutral {
+  color: var(--faint);
+}
+
+@media (max-width: 640px) {
+  .orders thead {
+    display: none;
+  }
+
+  .orders tr {
+    display: block;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .orders td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 6px 0;
+    border: 0;
+  }
+
+  .orders td::before {
+    content: attr(data-label);
+    font-family: var(--ui-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+    flex: none;
+  }
+
+  .rt {
+    text-align: left;
+  }
+
+  .email {
+    max-width: none;
+  }
+
+  .stats {
+    gap: 18px 28px;
+  }
 }

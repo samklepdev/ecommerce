@@ -16,9 +16,14 @@ interface ProductGalleryProps {
   productName: string;
 }
 
-/** Hero image + thumbnail strip; clicking either opens a carousel modal
- * (shared `Modal`, externally controlled) to page through all of a
- * product's images. Renders a placeholder when there are none. */
+/**
+ * Main image with a thumbnail strip; clicking the main image opens a
+ * carousel modal for a closer look.
+ *
+ * Thumbnails swap the main image rather than opening the modal directly —
+ * browsing a product's angles shouldn't mean dismissing a dialog between
+ * each one. The modal is for looking closely, which is a separate intent.
+ */
 export function ProductGallery({ images, productName }: ProductGalleryProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -27,27 +32,36 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
     return <div className={styles.placeholder} aria-hidden />;
   }
 
-  const openAt = (index: number) => {
-    setActiveIndex(index);
-    setIsOpen(true);
-  };
+  const active = images[activeIndex] ?? images[0]!;
 
   return (
     <div className={styles.wrap}>
-      <button type="button" className={styles.heroButton} onClick={() => openAt(0)}>
+      <button
+        type="button"
+        className={styles.main}
+        onClick={() => setIsOpen(true)}
+        aria-label={`View ${productName} larger`}
+      >
+        {/* Supplier image hosts are dynamic/admin-added, not known at build time. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={images[0]!.url} alt={productName} className={styles.heroImage} />
+        <img src={active.url} alt={productName} className={styles.mainImage} />
+        {images.length > 1 && (
+          <span className={styles.index}>
+            {activeIndex + 1} / {images.length}
+          </span>
+        )}
       </button>
 
       {images.length > 1 && (
-        <ul className={styles.thumbList}>
+        <ul className={styles.thumbs}>
           {images.map((img, i) => (
             <li key={img.id}>
               <button
                 type="button"
-                className={styles.thumbButton}
-                onClick={() => openAt(i)}
-                aria-label={`View image ${i + 1} of ${images.length}`}
+                className={cx(styles.thumb, i === activeIndex && styles.thumbOn)}
+                onClick={() => setActiveIndex(i)}
+                aria-label={`Show image ${i + 1} of ${images.length}`}
+                aria-pressed={i === activeIndex}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={img.url} alt="" className={styles.thumbImage} />

@@ -1,0 +1,31 @@
+.trigger {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+}
+
+.trigger:hover {
+  background: var(--color-surface);
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.email {
+  font-size: 0.875rem;
+  color: var(--foreground);
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Below ~640px the avatar alone identifies the account; the address is the
+   first thing worth losing to keep the topbar on one line. */
+@media (max-width: 640px) {
+  .email {
+    display: none;
+  }
+}

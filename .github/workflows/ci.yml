@@ -18,6 +18,26 @@ jobs:
 
       - run: npm ci
 
+      # The IP geolocation database is gitignored — it's 59 MB and refreshed
+      # monthly, so committing it would grow history by that much forever.
+      # A fresh checkout therefore has none, and the adapter's tests would
+      # assert against an absent file. Keyed by month because that's DB-IP's
+      # release cadence: one download per release, cache hits in between.
+      - name: Resolve geo database release
+        id: geo-release
+        run: echo "month=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache IP geolocation database
+        id: geo-cache
+        uses: actions/cache@v4
+        with:
+          path: src/modules/analytics/infrastructure/geo/dbip-city-lite.mmdb.gz
+          key: dbip-city-lite-${{ steps.geo-release.outputs.month }}
+
+      - name: Fetch IP geolocation database
+        if: steps.geo-cache.outputs.cache-hit != 'true'
+        run: npm run geo:fetch
+
       - name: Typecheck
         run: npm run typecheck
 

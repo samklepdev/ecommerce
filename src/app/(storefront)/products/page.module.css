@@ -1,30 +1,241 @@
-.empty {
-  color: var(--color-muted);
+/* The catalog runs dark against the rest of the light storefront. Same
+   token names as globals.css, different values — so ProductCardMini and the
+   selects restyle themselves by scope rather than by prop. */
+.root {
+  --canvas: #0a0e13;
+  --surface: #121821;
+  --surface-hi: #171f29;
+  --ink: #e9eef4;
+  --muted: #98a5b6;
+  --faint: #66748a;
+  --line: #1e2833;
+  --line-strong: #2c3846;
+  --accent: #3fb6ae;
+  --accent-dim: #1f5f5c;
+  --accent-ink: #04211f;
+  --amber: #e0a340;
+  --rose: #e4695e;
+
+  /* Pinned so native controls (the select popup, scrollbars, focus rings)
+     follow the section instead of the OS. */
+  color-scheme: dark;
+
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--ui-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  flex: 1;
 }
 
+.root a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.root a:focus-visible,
+.root button:focus-visible,
+.root input:focus-visible,
+.root select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 36px 24px 80px;
+}
+
+.pageHead {
+  margin-bottom: 26px;
+}
+
+.pageHead h1 {
+  margin: 0 0 8px;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.lede {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 56ch;
+}
+
+/* filters ----------------------------------------------------------- */
 .filters {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  align-items: flex-end;
+  gap: 16px;
   flex-wrap: wrap;
 }
 
 .searchForm {
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
+}
+
+.searchInput {
+  appearance: none;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-right: 0;
+  padding: 9px 13px;
+  font-family: inherit;
+  font-size: 13.5px;
+  width: 260px;
+}
+
+.searchInput::placeholder {
+  color: var(--faint);
+}
+
+.searchButton {
+  appearance: none;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-hi);
+  color: var(--ink);
+  padding: 9px 16px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.searchButton:hover {
+  background: #1d2733;
 }
 
 .dropdownGroup {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
+  gap: 12px;
 }
 
+.resultBar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 20px 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.resultCount {
+  font-family: var(--ui-mono);
+  font-size: 11.5px;
+  color: var(--faint);
+}
+
+.clearLink {
+  font-family: var(--ui-mono);
+  font-size: 11.5px;
+  color: var(--accent);
+  border-bottom: 1px solid transparent;
+}
+
+.clearLink:hover {
+  border-bottom-color: var(--accent);
+}
+
+/* grid -------------------------------------------------------------- */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: var(--space-4);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
 }
 
+/* empty ------------------------------------------------------------- */
+.empty {
+  border: 1px dashed var(--line-strong);
+  background: var(--surface);
+  padding: 56px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.emptyBody {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.emptyAction {
+  margin-top: 12px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: 1px solid var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 22px;
+  transition: filter 0.15s ease;
+}
+
+.emptyAction:hover {
+  filter: brightness(1.1);
+}
+
+/* pagination -------------------------------------------------------- */
+.pagination {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line-strong);
+  display: flex;
+  justify-content: center;
+}
+
+/* responsive -------------------------------------------------------- */
+@media (max-width: 940px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .searchInput {
+    width: 100%;
+    flex: 1;
+  }
+
+  .dropdownGroup {
+    gap: 10px;
+  }
+
+  .dropdownGroup > * {
+    flex: 1;
+  }
+
+  .pageHead h1 {
+    font-size: 25px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root *,
+  .root *::before,
+  .root *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

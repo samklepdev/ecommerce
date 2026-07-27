@@ -2,19 +2,35 @@ import Link from 'next/link';
 
 import { getContainer } from '@/composition/container';
 import { getSessionUser } from '@/app/lib/session';
+import type { Review } from '@/modules/reviews/domain/review';
 import { WriteReviewForm } from './WriteReviewForm';
-import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
-import styles from './page.module.css';
-
-function stars(rating: number): string {
-  return '★'.repeat(rating) + '☆'.repeat(5 - rating);
-}
+import { Rating } from './Rating';
+import styles from './ReviewsSection.module.css';
 
 export interface ReviewsSectionProps {
   productId: string;
   productSlug: string;
 }
+
+const STARS = [5, 4, 3, 2, 1] as const;
+
+/** How many of the shown reviews sit at each star.
+ *
+ * Computed from the approved reviews on the page rather than from
+ * `summary`, which carries only an average and a count — so the bars always
+ * add up to the list beneath them. */
+function distribution(reviews: Review[]): { stars: number; count: number }[] {
+  return STARS.map((stars) => ({
+    stars,
+    count: reviews.filter((r) => Math.round(r.rating) === stars).length,
+  }));
+}
+
+const dateFormat = new Intl.DateTimeFormat('en-US', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+});
 
 export async function ReviewsSection({ productId, productSlug }: ReviewsSectionProps) {
   const { getProductReviews } = getContainer();
@@ -25,62 +41,90 @@ export async function ReviewsSection({ productId, productSlug }: ReviewsSectionP
     userId: user?.id,
   });
 
-  return (
-    <div>
-      <h2 className={styles.sectionTitle}>Reviews</h2>
+  const dist = distribution(reviews);
+  const shown = reviews.length;
 
-      <div className={styles.reviewsSummary}>
-        {summary.count > 0 ? (
-          <>
-            <span className={styles.reviewsStars} aria-hidden="true">
-              {stars(Math.round(summary.average))}
-            </span>
-            <span>
-              {summary.average.toFixed(1)} out of 5 ({summary.count} review{summary.count === 1 ? '' : 's'})
-            </span>
-          </>
-        ) : (
-          <span className={styles.meta}>No reviews yet.</span>
-        )}
+  return (
+    <section className={styles.reviews} id="reviews">
+      <div className={styles.header}>
+        <h2>Reviews</h2>
       </div>
 
-      {user ? (
-        myReview ? (
-          <p className={styles.meta}>
-            {myReview.status === 'pending'
-              ? 'Your review is awaiting approval.'
-              : myReview.status === 'rejected'
-                ? 'Your review was not approved.'
-                : 'You’ve already reviewed this product.'}
-          </p>
-        ) : (
-          <WriteReviewForm productId={productId} productSlug={productSlug} />
-        )
-      ) : (
-        <p className={styles.meta}>
-          <Link href="/login">Log in</Link> to write a review.
+      {summary.count === 0 ? (
+        <p className={styles.empty}>
+          No reviews yet. {user ? 'Be the first to write one.' : 'Log in to be the first.'}
         </p>
-      )}
+      ) : (
+        <div className={styles.grid}>
+          <aside className={styles.summary}>
+            <span className={styles.big}>{summary.average.toFixed(1)}</span>
+            <Rating value={summary.average} size={16} />
+            <span className={styles.count}>
+              {summary.count} review{summary.count === 1 ? '' : 's'}
+            </span>
 
-      {reviews.length > 0 && (
-        <div className={styles.reviewsList}>
-          {reviews.map((review) => (
-            <Card key={review.id} className={styles.reviewCard}>
-              <div className={styles.reviewHeader}>
-                <span className={styles.reviewsStars} aria-hidden="true">
-                  {stars(review.rating)}
-                </span>
-                {review.isVerifiedPurchase && <Badge tone="accent">Verified purchase</Badge>}
+            {shown > 0 && (
+              <div className={styles.dist}>
+                {dist.map((row) => (
+                  <div className={styles.distRow} key={row.stars}>
+                    <span className={styles.distStar}>{row.stars}★</span>
+                    <span className={styles.distTrack}>
+                      <span style={{ width: `${(row.count / shown) * 100}%` }} />
+                    </span>
+                    <span className={styles.distCount}>{row.count}</span>
+                  </div>
+                ))}
               </div>
-              {review.title && <p className={styles.reviewTitle}>{review.title}</p>}
-              <p className={styles.reviewBody}>{review.body}</p>
-              <p className={styles.meta}>
-                {review.authorDisplayName} · {review.createdAt.toLocaleDateString()}
-              </p>
-            </Card>
-          ))}
+            )}
+          </aside>
+
+          <div className={styles.list}>
+            {reviews.map((review) => (
+              <article className={styles.review} key={review.id}>
+                <div className={styles.reviewHead}>
+                  <span className={styles.avatar} aria-hidden="true">
+                    {review.authorDisplayName.charAt(0).toUpperCase()}
+                  </span>
+                  <div className={styles.who}>
+                    <span className={styles.author}>
+                      {review.authorDisplayName}
+                      {review.isVerifiedPurchase && (
+                        <span className={styles.verified}>Verified purchase</span>
+                      )}
+                    </span>
+                    <span className={styles.meta}>
+                      <Rating value={review.rating} size={11} />
+                      <span className={styles.date}>{dateFormat.format(review.createdAt)}</span>
+                    </span>
+                  </div>
+                </div>
+                {review.title && <h3 className={styles.reviewTitle}>{review.title}</h3>}
+                <p className={styles.body}>{review.body}</p>
+              </article>
+            ))}
+          </div>
         </div>
       )}
-    </div>
+
+      <div className={styles.write}>
+        {user ? (
+          myReview ? (
+            <p className={styles.note}>
+              {myReview.status === 'pending'
+                ? 'Your review is awaiting approval.'
+                : myReview.status === 'rejected'
+                  ? 'Your review was not approved.'
+                  : 'You’ve already reviewed this product.'}
+            </p>
+          ) : (
+            <WriteReviewForm productId={productId} productSlug={productSlug} />
+          )
+        ) : (
+          <p className={styles.note}>
+            <Link href="/login">Log in</Link> to write a review.
+          </p>
+        )}
+      </div>
+    </section>
   );
 }

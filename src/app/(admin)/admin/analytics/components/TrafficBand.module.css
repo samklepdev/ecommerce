@@ -1,0 +1,142 @@
+.band {
+  position: relative;
+  border-top: 1px solid var(--line);
+  padding: 0 0 40px;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: 230px;
+}
+
+.axisY {
+  position: absolute;
+  left: 12px;
+  top: 14px;
+  height: 186px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-family: var(--ui-mono);
+  font-size: 10px;
+  color: var(--faint);
+  pointer-events: none;
+}
+
+.axisX {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 20px;
+  height: 12px;
+  pointer-events: none;
+}
+
+.axisX span {
+  position: absolute;
+  transform: translateX(-50%);
+  font-family: var(--ui-mono);
+  font-size: 10px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+.readout {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 28px;
+  font-family: var(--ui-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.day {
+  color: var(--ink);
+  font-weight: 500;
+  min-width: 58px;
+}
+
+.value {
+  color: var(--ink);
+}
+
+.meta {
+  color: var(--faint);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.accentDot {
+  background: var(--accent);
+}
+
+.brightDot {
+  background: var(--accent-bright);
+  opacity: 0.85;
+}
+
+@media (max-width: 640px) {
+  .readout {
+    padding: 10px 20px;
+  }
+}
+
+/* tooltip ----------------------------------------------------------- */
+.tooltip {
+  position: absolute;
+  top: 10px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 11px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 6px 18px rgba(16, 28, 51, 0.12);
+  font-family: var(--ui-mono);
+  font-size: 11px;
+  color: var(--ink);
+  white-space: nowrap;
+  /* The cursor drives it; it must never eat its own pointer events. */
+  pointer-events: none;
+}
+
+.tooltipRight {
+  transform: translateX(10px);
+}
+
+.tooltipLeft {
+  transform: translateX(calc(-100% - 10px));
+}
+
+.tooltipDay {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.tooltipRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Keeps the searches row's text aligned with the two that have dots. */
+.dotSpacer {
+  width: 7px;
+  flex: none;
+}

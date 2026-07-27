@@ -1,19 +1,7 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
+import { archivo, geistMono, geistSans, plexMono } from "./fonts/fonts";
 import { ToastProvider } from "@/components/ui/ToastProvider";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Storefront",
@@ -26,13 +14,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} ${archivo.variable} ${plexMono.variable}`}
+    >
       <body>
-        <ToastProvider>
-          <Header />
-          {children}
-          <Footer />
-        </ToastProvider>
+        {/* No Header/Footer here: the storefront and admin have different
+            chrome, so each route group renders its own in its layout. */}
+        <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );

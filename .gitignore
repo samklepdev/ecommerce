@@ -55,3 +55,10 @@ products2.ts
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# IP geolocation database — 59 MB, refreshed monthly. Kept out of git so a
+# refresh doesn't add that to history permanently. Fetch with:
+#   npm run geo:fetch
+src/modules/analytics/infrastructure/geo/*.mmdb
+src/modules/analytics/infrastructure/geo/*.mmdb.gz
+geo/

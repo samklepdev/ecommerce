@@ -41,6 +41,12 @@ services:
     environment:
       DATABASE_URL: postgres://ecommerce:ecommerce@postgres:5432/ecommerce
       REDIS_URL: redis://redis:6379
+      # Bind-mounted rather than baked into the image: the archive is 59 MB
+      # and is refreshed monthly, so it belongs to the host, not the build.
+      # Populate ./geo once with: IP_GEO_DB_PATH=./geo/dbip-city-lite.mmdb.gz npm run geo:fetch
+      IP_GEO_DB_PATH: /data/geo/dbip-city-lite.mmdb.gz
+    volumes:
+      - ./geo:/data/geo:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,6 +60,12 @@ services:
     environment:
       DATABASE_URL: postgres://ecommerce:ecommerce@postgres:5432/ecommerce
       REDIS_URL: redis://redis:6379
+      # Bind-mounted rather than baked into the image: the archive is 59 MB
+      # and is refreshed monthly, so it belongs to the host, not the build.
+      # Populate ./geo once with: IP_GEO_DB_PATH=./geo/dbip-city-lite.mmdb.gz npm run geo:fetch
+      IP_GEO_DB_PATH: /data/geo/dbip-city-lite.mmdb.gz
+    volumes:
+      - ./geo:/data/geo:ro
     depends_on:
       postgres:
         condition: service_healthy

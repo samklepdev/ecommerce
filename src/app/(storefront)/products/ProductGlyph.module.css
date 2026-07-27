@@ -1,0 +1,6 @@
+.glyph {
+  width: 62px;
+  height: 62px;
+  opacity: 0.9;
+  transition: opacity 0.18s ease;
+}
