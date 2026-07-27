@@ -44,10 +44,16 @@
   color: var(--accent);
 }
 
-/* Leaflet paints a focus ring on the container itself, which reads as a
-   stray box around the whole figure. Interaction is on the countries. */
+/* Leaflet paints a focus ring on the container and on each shape you click,
+   which reads as stray boxes drawn over the map. Nothing here carries a
+   tabindex, so none of it is keyboard-reachable and the ring communicates
+   nothing — the readout panel is what reports the selection. */
 .map:focus,
-.map:focus-visible {
+.map:focus-visible,
+.map :global(.leaflet-container:focus),
+.map :global(.leaflet-interactive:focus),
+.map :global(path:focus),
+.map :global(svg:focus) {
   outline: none;
 }
 

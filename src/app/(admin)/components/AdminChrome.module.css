@@ -41,6 +41,9 @@
   --admin-sidebar-accent: #5b8ae0;
   --admin-topbar-height: 4.5rem;
   --admin-sidebar-width: 17rem;
+  /* Closed doesn't mean gone — the rail stays, showing icons only. Wide
+     enough for a 20px icon to sit centred with room to be clicked. */
+  --admin-rail-width: 4.25rem;
 
   /* Bridge to the shared primitives' token names. */
   --background: var(--canvas);

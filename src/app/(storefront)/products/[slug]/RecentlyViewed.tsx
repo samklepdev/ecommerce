@@ -59,7 +59,7 @@ export function RecentlyViewed({ currentProductId }: RecentlyViewedProps) {
   if (products.length === 0) return null;
 
   return (
-    <section>
+    <section className={styles.section}>
       <SectionHeader title="Recently viewed" />
       {/* No sats figure here: the rate is fetched on the server and this
           list is assembled in the browser from localStorage. Fiat alone is

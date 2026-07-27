@@ -4,7 +4,7 @@ import { Pagination } from '@/components/ui/Pagination';
 import { parsePage } from '@/components/ui/paginate';
 import { parseDateRange } from '../date-range';
 import { alignToDays, eachDayKey } from '../series';
-import { formatCount } from '../format';
+import { formatCount, formatRangeDate } from '../format';
 import { exportHref, pageHref, type DrillDownSearchParams } from '../drill-down';
 import { DrillDownHeader } from '../components/DrillDownHeader';
 import { DailyColumnChart } from '../components/DailyColumnChart';
@@ -86,8 +86,9 @@ export default async function PageViewsPage({ searchParams }: PageViewsPageProps
       <div className={styles.card}>
         <h2 className={styles.cardTitle}>Where visitors are</h2>
         <p className={styles.meta}>
-          Resolved from each visitor&apos;s IP against a local database — no
-          request leaves the server.
+          {formatRangeDate(since)} — {formatRangeDate(until)} · same window as
+          everything else on this page. Resolved from each visitor&apos;s IP against a
+          local database; no request leaves the server.
         </p>
         <WorldMapPanel
           countries={summary.viewsByCountry}

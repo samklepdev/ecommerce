@@ -6,6 +6,9 @@
   align-items: center;
   gap: var(--space-3);
   height: var(--admin-topbar-height);
+  /* The shell is a fixed-height flex column, where a flex item shrinks by
+     default — which quietly squashed this bar below its set height. */
+  flex: none;
   padding: 0 var(--space-4);
   background: var(--color-elevated);
   border-bottom: 1px solid var(--color-border);
@@ -15,38 +18,6 @@
   .topbar {
     padding: 0 var(--space-5);
   }
-}
-
-.menu {
-  display: grid;
-  place-items: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--background);
-  color: var(--foreground);
-  cursor: pointer;
-}
-
-.menu:hover {
-  background: var(--color-surface);
-}
-
-.menu:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-}
-
-@media (min-width: 1024px) {
-  .menu {
-    display: none;
-  }
-}
-
-.menuIcon {
-  width: 1.35rem;
-  height: 1.35rem;
 }
 
 .spacer {

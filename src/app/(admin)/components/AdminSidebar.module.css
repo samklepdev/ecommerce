@@ -1,30 +1,45 @@
+/* The rail is always there. It has two widths — expanded, with labels, and
+   collapsed to icons only — toggled by the chevron or by Escape, at every
+   breakpoint.
+
+   Nothing here ever hides the rail, so every nav item stays clickable in
+   both states and nothing needs taking out of the tab order. */
 .sidebar {
-  position: fixed;
+  flex: none;
   z-index: 40;
+  width: var(--admin-rail-width);
+  background: var(--admin-sidebar-bg);
+  color: var(--admin-sidebar-fg);
+  transition: width 200ms ease;
+}
+
+/* Below the desktop breakpoint the page scrolls normally, so the rail is
+   pinned to the viewport instead of riding along with the content. The
+   `aside` above stays in flow at icon width to reserve the strip; this is
+   what actually moves. */
+.inner {
+  position: fixed;
   top: 0;
   left: 0;
   bottom: 0;
-  width: var(--admin-sidebar-width);
-  background: var(--admin-sidebar-bg);
-  color: var(--admin-sidebar-fg);
-  transform: translateX(-100%);
-  transition: transform 220ms ease;
-}
-
-/* Below the desktop breakpoint the rail is an overlay drawer, so the inner
-   column owns the scrolling and fills the viewport. */
-.inner {
+  z-index: 40;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  height: 100vh;
-  padding: var(--space-4) var(--space-4) var(--space-5);
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  width: var(--admin-rail-width);
+  padding: var(--space-4) var(--space-3) var(--space-5);
+  background: var(--admin-sidebar-bg);
+  overflow: hidden;
+  transition: width 200ms ease, padding 200ms ease;
 }
 
-.sidebarOpen {
-  transform: translateX(0);
+/* Expanding *over* the content rather than squeezing it: 17rem beside a
+   phone would leave the page a sliver. On desktop it pushes instead — see
+   the breakpoint below. */
+.sidebarOpen .inner {
+  width: var(--admin-sidebar-width);
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
 }
 
 .backdrop {
@@ -42,53 +57,101 @@
   pointer-events: auto;
 }
 
-/* Desktop: the drawer becomes a permanent rail and the toggle machinery
-   (transform, backdrop, close button) goes away entirely.
+/* Desktop: the rail rejoins the layout, so expanding moves the content over
+   instead of covering it, and collapsing gives that space back.
 
-   The shell is exactly one viewport tall and doesn't scroll, so the rail is
-   pinned without `sticky` — it simply fills the full height of a container
-   that never moves. Only the nav list scrolls, and only when it's longer
-   than the screen. */
+   No percentage heights anywhere: `height: 100%` only resolves against a
+   parent with a definite height, and one flex container in the chain
+   without one silently collapses the rail. Flex sizing has no such
+   dependency. */
 @media (min-width: 1024px) {
-  /* No percentage heights anywhere in here: `height: 100%` only resolves
-     against a parent with a definite height, and one flex container in the
-     chain without one silently collapses the rail. Flex sizing all the way
-     down has no such dependency. */
   .sidebar {
-    position: static;
-    flex-shrink: 0;
-    transform: none;
-    transition: width 180ms ease;
     display: flex;
     flex-direction: column;
-  }
-
-  .inner {
-    flex: 1;
-    min-height: 0;
-    height: auto;
     overflow: hidden;
   }
 
-  /* Only this scrolls — the brand and the exit link stay put. */
-  .nav {
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    min-height: 0;
+  .sidebarOpen {
+    width: var(--admin-sidebar-width);
   }
 
-  .backdrop,
-  .close {
+  .inner {
+    position: static;
+    flex: 1;
+    min-height: 0;
+    width: auto;
+  }
+
+  /* The rail sits beside the content up here rather than over it, so
+     there's nothing to dim — and an always-visible rail with a permanent
+     backdrop would mean a permanently greyed-out page. */
+  .backdrop {
     display: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .sidebar,
+  .inner,
   .backdrop {
     transition: none;
   }
 }
+
+/* --- collapsed: icons only ------------------------------------------- */
+
+/* Clipped rather than `display: none`, so the labels keep naming their
+   icons for a screen reader while taking up no space. An icon rail with no
+   accessible names is a row of unlabelled links. */
+.sidebar:not(.sidebarOpen) .brandText,
+.sidebar:not(.sidebarOpen) .groupLabel,
+.sidebar:not(.sidebarOpen) .itemLabel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.sidebar:not(.sidebarOpen) .head {
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.sidebar:not(.sidebarOpen) .item,
+.sidebar:not(.sidebarOpen) .exit {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* The group headings are what separate the sections when they're visible;
+   with them clipped, a rule does the same job. */
+.sidebar:not(.sidebarOpen) .group + .group {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar:not(.sidebarOpen) .nav {
+  gap: 0;
+}
+
+/* Points the way it will move: left to collapse, right to expand. */
+.sidebar:not(.sidebarOpen) .toggleIcon {
+  transform: rotate(180deg);
+}
+
+.sidebar:not(.sidebarOpen) .exitArrow {
+  width: auto;
+}
+
+/* --- contents --------------------------------------------------------- */
 
 .head {
   display: flex;
@@ -107,7 +170,8 @@
 }
 
 /* The same accent-over-amber mark the dashboard uses, so the rail and the
-   page are visibly the same product. */
+   page are visibly the same product. Doubles as the logo in the collapsed
+   rail, which is why it never hides. */
 .brandMark {
   width: 10px;
   height: 22px;
@@ -128,25 +192,30 @@
   color: var(--admin-sidebar-muted);
 }
 
-.close {
+/* The visible way in and out. Escape does the same thing, without anything
+   to look at. */
+.toggle {
   display: grid;
   place-items: center;
-  width: 2rem;
-  height: 2rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
   border: 0;
-  border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--admin-sidebar-fg);
+  color: var(--admin-sidebar-muted);
   cursor: pointer;
+  font-family: inherit;
+  transition: color 140ms ease;
 }
 
-.close:hover {
-  background: var(--admin-sidebar-active);
+.toggle:hover {
+  color: #ffffff;
 }
 
-.closeIcon {
-  width: 1.25rem;
-  height: 1.25rem;
+.toggleIcon {
+  width: 1.1rem;
+  height: 1.1rem;
+  transition: transform 200ms ease;
 }
 
 .nav {
@@ -154,6 +223,14 @@
   flex-direction: column;
   gap: var(--space-5);
   flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
 }
 
 .groupLabel {
@@ -180,9 +257,9 @@
   align-items: center;
   gap: var(--space-3);
   padding: 0.6rem var(--space-3);
-  border-radius: var(--radius-md);
   font-size: 0.9rem;
   color: var(--admin-sidebar-fg);
+  white-space: nowrap;
   transition: background 140ms ease, color 140ms ease;
 }
 
@@ -191,8 +268,8 @@
 }
 
 .item:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
+  outline: 2px solid var(--admin-sidebar-accent);
+  outline-offset: -2px;
 }
 
 .itemActive {
@@ -202,7 +279,8 @@
 }
 
 /* The accent bar is what distinguishes "you are here" from "your pointer is
-   here" — hover and active share the same fill otherwise. */
+   here" — hover and active share the same fill otherwise. It's also the
+   only active cue left once the labels are clipped. */
 .itemActive::before {
   content: '';
   position: absolute;
@@ -211,6 +289,13 @@
   bottom: 20%;
   width: 3px;
   background: var(--admin-sidebar-accent);
+}
+
+/* Never wraps: the rail animates its width, and text reflowing mid-
+   transition reads as a glitch. */
+.itemLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .itemIcon {
@@ -229,6 +314,7 @@
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   font-size: 0.85rem;
   color: var(--admin-sidebar-muted);
+  white-space: nowrap;
 }
 
 .exitArrow {
@@ -239,84 +325,4 @@
 
 .exit:hover {
   color: #ffffff;
-}
-
-/* collapse ---------------------------------------------------------- */
-
-/* Hidden on mobile: the drawer is an overlay there, so narrowing it saves
-   nothing and would only remove the labels. */
-.collapseToggle {
-  display: none;
-}
-
-@media (min-width: 1024px) {
-  .collapseToggle {
-    display: grid;
-    place-items: center;
-    width: 1.75rem;
-    height: 1.75rem;
-    flex: none;
-    border: 0;
-    background: transparent;
-    color: var(--admin-sidebar-muted);
-    cursor: pointer;
-    transition: color 140ms ease, transform 180ms ease;
-  }
-
-  .collapseToggle:hover {
-    color: #ffffff;
-  }
-
-  .collapseIcon {
-    width: 1.1rem;
-    height: 1.1rem;
-  }
-
-  .collapsed {
-    /* Wide enough for the icon plus the item's own padding, so the icons
-       stay on the same optical centre line as when expanded. */
-    width: 4.75rem;
-  }
-
-  .collapsed .brandText,
-  .collapsed .groupLabel,
-  .collapsed .itemLabel {
-    /* clip rather than display:none — the text stays in the accessibility
-       tree, so the nav still reads correctly to a screen reader. */
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-  }
-
-  .collapsed .head {
-    flex-direction: column;
-    gap: var(--space-3);
-    padding: var(--space-2) 0 var(--space-4);
-  }
-
-  .collapsed .brand,
-  .collapsed .item,
-  .collapsed .exit {
-    justify-content: center;
-    gap: 0;
-  }
-
-  .collapsed .collapseToggle {
-    transform: rotate(180deg);
-  }
-
-  /* Groups lose their headings when collapsed, so a rule stands in for the
-     grouping the labels used to carry. */
-  .collapsed .group + .group {
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    padding-top: var(--space-3);
-  }
-
-  .collapsed .exitArrow {
-    width: auto;
-  }
 }
