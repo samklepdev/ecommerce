@@ -176,7 +176,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         <ReviewsSection productId={product.id} productSlug={product.slug.value} />
 
         {relatedProducts.length > 0 && (
-          <section>
+          <section className={styles.section}>
             <SectionHeader title="You might also like" />
             <div className={styles.cardGrid}>
               {relatedProducts.map((related) => {

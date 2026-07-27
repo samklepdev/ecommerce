@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 
 import { AdminSidebar } from './AdminSidebar';
@@ -23,6 +23,19 @@ export function AdminChrome({ accountMenu, defaultCollapsed = false, children }:
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
+
+  // The drawer has no close button, so Escape and the backdrop are how it
+  // gets dismissed. Bound only while it's open — a global key listener that
+  // does nothing 99% of the time is a listener you forget you added.
+  useEffect(() => {
+    if (!navOpen) return;
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setNavOpen(false);
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [navOpen]);
 
   function toggleCollapsed() {
     const next = !collapsed;

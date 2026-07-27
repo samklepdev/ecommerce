@@ -206,3 +206,10 @@
     animation: none !important;
   }
 }
+
+/* Adopting the shared SectionHeader dropped the 56px that used to sit above
+   each of these — the component owns its own bottom rule but not the gap
+   between one section and the last. */
+.section {
+  margin-top: 56px;
+}

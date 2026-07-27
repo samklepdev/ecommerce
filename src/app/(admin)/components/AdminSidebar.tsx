@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import { cx } from '@/components/ui/cx';
 import { ADMIN_NAV, isNavItemActive } from './nav-items';
-import { ChevronLeftIcon, CloseIcon } from './icons';
+import { ChevronLeftIcon } from './icons';
 import styles from './AdminSidebar.module.css';
 
 interface AdminSidebarProps {
@@ -47,15 +47,6 @@ export function AdminSidebar({
                 <span className={styles.brandSub}>Admin console</span>
               </span>
             </Link>
-
-            <button
-              type="button"
-              className={styles.close}
-              onClick={onClose}
-              aria-label="Close menu"
-            >
-              <CloseIcon className={styles.closeIcon} />
-            </button>
 
             <button
               type="button"
