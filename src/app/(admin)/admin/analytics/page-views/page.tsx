@@ -86,9 +86,7 @@ export default async function PageViewsPage({ searchParams }: PageViewsPageProps
       <div className={styles.card}>
         <h2 className={styles.cardTitle}>Where visitors are</h2>
         <p className={styles.meta}>
-          {formatRangeDate(since)} — {formatRangeDate(until)} · same window as
-          everything else on this page. Resolved from each visitor&apos;s IP against a
-          local database; no request leaves the server.
+          {formatRangeDate(since)} — {formatRangeDate(until)}
         </p>
         <WorldMapPanel
           countries={summary.viewsByCountry}

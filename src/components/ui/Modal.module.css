@@ -14,10 +14,13 @@
   max-width: 480px;
   max-height: calc(100vh - var(--space-6) * 2);
   overflow-y: auto;
-  background: var(--color-surface);
+  /* Elevated, not `--color-surface`: surface is the *recessed* tone (a grey
+     in the admin theme), which made a dialog meant to sit above the page
+     read as a sunken panel. */
+  background: var(--color-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-card, var(--shadow-sm));
 }
 
 .header {
@@ -25,30 +28,52 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-4);
+  padding: var(--space-4) var(--space-5);
   border-bottom: 1px solid var(--color-border);
 }
 
 .title {
   font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   margin: 0;
 }
 
+/* Was a bare glyph with no padding — a ~10px target. Now a proper square,
+   which also gives the focus ring something to draw around. */
 .closeButton {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  margin-right: calc(var(--space-2) * -1);
   background: none;
   border: none;
   padding: 0;
   font: inherit;
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   line-height: 1;
   color: var(--color-muted);
   cursor: pointer;
+  transition: color 140ms ease;
 }
 
 .closeButton:hover {
   color: var(--foreground);
 }
 
+.closeButton:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 .body {
-  padding: var(--space-4);
+  padding: var(--space-5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .closeButton {
+    transition: none;
+  }
 }

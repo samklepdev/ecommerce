@@ -240,15 +240,50 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* forms ------------------------------------------------------------ */
+/* modal forms ------------------------------------------------------ */
+/* Scoped to this page rather than changing the shared `Field`, which the
+   storefront uses too. Element selectors reach inside Field's own markup —
+   the only way to restyle a CSS-module component from outside it. */
+.modalForm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.modalForm label {
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* Field ships a bottom margin for standalone use; the flex gap above is
+   doing that job here, so two spacings don't stack. */
+.modalForm > *,
+.modalForm .row > * {
+  margin-bottom: 0;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
 .row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
+  /* 140px columns meant three fields in a modal were each too narrow to
+     read their own label. */
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 18px 20px;
 }
 
 .rowField {
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 
 /* bulk actions ----------------------------------------------------- */

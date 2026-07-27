@@ -112,7 +112,7 @@ export function AddProductForm({ suppliers, onSuccess }: AddProductFormProps) {
         )}
       </div>
 
-      <form action={formAction}>
+      <form action={formAction} className={styles.modalForm}>
         <div className={styles.row}>
           <Field label="Slug" htmlFor="slug" className={styles.rowField}>
             <Input type="text" id="slug" name="slug" ref={slugRef} required />
@@ -193,9 +193,11 @@ export function AddProductForm({ suppliers, onSuccess }: AddProductFormProps) {
         {state.error && <Alert tone="danger">{state.error}</Alert>}
         {state.message && <Alert tone="success">{state.message}</Alert>}
 
-        <Button type="submit" disabled={isPending}>
-          {isPending ? 'Adding…' : 'Add product'}
-        </Button>
+        <div className={styles.modalFooter}>
+          <Button type="submit" disabled={isPending}>
+            {isPending ? 'Adding…' : 'Add product'}
+          </Button>
+        </div>
       </form>
     </>
   );
