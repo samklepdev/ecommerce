@@ -318,3 +318,11 @@
     gap: 18px 28px;
   }
 }
+
+/* Metric renders its own bordered surface, so these sit in a plain grid
+   rather than inside a card. */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: 16px;
+}

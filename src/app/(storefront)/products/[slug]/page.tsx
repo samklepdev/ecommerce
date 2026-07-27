@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 
 import { getContainer } from '@/composition/container';
 import type { Product } from '@/modules/catalog/domain/product';
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { ProductGallery } from './ProductGallery';
 import { BuyBox, type BuyBoxVariant } from './BuyBox';
 import { ProductTabs } from './ProductTabs';
@@ -113,23 +114,20 @@ export default async function ProductPage({ params }: ProductPageProps) {
   return (
     <div className={styles.root}>
       <div className={styles.page}>
-        <nav className={styles.crumbs} aria-label="Breadcrumb">
-          <Link href="/products">Shop</Link>
-          {product.category && (
-            <>
-              <span className={styles.crumbSep} aria-hidden="true">
-                /
-              </span>
-              <Link href={`/products?category=${encodeURIComponent(product.category)}`}>
-                {product.category}
-              </Link>
-            </>
-          )}
-          <span className={styles.crumbSep} aria-hidden="true">
-            /
-          </span>
-          <span aria-current="page">{product.name}</span>
-        </nav>
+        <Breadcrumbs
+          items={[
+            { label: 'Shop', href: '/products' },
+            ...(product.category
+              ? [
+                  {
+                    label: product.category,
+                    href: `/products?category=${encodeURIComponent(product.category)}`,
+                  },
+                ]
+              : []),
+            { label: product.name },
+          ]}
+        />
 
         <div className={styles.buyArea}>
           <ProductGallery images={images} productName={product.name} />
@@ -179,9 +177,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
         {relatedProducts.length > 0 && (
           <section>
-            <div className={styles.sectionHeader}>
-              <h2>You might also like</h2>
-            </div>
+            <SectionHeader title="You might also like" />
             <div className={styles.cardGrid}>
               {relatedProducts.map((related) => {
                 const summary = toProductCardSummary(related);

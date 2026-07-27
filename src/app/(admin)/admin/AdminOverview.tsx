@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 import type { OrderListItem } from '@/modules/orders/application/ports/order-history-repository';
 import { formatCount, formatRangeDate } from './analytics/format';
+import { Metric } from '@/components/ui/Metric';
 import { DailyColumnChart } from './analytics/components/DailyColumnChart';
 import styles from './page.module.css';
 
@@ -113,26 +114,14 @@ export function AdminOverview({
           <Link href="/admin/analytics">Analytics →</Link>
         </div>
 
-        <div className={styles.card}>
-          <dl className={styles.stats}>
-            <div>
-              <dt>Revenue booked</dt>
-              <dd>{revenueLabel}</dd>
-            </div>
-            <div>
-              <dt>Orders</dt>
-              <dd>{formatCount(ordersCount)}</dd>
-            </div>
-            <div>
-              <dt>Items sold</dt>
-              <dd>{formatCount(itemsSold)}</dd>
-            </div>
-            <div>
-              <dt>Page views</dt>
-              <dd>{formatCount(pageViews)}</dd>
-            </div>
-          </dl>
+        <div className={styles.metrics}>
+          <Metric label="Revenue booked" value={revenueLabel} />
+          <Metric label="Orders" value={formatCount(ordersCount)} />
+          <Metric label="Items sold" value={formatCount(itemsSold)} />
+          <Metric label="Page views" value={formatCount(pageViews)} />
+        </div>
 
+        <div className={styles.card}>
           <DailyColumnChart
             points={revenuePerDay}
             peakSuffix="peak day"

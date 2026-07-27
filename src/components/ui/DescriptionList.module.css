@@ -1,0 +1,25 @@
+.dl {
+  display: grid;
+  gap: 14px 24px;
+  margin: 0;
+}
+
+.dl dt {
+  font-family: var(--ui-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: 5px;
+}
+
+.dl dd {
+  margin: 0;
+  font-size: 13.5px;
+}
+
+@media (max-width: 640px) {
+  .dl {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}

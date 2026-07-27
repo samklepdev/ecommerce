@@ -1,0 +1,28 @@
+.wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.tip {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: var(--canvas);
+  font-size: 11.5px;
+  line-height: 1.45;
+  padding: 7px 10px;
+  width: max-content;
+  max-width: 230px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.14s ease;
+  z-index: 30;
+}
+
+.wrap:hover .tip,
+.wrap:focus .tip,
+.wrap:focus-visible .tip {
+  opacity: 1;
+}

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { getRecentlyViewedProductsAction } from '@/app/actions/products';
 import { ProductCardMini, type ProductCardSummary } from '../ProductCardMini';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import styles from './page.module.css';
 
 const STORAGE_KEY = 'recentlyViewed';
@@ -59,9 +60,7 @@ export function RecentlyViewed({ currentProductId }: RecentlyViewedProps) {
 
   return (
     <section>
-      <div className={styles.sectionHeader}>
-        <h2>Recently viewed</h2>
-      </div>
+      <SectionHeader title="Recently viewed" />
       {/* No sats figure here: the rate is fetched on the server and this
           list is assembled in the browser from localStorage. Fiat alone is
           better than a stale or invented conversion. */}

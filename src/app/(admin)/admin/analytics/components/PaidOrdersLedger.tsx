@@ -2,8 +2,8 @@ import Link from 'next/link';
 
 import { satsToBtcString } from '@/modules/payments/domain/bip21';
 import type { OnChainOrderActivity } from '@/modules/payments/application/use-cases/get-on-chain-activity-report';
-import { truncateAddress } from '../format';
-import { ConfirmationPips } from './ConfirmationPips';
+import { Address } from '@/components/ui/Address';
+import { Confirmations } from '@/components/ui/Confirmations';
 import styles from './PaidOrdersLedger.module.css';
 
 export interface PaidOrdersLedgerProps {
@@ -37,15 +37,15 @@ export function PaidOrdersLedger({ orders, requiredConfirmations }: PaidOrdersLe
                 {o.orderId.slice(0, 8)}
               </Link>
             </td>
-            <td data-label="Address" className={styles.addr} title={o.address}>
-              {truncateAddress(o.address)}
+            <td data-label="Address">
+              <Address value={o.address} />
             </td>
             <td data-label="Amount" className={`${styles.rt} ${styles.amount}`}>
               {satsToBtcString(o.expectedSats)}
               <span className={styles.unit}> BTC</span>
             </td>
             <td data-label="Confirmations">
-              <ConfirmationPips confirmations={o.confirmations} required={requiredConfirmations} />
+              <Confirmations confirmations={o.confirmations} target={requiredConfirmations} />
             </td>
             <td data-label="Flags" className={styles.rt}>
               {o.underpaid && <span className={`${styles.tag} ${styles.danger}`}>Underpaid</span>}

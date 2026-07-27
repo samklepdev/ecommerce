@@ -25,6 +25,12 @@
   --slate: #5a6880;
   --amber: #b87503;
   --rose: #a3231b;
+  --surface-hi: #f6f8fa;
+  --accent-ink: #ffffff;
+  --accent-wash: rgba(34, 70, 127, 0.07);
+  --amber-wash: rgba(184, 117, 3, 0.09);
+  --rose-wash: rgba(163, 35, 27, 0.07);
+  --shadow: 0 1px 2px rgba(11, 18, 32, 0.06), 0 8px 24px rgba(11, 18, 32, 0.08);
 
   --admin-sidebar-bg: var(--navy);
   --admin-sidebar-fg: #c9d3e3;

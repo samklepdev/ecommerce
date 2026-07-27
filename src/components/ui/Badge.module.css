@@ -34,3 +34,8 @@
   background: var(--color-danger);
   color: var(--color-danger-foreground);
 }
+
+.sats {
+  color: var(--amber, var(--color-warning));
+  background: var(--amber-wash);
+}

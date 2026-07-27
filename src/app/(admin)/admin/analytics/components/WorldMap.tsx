@@ -15,6 +15,7 @@ import type {
   CountryViews,
   RegionViews,
 } from '@/modules/analytics/application/ports/analytics-event-repository';
+import { DescriptionList } from '@/components/ui/DescriptionList';
 import { formatCount } from '../format';
 import worldGeoJson from './world-110m.json';
 import statesGeoJson from './us-states-110m.json';
@@ -349,22 +350,23 @@ function FocusFacts({ focus }: { focus: Focus }) {
     return (
       <>
         <span className={styles.title}>{city.city}</span>
-        <dl className={styles.facts}>
-          <div>
-            <dt>In</dt>
-            <dd>{[city.region, city.country].filter(Boolean).join(', ')}</dd>
-          </div>
-          <div>
-            <dt>Page views</dt>
-            <dd className={styles.mono}>{formatCount(city.views)}</dd>
-          </div>
-          <div>
-            <dt>Coordinates</dt>
-            <dd className={styles.mono}>
-              {city.latitude.toFixed(2)}, {city.longitude.toFixed(2)}
-            </dd>
-          </div>
-        </dl>
+        <DescriptionList
+          items={[
+            { term: 'In', value: [city.region, city.country].filter(Boolean).join(', ') },
+            {
+              term: 'Page views',
+              value: <span className={styles.mono}>{formatCount(city.views)}</span>,
+            },
+            {
+              term: 'Coordinates',
+              value: (
+                <span className={styles.mono}>
+                  {city.latitude.toFixed(2)}, {city.longitude.toFixed(2)}
+                </span>
+              ),
+            },
+          ]}
+        />
       </>
     );
   }
@@ -374,20 +376,16 @@ function FocusFacts({ focus }: { focus: Focus }) {
     return (
       <>
         <span className={styles.title}>{region.region}</span>
-        <dl className={styles.facts}>
-          <div>
-            <dt>In</dt>
-            <dd>{region.country}</dd>
-          </div>
-          <div>
-            <dt>Top city</dt>
-            <dd>{region.topCity ?? '—'}</dd>
-          </div>
-          <div>
-            <dt>Page views</dt>
-            <dd className={styles.mono}>{formatCount(region.views)}</dd>
-          </div>
-        </dl>
+        <DescriptionList
+          items={[
+            { term: 'In', value: region.country },
+            { term: 'Top city', value: region.topCity ?? '—' },
+            {
+              term: 'Page views',
+              value: <span className={styles.mono}>{formatCount(region.views)}</span>,
+            },
+          ]}
+        />
       </>
     );
   }
@@ -396,20 +394,19 @@ function FocusFacts({ focus }: { focus: Focus }) {
   return (
     <>
       <span className={styles.title}>{country.country}</span>
-      <dl className={styles.facts}>
-        <div>
-          <dt>Continent</dt>
-          <dd>{country.continent}</dd>
-        </div>
-        <div>
-          <dt>Sample address</dt>
-          <dd className={styles.mono}>{country.sampleIp ?? '—'}</dd>
-        </div>
-        <div>
-          <dt>Page views</dt>
-          <dd className={styles.mono}>{formatCount(country.views)}</dd>
-        </div>
-      </dl>
+      <DescriptionList
+        items={[
+          { term: 'Continent', value: country.continent },
+          {
+            term: 'Sample address',
+            value: <span className={styles.mono}>{country.sampleIp ?? '—'}</span>,
+          },
+          {
+            term: 'Page views',
+            value: <span className={styles.mono}>{formatCount(country.views)}</span>,
+          },
+        ]}
+      />
     </>
   );
 }

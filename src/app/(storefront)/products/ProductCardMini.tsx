@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 
+import { Amount } from '@/components/ui/Amount';
 import type { Product } from '@/modules/catalog/domain/product';
 import { ProductGlyph, glyphForCategory, type GlyphKind } from './ProductGlyph';
 import styles from './ProductCardMini.module.css';
@@ -82,8 +83,12 @@ export function ProductCardMini({
 
         {product.priceDisplay && (
           <div className={styles.price}>
-            <span className={styles.fiat}>{product.priceDisplay}</span>
-            {satsDisplay && <span className={styles.sats}>{satsDisplay}</span>}
+            <Amount
+              fiat={product.priceDisplay}
+              sats={satsDisplay}
+              size="sm"
+              layout="inline"
+            />
           </div>
         )}
       </div>

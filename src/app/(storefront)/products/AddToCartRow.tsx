@@ -5,6 +5,7 @@ import { useActionState, useState } from 'react';
 import { addToCartAction, type AddToCartActionResult } from '@/app/actions/cart';
 import { useAddToCartFeedback } from '@/app/lib/use-add-to-cart-feedback';
 import { MAX_CART_LINE_QUANTITY } from '@/modules/cart/domain/cart-line';
+import { QuantityStepper } from '@/components/ui/QuantityStepper';
 import styles from './AddToCartRow.module.css';
 
 interface AddToCartRowProps {
@@ -24,27 +25,12 @@ export function AddToCartRow({ variantId, disabled = false }: AddToCartRowProps)
       <input type="hidden" name="variantId" value={variantId} />
       <input type="hidden" name="quantity" value={quantity} />
 
-      <div className={styles.stepper}>
-        <button
-          type="button"
-          className={styles.stepButton}
-          onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-          disabled={disabled}
-          aria-label="Decrease quantity"
-        >
-          −
-        </button>
-        <span className={styles.quantity}>{quantity}</span>
-        <button
-          type="button"
-          className={styles.stepButton}
-          onClick={() => setQuantity((q) => Math.min(MAX_CART_LINE_QUANTITY, q + 1))}
-          disabled={disabled || quantity >= MAX_CART_LINE_QUANTITY}
-          aria-label="Increase quantity"
-        >
-          +
-        </button>
-      </div>
+      <QuantityStepper
+        value={quantity}
+        onChange={setQuantity}
+        max={MAX_CART_LINE_QUANTITY}
+        disabled={disabled}
+      />
 
       {/* No price here: the card above shows it in both fiat and sats, and
           repeating it in the action row made the tile read as two prices. */}

@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 
-import { cx } from '@/components/ui/cx';
+import { Tabs } from '@/components/ui/Tabs';
 import styles from './ProductTabs.module.css';
 
 export interface ProductTabsProps {
@@ -13,9 +13,9 @@ export interface ProductTabsProps {
 
 type TabId = 'description' | 'shipping';
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'description', label: 'Description' },
-  { id: 'shipping', label: 'Shipping & returns' },
+const TABS = [
+  { value: 'description' as const, label: 'Description' },
+  { value: 'shipping' as const, label: 'Shipping & returns' },
 ];
 
 /**
@@ -31,28 +31,12 @@ export function ProductTabs({ description }: ProductTabsProps) {
 
   return (
     <section className={styles.detail}>
-      <div className={styles.tabs} role="tablist" aria-label="Product detail">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            id={`tab-${tab.id}`}
-            aria-selected={active === tab.id}
-            aria-controls={`panel-${tab.id}`}
-            className={cx(styles.tab, active === tab.id && styles.tabOn)}
-            onClick={() => setActive(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <Tabs tabs={TABS} value={active} onChange={setActive} label="Product detail" />
 
       <div
         className={styles.panel}
         role="tabpanel"
         id={`panel-${active}`}
-        aria-labelledby={`tab-${active}`}
       >
         {active === 'description' ? (
           (description ?? <p className={styles.empty}>No description yet.</p>)

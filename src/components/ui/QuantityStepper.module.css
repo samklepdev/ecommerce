@@ -1,0 +1,39 @@
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line-strong);
+  flex: none;
+}
+
+.stepper button {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  width: 28px;
+  height: 34px;
+  font-size: 14px;
+  line-height: 1;
+  font-family: inherit;
+}
+
+.stepper button:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.stepper button:disabled {
+  color: var(--line-strong);
+  cursor: not-allowed;
+}
+
+.stepper span {
+  font-family: var(--ui-mono);
+  font-size: 12.5px;
+  min-width: 22px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.off {
+  opacity: 0.5;
+}
