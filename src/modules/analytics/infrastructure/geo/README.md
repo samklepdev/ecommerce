@@ -41,17 +41,29 @@ a VPN resolves to wherever it exits. Treat region and city as indications.
 Addresses that only resolve to country level store `region: null`, and the
 region breakdown leaves them out rather than bucketing them as "Unknown".
 
+## Where to keep it
+
+`IP_GEO_DB_PATH` decides. Unset, the app reads the copy committed here,
+which is convenient for development and for a fresh clone.
+
+**On a server, point it outside the working tree** — say
+`/var/lib/storefront/dbip-city-lite.mmdb.gz`. The archive is 59 MB, and
+committing a fresh one every month would add that to git history
+permanently: a year of refreshes is roughly 700 MB that no `git gc` can
+reclaim, paid by every clone forever.
+
 ## Refreshing
 
-IP allocations move, so a committed snapshot goes stale. DB-IP publish
-monthly:
+IP allocations move, so any snapshot goes stale. DB-IP publish monthly:
 
 ```bash
-curl -L -o src/modules/analytics/infrastructure/geo/dbip-city-lite.mmdb.gz \
-  "https://download.db-ip.com/free/dbip-city-lite-$(date +%Y-%m).mmdb.gz"
+npm run geo:fetch                                  # updates the file in place
+IP_GEO_DB_PATH=/var/lib/storefront/db.mmdb.gz npm run geo:fetch   # or on a server
 ```
 
-Commit the result — no decompression step, the app handles that. There's no
+The script walks back month by month until it finds a published release,
+writes to a temporary file and renames it into place, so an interrupted
+download can't replace a working database with a truncated one. There's no
 key to rotate and nothing to schedule; a few months of drift degrades
 accuracy gradually rather than breaking anything, since an unresolved
 address is already an ordinary outcome.

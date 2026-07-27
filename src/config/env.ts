@@ -51,6 +51,13 @@ const envSchema = z.object({
   // via env, no code change needed.
   SUPPORT_EMAIL: z.string().email().default('support@storefront.example'),
 
+  // Where the DB-IP database lives. Defaults to the copy in the repo, but
+  // on a server it's better kept outside the working tree — the archive is
+  // 59 MB and a monthly refresh would otherwise add that to git history
+  // permanently. Point this at e.g. /var/lib/storefront/dbip-city-lite.mmdb.gz
+  // and refresh it in place with `npm run geo:fetch`.
+  IP_GEO_DB_PATH: z.string().min(1).optional(),
+
   // Development affordance. Locally there is no `x-forwarded-for` header, so
   // `getClientIp()` yields 'unknown' and analytics records no country —
   // the geo features look permanently broken while you build them. Set this

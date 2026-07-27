@@ -16,7 +16,8 @@
     "queue:dev": "tsx watch src/workers/btc-watcher.ts",
     "worker": "tsx src/workers/btc-watcher.ts",
     "fixture:supplier": "node scripts/fixture-supplier-server.mjs",
-    "admin:promote": "tsx --env-file=.env scripts/bootstrap-admin.ts"
+    "admin:promote": "tsx --env-file=.env scripts/bootstrap-admin.ts",
+    "geo:fetch": "node scripts/fetch-geo-db.mjs"
   },
   "dependencies": {
     "argon2": "^0.41.1",

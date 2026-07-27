@@ -338,9 +338,10 @@ function build(): Container {
   const auditLogRepository = new DrizzleAuditLogRepository(db);
   const recordAuditLogEntry = new RecordAuditLogEntry(auditLogRepository);
   const analyticsEventRepository = new DrizzleAnalyticsEventRepository(db);
-  // Local database read, no per-request network call — see the README beside
-  // the .mmdb for licence and refresh.
-  const ipGeo = new MmdbIpGeoLookup();
+  // Local database read, no per-request network call — see the README in
+  // modules/analytics/infrastructure/geo for licence, refresh and why a
+  // server should hold the archive outside the repo.
+  const ipGeo = new MmdbIpGeoLookup(env.IP_GEO_DB_PATH);
   const recordAnalyticsEvent = new RecordAnalyticsEvent(analyticsEventRepository, ipGeo);
   const getWebAnalyticsSummary = new GetWebAnalyticsSummary(analyticsEventRepository);
   const listAnalyticsEvents = new ListAnalyticsEvents(analyticsEventRepository);

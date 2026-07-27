@@ -9,10 +9,11 @@ import type { IpGeoLookup, IpLocation } from '@/modules/analytics/application/po
 
 const gunzipAsync = promisify(gunzip);
 
-/** Ships in the repo, gzipped — see `README.md` beside it for licence and
- * refresh. Resolved from cwd rather than `import.meta.url` so it works the
- * same in dev, in the built server, and under vitest. */
-const DEFAULT_DB_PATH = path.join(
+/** Fallback location: the copy in the repo. Resolved from cwd rather than
+ * `import.meta.url` so it works the same in dev, in the built server, and
+ * under vitest. `IP_GEO_DB_PATH` overrides it — see `README.md` beside this
+ * file for why a server should keep the archive outside the working tree. */
+export const BUNDLED_DB_PATH = path.join(
   process.cwd(),
   'src/modules/analytics/infrastructure/geo/dbip-city-lite.mmdb.gz',
 );
@@ -38,7 +39,7 @@ export class MmdbIpGeoLookup implements IpGeoLookup {
    * first-callers share one decompression instead of racing several. */
   private reader: Promise<Reader<CityResponse>> | null = null;
 
-  constructor(private readonly dbPath: string = DEFAULT_DB_PATH) {}
+  constructor(private readonly dbPath: string = BUNDLED_DB_PATH) {}
 
   async lookup(ip: string): Promise<IpLocation | null> {
     try {
