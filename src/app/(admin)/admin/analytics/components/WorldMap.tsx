@@ -58,6 +58,9 @@ const WORLD_BOUNDS = new LatLngBounds([-60, -180], [85, 180]);
  * The console is pinned to one light theme, so there is nothing to keep in
  * sync beyond these five values.
  */
+const MIN_ZOOM = 2;
+const MAX_ZOOM = 7;
+
 const MAP_COLORS = {
   country: '#22467f', // --accent
   state: '#7e9cd4', // --accent-light
@@ -90,6 +93,65 @@ function WheelZoomOnFocus({ onChange }: { onChange: (enabled: boolean) => void }
   });
 
   return null;
+}
+
+interface CityMarkersProps {
+  cities: CityViews[];
+  maxViews: number;
+  onFocus: (city: CityViews) => void;
+}
+
+/**
+ * City markers, sized for the current zoom.
+ *
+ * A `CircleMarker`'s radius is in screen pixels, so a dot that reads well
+ * zoomed in covers half a continent at world view. This scales the whole
+ * range with zoom, keeping the markers legible up close and unobtrusive
+ * when the whole map is on screen.
+ *
+ * Lives inside `MapContainer` because tracking zoom needs the map context.
+ */
+function CityMarkers({ cities, maxViews, onFocus }: CityMarkersProps) {
+  const map = useMap();
+  const [zoom, setZoom] = useState(() => map.getZoom());
+
+  useMapEvents({
+    zoomend() {
+      setZoom(map.getZoom());
+    },
+  });
+
+  // 0.5 at world view up to ~1.4 fully zoomed in.
+  const zoomScale = 0.5 + ((zoom - MIN_ZOOM) / (MAX_ZOOM - MIN_ZOOM)) * 0.9;
+
+  return (
+    <>
+      {cities.map((city) => (
+        <CircleMarker
+          key={`${city.country}-${city.region ?? ''}-${city.city}`}
+          center={[city.latitude, city.longitude]}
+          // Area scales with views, not radius — scaling the radius makes a
+          // city with four times the traffic look sixteen times bigger.
+          radius={(2.5 + Math.sqrt(city.views / maxViews) * 5) * zoomScale}
+          pathOptions={{
+            color: MAP_COLORS.city,
+            fillColor: MAP_COLORS.city,
+            fillOpacity: 0.75,
+            weight: 1.25,
+          }}
+          eventHandlers={{
+            mouseover: () => onFocus(city),
+            click: () => onFocus(city),
+          }}
+        >
+          <Tooltip direction="top" offset={[0, -4]} className={styles.tip}>
+            {city.city}
+            {city.region ? `, ${city.region}` : ''} — {formatCount(city.views)} views
+          </Tooltip>
+        </CircleMarker>
+      ))}
+    </>
+  );
 }
 
 /** What the readout panel is currently describing. */
@@ -218,9 +280,9 @@ export function WorldMap({ countries, regions, cities }: WorldMapProps) {
       <MapContainer
         className={styles.map}
         center={[20, 0]}
-        zoom={2}
-        minZoom={2}
-        maxZoom={7}
+        zoom={MIN_ZOOM}
+        minZoom={MIN_ZOOM}
+        maxZoom={MAX_ZOOM}
         maxBounds={WORLD_BOUNDS}
         // Springs back rather than hard-stopping at the edge, which reads as
         // the map being broken.
@@ -240,30 +302,11 @@ export function WorldMap({ countries, regions, cities }: WorldMapProps) {
         <GeoJSON data={world} style={countryStyle} onEachFeature={onEachCountry} />
         <GeoJSON data={usStates} style={stateStyle} onEachFeature={onEachState} />
 
-        {cities.map((city) => (
-          <CircleMarker
-            key={`${city.country}-${city.region ?? ''}-${city.city}`}
-            center={[city.latitude, city.longitude]}
-            // Area scales with views, not radius — scaling the radius makes
-            // a city with 4x the traffic look 16x bigger.
-            radius={4 + Math.sqrt(city.views / maxCity) * 7}
-            pathOptions={{
-              color: MAP_COLORS.city,
-              fillColor: MAP_COLORS.city,
-              fillOpacity: 0.75,
-              weight: 1.5,
-            }}
-            eventHandlers={{
-              mouseover: () => setFocus({ kind: 'city', value: city }),
-              click: () => setFocus({ kind: 'city', value: city }),
-            }}
-          >
-            <Tooltip direction="top" offset={[0, -4]} className={styles.tip}>
-              {city.city}
-              {city.region ? `, ${city.region}` : ''} — {formatCount(city.views)} views
-            </Tooltip>
-          </CircleMarker>
-        ))}
+        <CityMarkers
+          cities={cities}
+          maxViews={maxCity}
+          onFocus={(city) => setFocus({ kind: 'city', value: city })}
+        />
       </MapContainer>
 
       <div className={styles.readout}>
