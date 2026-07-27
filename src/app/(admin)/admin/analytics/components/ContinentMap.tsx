@@ -48,9 +48,11 @@ export function ContinentMap({ summaries, busiest }: ContinentMapProps) {
   if (total === 0) {
     return (
       <p className={styles.empty}>
-        No traffic has resolved to a country yet. Private and loopback
-        addresses have no location, so this fills in once the site is
-        reachable from the public internet.
+        No traffic has resolved to a country yet. Country comes from the
+        visitor&apos;s IP, and requests to localhost carry no forwarded
+        address — set <code>ANALYTICS_DEV_IP</code> to see this populate in
+        development, or deploy behind a proxy that sets{' '}
+        <code>x-forwarded-for</code>.
       </p>
     );
   }

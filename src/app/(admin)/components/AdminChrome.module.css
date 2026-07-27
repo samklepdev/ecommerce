@@ -74,12 +74,18 @@
    scrolls normally instead. */
 @media (min-width: 1024px) {
   .shell {
+    /* `flex: none` matters: the shell is a flex item of the column-flex
+       body, where `flex: 1` sets flex-basis 0% and that — not `height` —
+       decides the main size. With flex:1 the 100vh below was ignored, the
+       shell grew to fit its content, and the rail collapsed with it. */
+    flex: none;
     height: 100vh;
     overflow: hidden;
   }
 
   .main {
     overflow-y: auto;
+    min-height: 0;
   }
 }
 

@@ -17,8 +17,9 @@ export function CountryList({ items }: CountryListProps) {
       <section className={styles.card}>
         <h3 className={styles.title}>By country</h3>
         <p className={styles.empty}>
-          Nothing resolved yet. Local and private addresses have no country,
-          so this stays empty until real traffic arrives.
+          No country resolved yet. Country comes from the visitor&apos;s IP,
+          and requests to localhost carry no forwarded address — set{' '}
+          <code>ANALYTICS_DEV_IP</code> to see this populate in development.
         </p>
       </section>
     );

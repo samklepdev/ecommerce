@@ -41,3 +41,23 @@ anything, since an unresolved address is already an ordinary outcome.
 standalone build includes it. Without that entry, Next's tracer wouldn't see
 it — nothing imports the `.mmdb`, it's opened by path at runtime — and
 country resolution would silently return `null` in production.
+
+## Seeing it work locally
+
+`getClientIp()` reads `x-forwarded-for`. Requests straight to `localhost`
+have no such header, so every event records `unknown` as its address and no
+country ever resolves — the country list and map stay empty however much you
+browse.
+
+Set `ANALYTICS_DEV_IP` in `.env` to any public address to stand in:
+
+```
+ANALYTICS_DEV_IP=8.8.8.8
+```
+
+`src/config/env.ts` forces this to `undefined` unless `NODE_ENV` is
+`development`, so it cannot put a fabricated address into real data.
+
+Note that country is attached **when the event is recorded**. Page views
+captured before this feature existed have no country and won't gain one
+retroactively.

@@ -50,7 +50,23 @@ const envSchema = z.object({
   // The Footer's "Contact support" mailto: link — swap for a real address
   // via env, no code change needed.
   SUPPORT_EMAIL: z.string().email().default('support@storefront.example'),
+
+  // Development affordance. Locally there is no `x-forwarded-for` header, so
+  // `getClientIp()` yields 'unknown' and analytics records no country —
+  // the geo features look permanently broken while you build them. Set this
+  // to any public address to see them populate. Forced to undefined outside
+  // development below, so it can never launder a fake IP into real data.
+  ANALYTICS_DEV_IP: z.string().min(1).optional(),
 });
 
-export const env = envSchema.parse(process.env);
+const parsed = envSchema.parse(process.env);
+
+export const env: Env = {
+  ...parsed,
+  // Gated here rather than at the call site so this stays the only file that
+  // reads process.env.
+  ANALYTICS_DEV_IP:
+    process.env.NODE_ENV === 'development' ? parsed.ANALYTICS_DEV_IP : undefined,
+};
+
 export type Env = z.infer<typeof envSchema>;
