@@ -33,7 +33,7 @@ const nextConfig: NextConfig = {
   // Next's dependency tracer can't see it. Without this it would be absent
   // in production and country resolution would silently return null.
   outputFileTracingIncludes: {
-    '/**': ['./src/modules/analytics/infrastructure/geo/*.mmdb'],
+    '/**': ['./src/modules/analytics/infrastructure/geo/*.mmdb.gz'],
   },
   experimental: {
     serverActions: {

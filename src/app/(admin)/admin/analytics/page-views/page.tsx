@@ -12,6 +12,7 @@ import { RankedList } from '../components/RankedList';
 import { PathFilter } from '../components/PathFilter';
 import { DwellList } from '../components/DwellList';
 import { CountryList } from '../components/CountryList';
+import { RegionList } from '../components/RegionList';
 import { WorldMapPanel } from '../components/WorldMapPanel';
 import { EventLogTable } from '../components/EventLogTable';
 import styles from '../drill-down.module.css';
@@ -79,7 +80,7 @@ export default async function PageViewsPage({ searchParams }: PageViewsPageProps
       <div className={styles.split}>
         <RankedList title="Top pages" items={summary.topPaths} unit="views" />
         <DwellList items={summary.dwellByPath} />
-        <CountryList items={summary.viewsByCountry} />
+        <RankedList title="Top referrers" items={summary.topReferrers} unit="sessions" />
       </div>
 
       <div className={styles.card}>
@@ -89,6 +90,11 @@ export default async function PageViewsPage({ searchParams }: PageViewsPageProps
           request leaves the server.
         </p>
         <WorldMapPanel countries={summary.viewsByCountry} />
+
+        <div className={styles.geoSplit}>
+          <CountryList items={summary.viewsByCountry} />
+          <RegionList items={summary.viewsByRegion} />
+        </div>
         {/* CC BY 4.0 requires attribution wherever the data is shown. */}
         <p className={styles.attribution}>
           IP geolocation by{' '}
@@ -96,10 +102,6 @@ export default async function PageViewsPage({ searchParams }: PageViewsPageProps
             DB-IP
           </a>
         </p>
-      </div>
-
-      <div className={styles.split}>
-        <RankedList title="Top referrers" items={summary.topReferrers} unit="sessions" />
       </div>
 
       <div className={styles.card}>

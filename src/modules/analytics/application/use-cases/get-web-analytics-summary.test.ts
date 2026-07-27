@@ -46,6 +46,9 @@ describe('GetWebAnalyticsSummary', () => {
       async viewsByCountry() {
         return [];
       },
+      async viewsByRegion() {
+        return [];
+      },
       async listBySessionId() {
         throw new Error('not used by this use case');
       },
@@ -62,6 +65,7 @@ describe('GetWebAnalyticsSummary', () => {
       cartChangesPerDay,
       dwellByPath: [],
       viewsByCountry: [],
+      viewsByRegion: [],
     });
   });
 });

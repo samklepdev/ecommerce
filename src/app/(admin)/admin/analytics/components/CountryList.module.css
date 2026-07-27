@@ -88,3 +88,10 @@
   text-transform: uppercase;
   color: var(--faint);
 }
+
+/* The country qualifier on a region row — "Victoria" exists in Australia
+   and Canada, so the region alone is ambiguous. */
+.sub {
+  color: var(--faint);
+  font-size: 11.5px;
+}

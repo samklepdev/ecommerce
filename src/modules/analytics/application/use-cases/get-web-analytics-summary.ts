@@ -4,6 +4,7 @@ import type {
   CountryViews,
   DailyCount,
   PathDwell,
+  RegionViews,
   ValueCount,
 } from '@/modules/analytics/application/ports/analytics-event-repository';
 
@@ -24,6 +25,8 @@ export interface GetWebAnalyticsSummaryResult {
   dwellByPath: PathDwell[];
   /** Page views by country, resolved from the visitor's IP at record time. */
   viewsByCountry: CountryViews[];
+  /** The same, one level finer: state, province or region. */
+  viewsByRegion: RegionViews[];
 }
 
 const TOP_LIMIT = 10;
@@ -45,6 +48,7 @@ export class GetWebAnalyticsSummary
       cartChangesPerDay,
       dwellByPath,
       viewsByCountry,
+      viewsByRegion,
     ] = await Promise.all([
         this.events.countByTypePerDay('page_view', since, until),
         this.events.countByTypePerDay('search', since, until),
@@ -54,6 +58,7 @@ export class GetWebAnalyticsSummary
         this.events.countByTypePerDay('cart_changed', since, until),
         this.events.averageDwellByPath(since, until, TOP_LIMIT),
         this.events.viewsByCountry(since, until, TOP_LIMIT),
+        this.events.viewsByRegion(since, until, TOP_LIMIT),
       ]);
 
     return {
@@ -65,6 +70,7 @@ export class GetWebAnalyticsSummary
       cartChangesPerDay,
       dwellByPath,
       viewsByCountry,
+      viewsByRegion,
     };
   }
 }

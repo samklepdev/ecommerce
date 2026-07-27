@@ -40,6 +40,16 @@ export interface CountryViews {
   sampleIp: string | null;
 }
 
+export interface RegionViews {
+  region: string;
+  country: string;
+  views: number;
+  /** Most-seen city within the region, when one resolved. Cities are far
+   * less reliable than regions — an address often lands on the ISP's hub
+   * rather than the visitor's town — so it's context, not a finding. */
+  topCity: string | null;
+}
+
 export interface PathDwell {
   path: string;
   meanMs: number;
@@ -94,6 +104,11 @@ export interface AnalyticsEventRepository {
    * as "Unknown" — a private or missing address says nothing about where
    * the visitor was. */
   viewsByCountry(since: Date, until: Date, limit: number): Promise<CountryViews[]>;
+  /** Page views grouped by first-level subdivision (state, province,
+   * region), busiest first. Events that only resolved to country level are
+   * excluded rather than bucketed as "Unknown" — the region genuinely isn't
+   * known for them. */
+  viewsByRegion(since: Date, until: Date, limit: number): Promise<RegionViews[]>;
   /** Mean dwell time per path, in milliseconds, from `page_exit` events —
    * paths with no exit events recorded simply don't appear. */
   averageDwellByPath(since: Date, until: Date, limit: number): Promise<PathDwell[]>;

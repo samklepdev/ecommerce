@@ -75,3 +75,18 @@
 .attribution a:hover {
   color: var(--accent);
 }
+
+/* Country and region side by side beneath the map — they answer the same
+   question at two grains, so they belong on one line. */
+.geoSplit {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+@media (max-width: 940px) {
+  .geoSplit {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -7,10 +7,18 @@ export interface IpLocation {
   continentCode: string;
   /** English continent name, e.g. `North America`. */
   continent: string;
+  /** First-level subdivision — a state, province or region, e.g.
+   * `California`. `null` for countries that have none, and for addresses
+   * the database only resolves to country level. */
+  region: string | null;
+  /** e.g. `Mountain View`. `null` when unresolved. Cities are much less
+   * reliable than countries: an address commonly resolves to the ISP's
+   * hub rather than the visitor's town. */
+  city: string | null;
 }
 
 /**
- * Resolves a request IP to a country.
+ * Resolves a request IP to a location.
  *
  * A port because the source is a swappable detail: today it's a bundled
  * DB-IP database read from disk, but a CDN geo header or a paid feed would

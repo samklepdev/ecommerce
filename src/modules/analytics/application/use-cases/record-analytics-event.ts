@@ -39,6 +39,12 @@ export class RecordAnalyticsEvent implements UseCase<AnalyticsEventInput, void> 
         country: location.country,
         countryCode: location.countryCode,
         continent: location.continent,
+        // Null for country-only resolutions and for countries with no
+        // subdivisions — stored as null rather than omitted so a missing
+        // region is distinguishable from an event recorded before regions
+        // were captured at all.
+        region: location.region,
+        city: location.city,
       },
     };
   }

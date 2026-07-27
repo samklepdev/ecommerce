@@ -9,6 +9,7 @@ import type {
   AnalyticsEventRow,
   CountryViews,
   PathDwell,
+  RegionViews,
   AnalyticsEventType,
   DailyCount,
   ValueCount,
@@ -175,6 +176,42 @@ export class DrizzleAnalyticsEventRepository implements AnalyticsEventRepository
       continent: r.continent,
       views: Number(r.views),
       sampleIp: r.sampleIp,
+    }));
+  }
+
+  async viewsByRegion(since: Date, until: Date, limit: number): Promise<RegionViews[]> {
+    const region = sql<string>`${analyticsEvents.metadata} ->> 'region'`;
+    const country = sql<string>`${analyticsEvents.metadata} ->> 'country'`;
+
+    const rows = await this.db
+      .select({
+        region,
+        country,
+        views: sql<number>`count(*)`,
+        // The most frequent city in the region, not an arbitrary one — mode()
+        // is exactly this and keeps the value stable between reloads.
+        topCity: sql<
+          string | null
+        >`mode() within group (order by ${analyticsEvents.metadata} ->> 'city')`,
+      })
+      .from(analyticsEvents)
+      .where(
+        and(
+          eq(analyticsEvents.eventType, 'page_view'),
+          gte(analyticsEvents.createdAt, since),
+          lte(analyticsEvents.createdAt, until),
+          sql`${analyticsEvents.metadata} ->> 'region' IS NOT NULL`,
+        ),
+      )
+      .groupBy(region, country)
+      .orderBy(desc(sql`count(*)`))
+      .limit(limit);
+
+    return rows.map((r) => ({
+      region: r.region,
+      country: r.country,
+      views: Number(r.views),
+      topCity: r.topCity,
     }));
   }
 
