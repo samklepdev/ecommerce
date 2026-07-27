@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function CartPage() {
   const owner = await resolveCartOwner();
-  const { getCart, getShippingRate, getProductForVariant } = getContainer();
+  const { getCart, getShippingRate, getProduct } = getContainer();
   const cart = await getCart.execute({ owner });
 
   if (!cart || cart.isEmpty) {
@@ -39,11 +39,11 @@ export default async function CartPage() {
   const shipping = await getShippingRate.execute();
   const total = subtotal.add(shipping);
 
-  const productsByVariantId = new Map(
+  const productsById = new Map(
     await Promise.all(
       cart.lines.map(
         async (line) =>
-          [line.variantId, await getProductForVariant.execute({ variantId: line.variantId })] as const,
+          [line.productId, await getProduct.execute({ productId: line.productId })] as const,
       ),
     ),
   );
@@ -57,9 +57,9 @@ export default async function CartPage() {
           {cart.lines.map((line) => {
             // A deleted/archived product still has an order-independent
             // cart line — fall back to the sku rather than hiding the row.
-            const product = productsByVariantId.get(line.variantId) ?? null;
+            const product = productsById.get(line.productId) ?? null;
             return (
-              <Card key={line.variantId} className={styles.lineCard}>
+              <Card key={line.productId} className={styles.lineCard}>
                 <div className={styles.lineInfo}>
                   {product?.imageUrl ? (
                     // Supplier image hosts are dynamic/admin-added, not known at build time.
@@ -74,9 +74,9 @@ export default async function CartPage() {
                   </div>
                 </div>
                 <div className={styles.lineActions}>
-                  <CartLineQuantityStepper variantId={line.variantId} quantity={line.quantity} />
+                  <CartLineQuantityStepper productId={line.productId} quantity={line.quantity} />
                   <form action={removeFromCartAction}>
-                    <input type="hidden" name="variantId" value={line.variantId} />
+                    <input type="hidden" name="productId" value={line.productId} />
                     <Button type="submit" variant="ghost" iconOnly aria-label="Remove item">
                       <TrashIcon />
                     </Button>

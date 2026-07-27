@@ -9,11 +9,11 @@ import {
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
-import styles from './VariantPriceEditor.module.css';
+import styles from './ProductPriceEditor.module.css';
 
 const initialState: UpdateProductCategoryActionResult = {};
 
-/** Same nonce pattern as `VariantPriceEditor`'s `useResultNonce`. */
+/** Same nonce pattern as `ProductPriceEditor`'s `useResultNonce`. */
 function useResultNonce(result: unknown): number {
   const [[prev, nonce], setState] = useState<[unknown, number]>([result, 0]);
   if (prev !== result) {
@@ -27,7 +27,7 @@ export interface ProductCategoryEditorProps {
   category: string | null;
 }
 
-/** Always-editable inline category field, product-level (not per-variant) —
+/** Always-editable inline category field —
  * backfills existing/imported products, all of which start category-less.
  * An empty value clears the category. */
 export function ProductCategoryEditor({ productId, category }: ProductCategoryEditorProps) {

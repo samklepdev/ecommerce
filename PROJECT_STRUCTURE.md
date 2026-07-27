@@ -70,7 +70,6 @@ ecommerce/
     │   ├── catalog/
     │   │   ├── domain/
     │   │   │   ├── product.ts             # Product entity
-    │   │   │   ├── product-variant.ts
     │   │   │   └── slug.ts                # value object
     │   │   ├── application/
     │   │   │   ├── ports/product-repository.ts

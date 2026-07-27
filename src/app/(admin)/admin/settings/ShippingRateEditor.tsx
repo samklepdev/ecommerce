@@ -13,7 +13,7 @@ import styles from './ShippingRateEditor.module.css';
 
 const initialState: UpdateShippingRateActionResult = {};
 
-/** Same nonce pattern as `VariantPriceEditor`'s `useResultNonce` — bumps
+/** Same nonce pattern as `ProductPriceEditor`'s `useResultNonce` — bumps
  * whenever `result` is a new object, used to `key` the alert so a repeat
  * submission restarts its fade-out. */
 function useResultNonce(result: unknown): number {

@@ -1,6 +1,5 @@
 import { AggregateRoot } from '@/shared/domain/entity';
 import type { Slug } from './slug';
-import type { ProductVariant } from './product-variant';
 import type { Money } from '@/shared/domain/money';
 
 export type ProductStatus = 'draft' | 'active' | 'archived';
@@ -24,7 +23,10 @@ export interface ProductProps {
   status: ProductStatus;
   source?: ProductSource;
   category?: string | null;
-  variants: ProductVariant[];
+  /** The product *is* the sellable unit — there is no variant beneath it, so
+   * the stock-keeping identity and the price live here. */
+  sku: string;
+  price: Money;
 }
 
 export class Product extends AggregateRoot<string> {
@@ -36,7 +38,8 @@ export class Product extends AggregateRoot<string> {
   readonly status: ProductStatus;
   readonly source: ProductSource;
   readonly category: string | null;
-  readonly variants: ProductVariant[];
+  readonly sku: string;
+  readonly price: Money;
 
   private constructor(props: ProductProps) {
     super(props.id);
@@ -48,7 +51,8 @@ export class Product extends AggregateRoot<string> {
     this.status = props.status;
     this.source = props.source ?? 'manual';
     this.category = props.category ?? null;
-    this.variants = props.variants;
+    this.sku = props.sku;
+    this.price = props.price;
   }
 
   /** The image to show on hover in a product grid, if one has been added. */
@@ -56,26 +60,13 @@ export class Product extends AggregateRoot<string> {
     return this.additionalImages[0]?.url ?? null;
   }
 
-  /** The lowest-priced variant's price — for display contexts with no
-   * specific variant selected yet (e.g. "You might also like" cards). Null
-   * only if the product has no variants at all. */
-  get cheapestVariantPrice(): Money | null {
-    if (this.variants.length === 0) return null;
-    return this.variants.reduce((min, v) =>
-      v.price.amountMinor < min.price.amountMinor ? v : min,
-    ).price;
-  }
-
   static create(props: ProductProps): Product {
     if (!props.name.trim()) throw new Error('Product requires a non-empty name');
+    if (!props.sku.trim()) throw new Error('Product requires a non-empty sku');
     return new Product(props);
   }
 
   get isActive(): boolean {
     return this.status === 'active';
-  }
-
-  findVariant(variantId: string): ProductVariant | undefined {
-    return this.variants.find((v) => v.id === variantId);
   }
 }

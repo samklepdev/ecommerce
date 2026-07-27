@@ -4,17 +4,20 @@ import { randomUUID } from 'node:crypto';
 import { RepriceCart } from './reprice-cart';
 import { Cart } from '@/modules/cart/domain/cart';
 import { CartLine } from '@/modules/cart/domain/cart-line';
-import { ProductVariant } from '@/modules/catalog/domain/product-variant';
+import { Product } from '@/modules/catalog/domain/product';
+import { Slug } from '@/modules/catalog/domain/slug';
 import { Money } from '@/shared/domain/money';
 import type { CartRepository } from '@/modules/cart/application/ports/cart-repository';
 import type { ProductRepository } from '@/modules/catalog/application/ports/product-repository';
 
-function makeVariant(id: string, unitAmountMinor: number) {
-  return ProductVariant.create({
+function makeProduct(id: string, unitAmountMinor: number, sku = `SKU-${id.slice(0, 4)}`) {
+  return Product.create({
     id,
-    productId: randomUUID(),
-    sku: `SKU-${id.slice(0, 4)}`,
-    name: 'Default',
+    slug: Slug.create(`widget-${id.slice(0, 4)}`),
+    name: 'Widget',
+    description: null,
+    status: 'active',
+    sku,
     price: Money.of(unitAmountMinor, 'USD'),
   });
 }
@@ -30,17 +33,17 @@ function makeFakeCarts(cart: Cart | null) {
   return repo;
 }
 
-function makeFakeProducts(variantsById: Map<string, ProductVariant>) {
+function makeFakeProducts(productsById: Map<string, Product>) {
   const repo: Partial<ProductRepository> = {
-    async findVariantById(variantId) {
-      return variantsById.get(variantId) ?? null;
+    async findById(productId) {
+      return productsById.get(productId) ?? null;
     },
   };
   return repo as ProductRepository;
 }
 
 describe('RepriceCart', () => {
-  it('returns a zero subtotal and no stale variants when there is no cart', async () => {
+  it('returns a zero subtotal and no stale products when there is no cart', async () => {
     const carts = makeFakeCarts(null);
     const products = makeFakeProducts(new Map());
 
@@ -50,25 +53,25 @@ describe('RepriceCart', () => {
     });
 
     expect(result.subtotal.amountMinor).toBe(0);
-    expect(result.staleVariantIds).toEqual([]);
+    expect(result.staleProductIds).toEqual([]);
   });
 
   it('sums the current catalog price per line and flags drifted prices', async () => {
-    const variantA = randomUUID();
-    const variantB = randomUUID();
+    const productA = randomUUID();
+    const productB = randomUUID();
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
       lines: [
-        CartLine.create({ variantId: variantA, sku: 'A', quantity: 2, unitPrice: Money.of(1000, 'USD') }), // stale
-        CartLine.create({ variantId: variantB, sku: 'B', quantity: 1, unitPrice: Money.of(500, 'USD') }), // current
+        CartLine.create({ productId: productA, sku: 'A', quantity: 2, unitPrice: Money.of(1000, 'USD') }), // stale
+        CartLine.create({ productId: productB, sku: 'B', quantity: 1, unitPrice: Money.of(500, 'USD') }), // current
       ],
     });
     const carts = makeFakeCarts(cart);
     const products = makeFakeProducts(
       new Map([
-        [variantA, makeVariant(variantA, 1500)], // catalog price drifted from cart's 1000
-        [variantB, makeVariant(variantB, 500)], // unchanged
+        [productA, makeProduct(productA, 1500)], // catalog price drifted from cart's 1000
+        [productB, makeProduct(productB, 500)], // unchanged
       ]),
     );
 
@@ -79,15 +82,15 @@ describe('RepriceCart', () => {
 
     // Priced from the catalog: 1500*2 + 500*1 = 3500
     expect(result.subtotal.amountMinor).toBe(3500);
-    expect(result.staleVariantIds).toEqual([variantA]);
+    expect(result.staleProductIds).toEqual([productA]);
   });
 
-  it('skips lines whose variant no longer exists in the catalog', async () => {
-    const goneVariant = randomUUID();
+  it('skips lines whose product no longer exists in the catalog', async () => {
+    const goneProduct = randomUUID();
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
-      lines: [CartLine.create({ variantId: goneVariant, sku: 'GONE', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
+      lines: [CartLine.create({ productId: goneProduct, sku: 'GONE', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
     });
     const carts = makeFakeCarts(cart);
     const products = makeFakeProducts(new Map());
@@ -98,6 +101,6 @@ describe('RepriceCart', () => {
     });
 
     expect(result.subtotal.amountMinor).toBe(0);
-    expect(result.staleVariantIds).toEqual([]);
+    expect(result.staleProductIds).toEqual([]);
   });
 });

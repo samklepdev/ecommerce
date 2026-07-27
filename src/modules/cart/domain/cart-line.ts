@@ -6,7 +6,7 @@ import { Money } from '@/shared/domain/money';
 export const MAX_CART_LINE_QUANTITY = 99;
 
 interface CartLineProps {
-  variantId: string;
+  productId: string;
   sku: string;
   quantity: number;
   unitPrice: Money;
@@ -22,8 +22,8 @@ export class CartLine extends ValueObject<CartLineProps> {
     return new CartLine(props);
   }
 
-  get variantId(): string {
-    return this.props.variantId;
+  get productId(): string {
+    return this.props.productId;
   }
 
   get sku(): string {

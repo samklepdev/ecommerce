@@ -10,7 +10,7 @@ import type { SupplierOfferRepository } from '@/modules/sourcing/application/por
 
 export interface PaidOrderLine {
   id: string;
-  variantId: string;
+  productId: string;
   quantity: number;
 }
 
@@ -27,9 +27,9 @@ export interface CreateSupplierOrdersForPaidOrderInput {
 }
 
 /**
- * Groups a paid order's lines by each variant's preferred supplier and
+ * Groups a paid order's lines by each product's preferred supplier and
  * creates one SupplierOrder per distinct supplier — the ops task queue this
- * becomes `/admin/fulfillment`. Lines whose variant has no preferred offer
+ * becomes `/admin/fulfillment`. Lines whose product has no preferred offer
  * are skipped; there's nothing actionable to buy without a source.
  */
 export class CreateSupplierOrdersForPaidOrder
@@ -49,12 +49,12 @@ export class CreateSupplierOrdersForPaidOrder
     const bySupplier = new Map<string, CreateSupplierOrderInput>();
 
     for (const line of lines) {
-      const offer = await this.supplierOffers.findPreferredByVariantId(line.variantId);
+      const offer = await this.supplierOffers.findPreferredByProductId(line.productId);
       if (!offer) {
         logger.warn('supplier order line skipped: no preferred offer', {
           orderId: input.orderId,
           orderLineId: line.id,
-          variantId: line.variantId,
+          productId: line.productId,
         });
         await this.orders.flagFulfillmentIssue(line.id, 'no_preferred_supplier_offer');
         continue;
@@ -62,7 +62,7 @@ export class CreateSupplierOrdersForPaidOrder
 
       const draft = {
         orderLineId: line.id,
-        variantId: line.variantId,
+        productId: line.productId,
         quantity: line.quantity,
         unitCostMinor: offer.cost.amountMinor,
         costCurrency: offer.cost.currency,

@@ -6,11 +6,11 @@ import { addSupplierOfferAction, type AddSupplierOfferActionResult } from '@/app
 import { Input, Select } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
-import styles from './VariantPriceEditor.module.css';
+import styles from './ProductPriceEditor.module.css';
 
 const initialState: AddSupplierOfferActionResult = {};
 
-/** Same nonce pattern as `VariantPriceEditor`'s `useResultNonce`. */
+/** Same nonce pattern as `ProductPriceEditor`'s `useResultNonce`. */
 function useResultNonce(result: unknown): number {
   const [[prev, nonce], setState] = useState<[unknown, number]>([result, 0]);
   if (prev !== result) {
@@ -25,21 +25,21 @@ interface Supplier {
 }
 
 export interface AddSupplierOfferFormProps {
-  variantId: string;
+  productId: string;
   suppliers: Supplier[];
 }
 
-/** Adds a further supplier offer to an existing variant — the same use case
- * "add product" already uses for a variant's first offer. Only becomes
- * preferred if the variant had no offer at all yet, so this never silently
+/** Adds a further supplier offer to an existing product — the same use case
+ * "add product" already uses for a product's first offer. Only becomes
+ * preferred if the product had no offer at all yet, so this never silently
  * steals preference from whatever's already preferred. */
-export function AddSupplierOfferForm({ variantId, suppliers }: AddSupplierOfferFormProps) {
+export function AddSupplierOfferForm({ productId, suppliers }: AddSupplierOfferFormProps) {
   const [state, formAction, isPending] = useActionState(addSupplierOfferAction, initialState);
   const nonce = useResultNonce(state);
 
   return (
     <form action={formAction} className={styles.form}>
-      <input type="hidden" name="variantId" value={variantId} />
+      <input type="hidden" name="productId" value={productId} />
       <Select name="supplierId" required defaultValue="" aria-label="Supplier" className={styles.priceInput}>
         <option value="" disabled>
           Add offer from…

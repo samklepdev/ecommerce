@@ -4,7 +4,8 @@ import { randomUUID } from 'node:crypto';
 import { ReorderItems } from './reorder-items';
 import { Cart } from '@/modules/cart/domain/cart';
 import { CartLine } from '@/modules/cart/domain/cart-line';
-import { ProductVariant } from '@/modules/catalog/domain/product-variant';
+import { Product } from '@/modules/catalog/domain/product';
+import { Slug } from '@/modules/catalog/domain/slug';
 import { Money } from '@/shared/domain/money';
 import type { CartRepository } from '@/modules/cart/application/ports/cart-repository';
 import type { ProductRepository } from '@/modules/catalog/application/ports/product-repository';
@@ -13,12 +14,14 @@ import type {
   OrderHistoryRepository,
 } from '@/modules/orders/application/ports/order-history-repository';
 
-function makeVariant(id: string, unitAmountMinor: number, sku = `SKU-${id.slice(0, 4)}`) {
-  return ProductVariant.create({
+function makeProduct(id: string, unitAmountMinor: number, sku = `SKU-${id.slice(0, 4)}`) {
+  return Product.create({
     id,
-    productId: randomUUID(),
+    slug: Slug.create(`widget-${id.slice(0, 4)}`),
+    name: 'Widget',
+    description: null,
+    status: 'active',
     sku,
-    name: 'Default',
     price: Money.of(unitAmountMinor, 'USD'),
   });
 }
@@ -73,10 +76,10 @@ function makeFakeCarts(existing: Cart | null) {
   return { repo, saved };
 }
 
-function makeFakeProducts(variantsById: Map<string, ProductVariant>) {
+function makeFakeProducts(productsById: Map<string, Product>) {
   const repo: Partial<ProductRepository> = {
-    async findVariantById(variantId: string) {
-      return variantsById.get(variantId) ?? null;
+    async findById(productId: string) {
+      return productsById.get(productId) ?? null;
     },
   };
   return repo as ProductRepository;
@@ -86,13 +89,13 @@ const owner = { type: 'guest' as const, sessionId: 's1' };
 
 describe('ReorderItems', () => {
   it('adds every reorderable line to a fresh cart, re-priced from the catalog', async () => {
-    const variantId = randomUUID();
+    const productId = randomUUID();
     const order = makeOrderDetail({
-      lines: [{ variantId, sku: 'OLD-SKU', quantity: 2, unitAmountMinor: 1, imageUrl: null }], // stale price on purpose
+      lines: [{ productId, sku: 'OLD-SKU', quantity: 2, unitAmountMinor: 1, imageUrl: null }], // stale price on purpose
     });
     const { repo: orders } = makeFakeOrderHistory(order);
     const { repo: carts, saved } = makeFakeCarts(null);
-    const products = makeFakeProducts(new Map([[variantId, makeVariant(variantId, 1999)]]));
+    const products = makeFakeProducts(new Map([[productId, makeProduct(productId, 1999)]]));
 
     const result = await new ReorderItems(orders, carts, products).execute({
       owner,
@@ -111,10 +114,10 @@ describe('ReorderItems', () => {
   });
 
   it('merges into an existing cart rather than replacing it', async () => {
-    const variantId = randomUUID();
-    const existingVariantId = randomUUID();
+    const productId = randomUUID();
+    const existingProductId = randomUUID();
     const order = makeOrderDetail({
-      lines: [{ variantId, sku: 'SKU-A', quantity: 1, unitAmountMinor: 500, imageUrl: null }],
+      lines: [{ productId, sku: 'SKU-A', quantity: 1, unitAmountMinor: 500, imageUrl: null }],
     });
     const { repo: orders } = makeFakeOrderHistory(order);
     const existingCart = Cart.create({
@@ -122,7 +125,7 @@ describe('ReorderItems', () => {
       owner,
       lines: [
         CartLine.create({
-          variantId: existingVariantId,
+          productId: existingProductId,
           sku: 'SKU-EXISTING',
           quantity: 1,
           unitPrice: Money.of(300, 'USD'),
@@ -130,21 +133,21 @@ describe('ReorderItems', () => {
       ],
     });
     const { repo: carts, saved } = makeFakeCarts(existingCart);
-    const products = makeFakeProducts(new Map([[variantId, makeVariant(variantId, 500, 'SKU-A')]]));
+    const products = makeFakeProducts(new Map([[productId, makeProduct(productId, 500, 'SKU-A')]]));
 
     await new ReorderItems(orders, carts, products).execute({ owner, orderId: 'order-1', ownerUserId: null });
 
     expect(saved[0]?.lines).toHaveLength(2);
   });
 
-  it('skips lines whose variant no longer exists, reporting them rather than failing', async () => {
-    const goneVariantId = randomUUID();
+  it('skips lines whose product no longer exists, reporting them rather than failing', async () => {
+    const goneProductId = randomUUID();
     const order = makeOrderDetail({
-      lines: [{ variantId: goneVariantId, sku: 'GONE-SKU', quantity: 1, unitAmountMinor: 100, imageUrl: null }],
+      lines: [{ productId: goneProductId, sku: 'GONE-SKU', quantity: 1, unitAmountMinor: 100, imageUrl: null }],
     });
     const { repo: orders } = makeFakeOrderHistory(order);
     const { repo: carts, saved } = makeFakeCarts(null);
-    const products = makeFakeProducts(new Map()); // variant not found
+    const products = makeFakeProducts(new Map()); // product not found
 
     const result = await new ReorderItems(orders, carts, products).execute({
       owner,

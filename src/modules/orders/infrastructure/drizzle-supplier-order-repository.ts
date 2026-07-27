@@ -56,7 +56,7 @@ export class DrizzleSupplierOrderRepository implements SupplierOrderRepository {
             id: randomUUID(),
             supplierOrderId,
             orderLineId: l.orderLineId,
-            variantId: l.variantId,
+            productId: l.productId,
             quantity: l.quantity,
             unitCostMinor: l.unitCostMinor,
           })),
@@ -94,7 +94,7 @@ export class DrizzleSupplierOrderRepository implements SupplierOrderRepository {
     const lineRows = await this.db
       .select({
         supplierOrderId: supplierOrderLines.supplierOrderId,
-        variantId: supplierOrderLines.variantId,
+        productId: supplierOrderLines.productId,
         quantity: supplierOrderLines.quantity,
         unitCostMinor: supplierOrderLines.unitCostMinor,
         sku: orderLines.sku,
@@ -112,7 +112,7 @@ export class DrizzleSupplierOrderRepository implements SupplierOrderRepository {
     for (const line of lineRows) {
       const list = linesBySupplierOrder.get(line.supplierOrderId) ?? [];
       list.push({
-        variantId: line.variantId,
+        productId: line.productId,
         sku: line.sku,
         quantity: line.quantity,
         unitCostMinor: line.unitCostMinor,

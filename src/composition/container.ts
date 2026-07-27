@@ -67,12 +67,11 @@ import { ListProductCategories } from '@/modules/catalog/application/use-cases/l
 import { UpdateProductCategory } from '@/modules/catalog/application/use-cases/update-product-category';
 import { UpdateProductDetails } from '@/modules/catalog/application/use-cases/update-product-details';
 import { GetProductBySlug } from '@/modules/catalog/application/use-cases/get-product-by-slug';
-import { GetProductForVariant } from '@/modules/catalog/application/use-cases/get-product-for-variant';
+import { GetProduct } from '@/modules/catalog/application/use-cases/get-product';
 import { GetProductsByIds } from '@/modules/catalog/application/use-cases/get-products-by-ids';
 import { CreateProduct } from '@/modules/catalog/application/use-cases/create-product';
-import { CreateProductVariant } from '@/modules/catalog/application/use-cases/create-product-variant';
-import { UpdateVariantPrice } from '@/modules/catalog/application/use-cases/update-variant-price';
-import { ApplyMarkupToVariants } from '@/modules/catalog/application/use-cases/apply-markup-to-variants';
+import { UpdateProductPrice } from '@/modules/catalog/application/use-cases/update-product-price';
+import { ApplyMarkupToProducts } from '@/modules/catalog/application/use-cases/apply-markup-to-products';
 import { BulkAssignCategory } from '@/modules/catalog/application/use-cases/bulk-assign-category';
 import { DrizzleAuditLogRepository } from '@/modules/audit/infrastructure/drizzle-audit-log-repository';
 import { RecordAuditLogEntry } from '@/modules/audit/application/use-cases/record-audit-log-entry';
@@ -152,8 +151,8 @@ import { SetSupplierActive } from '@/modules/sourcing/application/use-cases/set-
 import { CreateSupplierOffer } from '@/modules/sourcing/application/use-cases/create-supplier-offer';
 import { UpdateSupplierOfferCost } from '@/modules/sourcing/application/use-cases/update-supplier-offer-cost';
 import { SetPreferredSupplierOffer } from '@/modules/sourcing/application/use-cases/set-preferred-supplier-offer';
-import { GetPreferredOfferForVariant } from '@/modules/sourcing/application/use-cases/get-preferred-offer-for-variant';
-import { ListSupplierOffersForVariant } from '@/modules/sourcing/application/use-cases/list-supplier-offers-for-variant';
+import { GetPreferredOfferForProduct } from '@/modules/sourcing/application/use-cases/get-preferred-offer-for-product';
+import { ListSupplierOffersForProduct } from '@/modules/sourcing/application/use-cases/list-supplier-offers-for-product';
 import { ImportProductsFromFeed } from '@/modules/sourcing/application/use-cases/import-products-from-feed';
 import { ExtractProductFromUrl } from '@/modules/sourcing/application/use-cases/extract-product-from-url';
 import { LocalFileImageStorage } from '@/shared/infrastructure/local-file-image-storage';
@@ -178,12 +177,11 @@ export interface Container {
   updateProductCategory: UpdateProductCategory;
   updateProductDetails: UpdateProductDetails;
   getProductBySlug: GetProductBySlug;
-  getProductForVariant: GetProductForVariant;
+  getProduct: GetProduct;
   getProductsByIds: GetProductsByIds;
   createProduct: CreateProduct;
-  createProductVariant: CreateProductVariant;
-  updateVariantPrice: UpdateVariantPrice;
-  applyMarkupToVariants: ApplyMarkupToVariants;
+  updateProductPrice: UpdateProductPrice;
+  applyMarkupToProducts: ApplyMarkupToProducts;
   bulkAssignCategory: BulkAssignCategory;
   recordAuditLogEntry: RecordAuditLogEntry;
   recordAnalyticsEvent: RecordAnalyticsEvent;
@@ -247,8 +245,8 @@ export interface Container {
   createSupplierOffer: CreateSupplierOffer;
   updateSupplierOfferCost: UpdateSupplierOfferCost;
   setPreferredSupplierOffer: SetPreferredSupplierOffer;
-  getPreferredOfferForVariant: GetPreferredOfferForVariant;
-  listSupplierOffersForVariant: ListSupplierOffersForVariant;
+  getPreferredOfferForProduct: GetPreferredOfferForProduct;
+  listSupplierOffersForProduct: ListSupplierOffersForProduct;
   importProductsFromFeed: ImportProductsFromFeed;
   extractProductFromUrl: ExtractProductFromUrl;
 
@@ -328,12 +326,11 @@ function build(): Container {
   const updateProductCategory = new UpdateProductCategory(products);
   const updateProductDetails = new UpdateProductDetails(products);
   const getProductBySlug = new GetProductBySlug(products);
-  const getProductForVariant = new GetProductForVariant(products);
+  const getProduct = new GetProduct(products);
   const getProductsByIds = new GetProductsByIds(products);
   const createProduct = new CreateProduct(products);
-  const createProductVariant = new CreateProductVariant(products);
-  const updateVariantPrice = new UpdateVariantPrice(products);
-  const applyMarkupToVariants = new ApplyMarkupToVariants(products);
+  const updateProductPrice = new UpdateProductPrice(products);
+  const applyMarkupToProducts = new ApplyMarkupToProducts(products);
   const bulkAssignCategory = new BulkAssignCategory(products);
   const auditLogRepository = new DrizzleAuditLogRepository(db);
   const recordAuditLogEntry = new RecordAuditLogEntry(auditLogRepository);
@@ -431,8 +428,8 @@ function build(): Container {
   const createSupplierOffer = new CreateSupplierOffer(supplierOffers);
   const updateSupplierOfferCost = new UpdateSupplierOfferCost(supplierOffers);
   const setPreferredSupplierOffer = new SetPreferredSupplierOffer(supplierOffers);
-  const getPreferredOfferForVariant = new GetPreferredOfferForVariant(supplierOffers);
-  const listSupplierOffersForVariant = new ListSupplierOffersForVariant(supplierOffers);
+  const getPreferredOfferForProduct = new GetPreferredOfferForProduct(supplierOffers);
+  const listSupplierOffersForProduct = new ListSupplierOffersForProduct(supplierOffers);
   const imageStorage = new LocalFileImageStorage();
   const addProductImages = new AddProductImages(products, imageStorage);
   const removeProductImage = new RemoveProductImage(products);
@@ -442,7 +439,6 @@ function build(): Container {
     supplierFeedFetcher,
     products,
     createProduct,
-    createProductVariant,
     createSupplierOffer,
     imageStorage,
   );
@@ -541,12 +537,11 @@ function build(): Container {
     updateProductCategory,
     updateProductDetails,
     getProductBySlug,
-    getProductForVariant,
+    getProduct,
     getProductsByIds,
     createProduct,
-    createProductVariant,
-    updateVariantPrice,
-    applyMarkupToVariants,
+    updateProductPrice,
+    applyMarkupToProducts,
     bulkAssignCategory,
     recordAuditLogEntry,
     recordAnalyticsEvent,
@@ -606,8 +601,8 @@ function build(): Container {
     createSupplierOffer,
     updateSupplierOfferCost,
     setPreferredSupplierOffer,
-    getPreferredOfferForVariant,
-    listSupplierOffersForVariant,
+    getPreferredOfferForProduct,
+    listSupplierOffersForProduct,
     importProductsFromFeed,
     extractProductFromUrl,
     getShippingRate,

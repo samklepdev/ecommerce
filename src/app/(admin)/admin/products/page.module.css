@@ -76,12 +76,8 @@
   white-space: normal;
 }
 
-.variantBlock {
-  border-top: 1px solid var(--color-border);
-  padding-top: var(--space-3);
-}
-
-.variantHeading {
+/* The product's stock-keeping identity, above its price and offers. */
+.skuHeading {
   font-weight: 500;
   margin-bottom: var(--space-2);
 }

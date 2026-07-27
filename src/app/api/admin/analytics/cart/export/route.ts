@@ -20,8 +20,8 @@ function linesSummary(metadata: Record<string, unknown> | null): string {
   return lines
     .map((line) => {
       if (typeof line !== 'object' || line === null) return '';
-      const { variantId, quantity } = line as Record<string, unknown>;
-      return `${String(variantId)}×${String(quantity)}`;
+      const { productId, quantity } = line as Record<string, unknown>;
+      return `${String(productId)}×${String(quantity)}`;
     })
     .join(' ');
 }

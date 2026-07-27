@@ -21,14 +21,14 @@ interface CartPageProps {
 }
 
 /** Cart events carry the change in `metadata` rather than a path — what an
- * admin wants to see is which variant moved and by how much. */
+ * admin wants to see is which product moved and by how much. */
 function cartChange(row: { metadata: Record<string, unknown> | null; path: string | null }): string {
   const meta = row.metadata ?? {};
   const action = typeof meta.action === 'string' ? meta.action : null;
-  const variant = typeof meta.variantId === 'string' ? meta.variantId.slice(0, 8) : null;
+  const product = typeof meta.productId === 'string' ? meta.productId.slice(0, 8) : null;
   const quantity = typeof meta.quantity === 'number' ? meta.quantity : null;
 
-  const parts = [action, variant, quantity === null ? null : `×${quantity}`].filter(Boolean);
+  const parts = [action, product, quantity === null ? null : `×${quantity}`].filter(Boolean);
   return parts.length > 0 ? parts.join(' · ') : (row.path ?? '—');
 }
 

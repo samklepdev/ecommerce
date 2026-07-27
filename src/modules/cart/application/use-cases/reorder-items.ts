@@ -25,7 +25,7 @@ export type ReorderItemsError = { code: 'order_not_found' };
 /** Re-adds a past order's lines to the current cart, re-priced from the
  * live catalog — mirrors AddToCart's re-pricing (never trust the order's
  * stored price) applied per line, and MergeGuestCart's load-loop-save
- * shape. Lines whose variant no longer exists are skipped and reported,
+ * shape. Lines whose product no longer exists are skipped and reported,
  * not treated as a failure of the whole operation. */
 export class ReorderItems implements UseCase<ReorderItemsInput, Result<ReorderItemsResult, ReorderItemsError>> {
   constructor(
@@ -45,17 +45,17 @@ export class ReorderItems implements UseCase<ReorderItemsInput, Result<ReorderIt
     const unavailableSkus: string[] = [];
     let addedCount = 0;
     for (const line of order.lines) {
-      const variant = await this.products.findVariantById(line.variantId);
-      if (!variant) {
+      const product = await this.products.findById(line.productId);
+      if (!product) {
         unavailableSkus.push(line.sku);
         continue;
       }
       cart = cart.addLine(
         CartLine.create({
-          variantId: variant.id,
-          sku: variant.sku,
+          productId: product.id,
+          sku: product.sku,
           quantity: line.quantity,
-          unitPrice: variant.price,
+          unitPrice: product.price,
         }),
       );
       addedCount++;

@@ -6,7 +6,7 @@ import { CartLine } from '@/modules/cart/domain/cart-line';
 import type { CartRepository } from '@/modules/cart/application/ports/cart-repository';
 
 interface StoredLine {
-  variantId: string;
+  productId: string;
   sku: string;
   quantity: number;
   unitAmountMinor: number;
@@ -31,12 +31,23 @@ export class RedisCartRepository implements CartRepository {
     const raw = await this.redis.get(keyFor(owner));
     if (!raw) return null;
     const stored = JSON.parse(raw) as StoredCart;
+
+    // Carts written before variants were removed store a `variantId` holding
+    // a product_variants id — a row that no longer exists, so the line can't
+    // be re-priced or ordered. There's nothing to migrate it to from here, and
+    // a cart is cheap to rebuild, so drop it rather than hand back lines that
+    // would fail at checkout.
+    if (stored.lines.some((l) => typeof l.productId !== 'string')) {
+      await this.delete(owner);
+      return null;
+    }
+
     return Cart.create({
       id: stored.id,
       owner,
       lines: stored.lines.map((l) =>
         CartLine.create({
-          variantId: l.variantId,
+          productId: l.productId,
           sku: l.sku,
           quantity: l.quantity,
           unitPrice: Money.of(l.unitAmountMinor, l.currency),
@@ -49,7 +60,7 @@ export class RedisCartRepository implements CartRepository {
     const stored: StoredCart = {
       id: cart.id,
       lines: cart.lines.map((l) => ({
-        variantId: l.variantId,
+        productId: l.productId,
         sku: l.sku,
         quantity: l.quantity,
         unitAmountMinor: l.unitPrice.amountMinor,

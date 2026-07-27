@@ -4,7 +4,8 @@ import { randomUUID } from 'node:crypto';
 import { PlaceOrder } from './place-order';
 import { Cart } from '@/modules/cart/domain/cart';
 import { CartLine } from '@/modules/cart/domain/cart-line';
-import { ProductVariant } from '@/modules/catalog/domain/product-variant';
+import { Product } from '@/modules/catalog/domain/product';
+import { Slug } from '@/modules/catalog/domain/slug';
 import { Money } from '@/shared/domain/money';
 import type { CartRepository } from '@/modules/cart/application/ports/cart-repository';
 import type { ProductRepository } from '@/modules/catalog/application/ports/product-repository';
@@ -14,12 +15,14 @@ import type { ShippingRateRepository } from '@/modules/shipping/application/port
 import { Coupon } from '@/modules/coupons/domain/coupon';
 import type { CouponRepository } from '@/modules/coupons/application/ports/coupon-repository';
 
-function makeVariant(id: string, unitAmountMinor: number) {
-  return ProductVariant.create({
+function makeProduct(id: string, unitAmountMinor: number, sku = `SKU-${id.slice(0, 4)}`) {
+  return Product.create({
     id,
-    productId: randomUUID(),
-    sku: `SKU-${id.slice(0, 4)}`,
-    name: 'Default',
+    slug: Slug.create(`widget-${id.slice(0, 4)}`),
+    name: 'Widget',
+    description: null,
+    status: 'active',
+    sku,
     price: Money.of(unitAmountMinor, 'USD'),
   });
 }
@@ -38,10 +41,10 @@ function makeFakeCarts(cart: Cart | null) {
   return { repo, deletedOwners };
 }
 
-function makeFakeProducts(variantsById: Map<string, ProductVariant>) {
+function makeFakeProducts(productsById: Map<string, Product>) {
   const repo: Partial<ProductRepository> = {
-    async findVariantById(variantId: string) {
-      return variantsById.get(variantId) ?? null;
+    async findById(productId: string) {
+      return productsById.get(productId) ?? null;
     },
   };
   return repo as ProductRepository;
@@ -89,18 +92,18 @@ function validShippingAddress() {
 
 describe('PlaceOrder', () => {
   it('turns a priced cart into a durable pending order, repricing from the catalog', async () => {
-    const variantId = randomUUID();
-    const variant = makeVariant(variantId, 1999); // catalog price
+    const productId = randomUUID();
+    const product = makeProduct(productId, 1999); // catalog price
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
       // Cart's own stored price is stale/wrong on purpose — PlaceOrder must
       // never trust it.
-      lines: [CartLine.create({ variantId, sku: 'OLD-SKU', quantity: 2, unitPrice: Money.of(1, 'USD') })],
+      lines: [CartLine.create({ productId, sku: 'OLD-SKU', quantity: 2, unitPrice: Money.of(1, 'USD') })],
     });
 
     const { repo: carts, deletedOwners } = makeFakeCarts(cart);
-    const products = makeFakeProducts(new Map([[variantId, variant]]));
+    const products = makeFakeProducts(new Map([[productId, product]]));
     const { repo: orders, created } = makeFakeOrders();
 
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
@@ -118,7 +121,7 @@ describe('PlaceOrder', () => {
     expect(order.lines).toHaveLength(1);
     // Priced from the catalog (1999), not the cart's stale stored price (1).
     expect(order.lines[0]?.unitPrice.amountMinor).toBe(1999);
-    expect(order.lines[0]?.sku).toBe(variant.sku); // catalog sku, not the cart's stale one
+    expect(order.lines[0]?.sku).toBe(product.sku); // catalog sku, not the cart's stale one
     expect(order.paymentStatus).toBe('pending');
     expect(order.fulfillmentStatus).toBe('unfulfilled');
     // The cart is cleared once its contents become a durable order.
@@ -164,15 +167,15 @@ describe('PlaceOrder', () => {
     if (!result.ok) expect(result.error.code).toBe('empty_cart');
   });
 
-  it('returns variant_unavailable when a cart line references a variant no longer in the catalog', async () => {
-    const variantId = randomUUID();
+  it('returns product_unavailable when a cart line references a product no longer in the catalog', async () => {
+    const productId = randomUUID();
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
-      lines: [CartLine.create({ variantId, sku: 'GONE', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
+      lines: [CartLine.create({ productId, sku: 'GONE', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
     });
     const { repo: carts } = makeFakeCarts(cart);
-    const products = makeFakeProducts(new Map()); // variant not found
+    const products = makeFakeProducts(new Map()); // product not found
     const { repo: orders, created } = makeFakeOrders();
 
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
@@ -186,22 +189,22 @@ describe('PlaceOrder', () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.code).toBe('variant_unavailable');
-      if (result.error.code === 'variant_unavailable') expect(result.error.variantId).toBe(variantId);
+      expect(result.error.code).toBe('product_unavailable');
+      if (result.error.code === 'product_unavailable') expect(result.error.productId).toBe(productId);
     }
     expect(created).toHaveLength(0);
   });
 
   it('sets userId from the owner when logged in, null for a guest', async () => {
-    const variantId = randomUUID();
-    const variant = makeVariant(variantId, 500);
+    const productId = randomUUID();
+    const product = makeProduct(productId, 500);
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'user', userId: 'user-1' },
-      lines: [CartLine.create({ variantId, sku: 'X', quantity: 1, unitPrice: Money.of(500, 'USD') })],
+      lines: [CartLine.create({ productId, sku: 'X', quantity: 1, unitPrice: Money.of(500, 'USD') })],
     });
     const { repo: carts } = makeFakeCarts(cart);
-    const products = makeFakeProducts(new Map([[variantId, variant]]));
+    const products = makeFakeProducts(new Map([[productId, product]]));
     const { repo: orders, created } = makeFakeOrders();
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
     const coupons = makeFakeCoupons();
@@ -217,15 +220,15 @@ describe('PlaceOrder', () => {
   });
 
   it('snapshots the current shipping rate onto the order', async () => {
-    const variantId = randomUUID();
-    const variant = makeVariant(variantId, 1000);
+    const productId = randomUUID();
+    const product = makeProduct(productId, 1000);
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
-      lines: [CartLine.create({ variantId, sku: 'X', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
+      lines: [CartLine.create({ productId, sku: 'X', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
     });
     const { repo: carts } = makeFakeCarts(cart);
-    const products = makeFakeProducts(new Map([[variantId, variant]]));
+    const products = makeFakeProducts(new Map([[productId, product]]));
     const { repo: orders, created } = makeFakeOrders();
     const shippingRates = makeFakeShippingRates(Money.of(599, 'USD'));
     const coupons = makeFakeCoupons();
@@ -242,15 +245,15 @@ describe('PlaceOrder', () => {
   });
 
   it('applies a valid active coupon and snapshots the discount + code onto the order', async () => {
-    const variantId = randomUUID();
-    const variant = makeVariant(variantId, 2000);
+    const productId = randomUUID();
+    const product = makeProduct(productId, 2000);
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
-      lines: [CartLine.create({ variantId, sku: 'X', quantity: 1, unitPrice: Money.of(2000, 'USD') })],
+      lines: [CartLine.create({ productId, sku: 'X', quantity: 1, unitPrice: Money.of(2000, 'USD') })],
     });
     const { repo: carts } = makeFakeCarts(cart);
-    const products = makeFakeProducts(new Map([[variantId, variant]]));
+    const products = makeFakeProducts(new Map([[productId, product]]));
     const { repo: orders, created } = makeFakeOrders();
     const shippingRates = makeFakeShippingRates(Money.of(500, 'USD'));
     const coupon = Coupon.create({
@@ -276,15 +279,15 @@ describe('PlaceOrder', () => {
   });
 
   it('returns invalid_coupon for a code that does not exist', async () => {
-    const variantId = randomUUID();
-    const variant = makeVariant(variantId, 2000);
+    const productId = randomUUID();
+    const product = makeProduct(productId, 2000);
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
-      lines: [CartLine.create({ variantId, sku: 'X', quantity: 1, unitPrice: Money.of(2000, 'USD') })],
+      lines: [CartLine.create({ productId, sku: 'X', quantity: 1, unitPrice: Money.of(2000, 'USD') })],
     });
     const { repo: carts } = makeFakeCarts(cart);
-    const products = makeFakeProducts(new Map([[variantId, variant]]));
+    const products = makeFakeProducts(new Map([[productId, product]]));
     const { repo: orders, created } = makeFakeOrders();
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
     const coupons = makeFakeCoupons(null);
@@ -303,15 +306,15 @@ describe('PlaceOrder', () => {
   });
 
   it('returns invalid_coupon for a deactivated code', async () => {
-    const variantId = randomUUID();
-    const variant = makeVariant(variantId, 2000);
+    const productId = randomUUID();
+    const product = makeProduct(productId, 2000);
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
-      lines: [CartLine.create({ variantId, sku: 'X', quantity: 1, unitPrice: Money.of(2000, 'USD') })],
+      lines: [CartLine.create({ productId, sku: 'X', quantity: 1, unitPrice: Money.of(2000, 'USD') })],
     });
     const { repo: carts } = makeFakeCarts(cart);
-    const products = makeFakeProducts(new Map([[variantId, variant]]));
+    const products = makeFakeProducts(new Map([[productId, product]]));
     const { repo: orders, created } = makeFakeOrders();
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
     const inactiveCoupon = Coupon.create({

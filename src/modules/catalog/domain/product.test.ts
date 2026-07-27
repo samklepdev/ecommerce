@@ -2,19 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 
 import { Product } from './product';
-import { ProductVariant } from './product-variant';
 import { Slug } from './slug';
 import { Money } from '@/shared/domain/money';
-
-function makeVariant() {
-  return ProductVariant.create({
-    id: randomUUID(),
-    productId: randomUUID(),
-    sku: 'WIDGET-X',
-    name: 'Default',
-    price: Money.of(1999, 'USD'),
-  });
-}
 
 function makeProps(overrides: Partial<Parameters<typeof Product.create>[0]> = {}) {
   return {
@@ -23,7 +12,8 @@ function makeProps(overrides: Partial<Parameters<typeof Product.create>[0]> = {}
     name: 'Widget X',
     description: null,
     status: 'draft' as const,
-    variants: [makeVariant()],
+    sku: 'WIDGET-X',
+    price: Money.of(1999, 'USD'),
     ...overrides,
   };
 }
@@ -42,6 +32,13 @@ describe('Product.create', () => {
 
   it('throws for a whitespace-only name', () => {
     expect(() => Product.create(makeProps({ name: '   ' }))).toThrow(/non-empty name/);
+  });
+
+  // The sku moved here when variants were removed, and it carries the same
+  // invariant it had on the variant: a product with no stock-keeping identity
+  // can't be ordered from a supplier.
+  it('throws for an empty sku', () => {
+    expect(() => Product.create(makeProps({ sku: '  ' }))).toThrow(/non-empty sku/);
   });
 });
 
@@ -68,48 +65,5 @@ describe('Product#hoverImageUrl', () => {
       }),
     );
     expect(product.hoverImageUrl).toBe('/a.png');
-  });
-});
-
-describe('Product#findVariant', () => {
-  it('finds a variant by id', () => {
-    const variant = makeVariant();
-    const product = Product.create(makeProps({ variants: [variant] }));
-    expect(product.findVariant(variant.id)).toBe(variant);
-  });
-
-  it('returns undefined for an unknown variant id', () => {
-    const product = Product.create(makeProps());
-    expect(product.findVariant('nonexistent')).toBeUndefined();
-  });
-});
-
-describe('Product#cheapestVariantPrice', () => {
-  it('is null when there are no variants', () => {
-    expect(Product.create(makeProps({ variants: [] })).cheapestVariantPrice).toBeNull();
-  });
-
-  it('is the single variant price when there is only one', () => {
-    const product = Product.create(makeProps());
-    expect(product.cheapestVariantPrice?.amountMinor).toBe(1999);
-  });
-
-  it('is the lowest-priced variant among several', () => {
-    const cheap = ProductVariant.create({
-      id: randomUUID(),
-      productId: randomUUID(),
-      sku: 'WIDGET-CHEAP',
-      name: 'Cheap',
-      price: Money.of(500, 'USD'),
-    });
-    const expensive = ProductVariant.create({
-      id: randomUUID(),
-      productId: randomUUID(),
-      sku: 'WIDGET-EXPENSIVE',
-      name: 'Expensive',
-      price: Money.of(5000, 'USD'),
-    });
-    const product = Product.create(makeProps({ variants: [expensive, cheap] }));
-    expect(product.cheapestVariantPrice?.amountMinor).toBe(500);
   });
 });

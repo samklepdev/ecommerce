@@ -7,7 +7,7 @@ import type { Product } from '@/modules/catalog/domain/product';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { ProductGallery } from './ProductGallery';
-import { BuyBox, type BuyBoxVariant } from './BuyBox';
+import { BuyBox } from './BuyBox';
 import { ProductTabs } from './ProductTabs';
 import { Rating } from './Rating';
 import { RecentlyViewed } from './RecentlyViewed';
@@ -64,7 +64,7 @@ async function resolveRelatedProducts(
 
 export default async function ProductPage({ params }: ProductPageProps) {
   const { slug } = await params;
-  const { getProductBySlug, getPreferredOfferForVariant, getShippingRate, listProducts, btcRates } =
+  const { getProductBySlug, getPreferredOfferForProduct, getShippingRate, listProducts, btcRates } =
     getContainer();
 
   const product = await getProductBySlug.execute({ slug });
@@ -73,14 +73,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const shippingRate = await getShippingRate.execute();
   const relatedProducts = await resolveRelatedProducts(product, listProducts);
 
-  const availabilityEntries = await Promise.all(
-    product.variants.map(async (variant) => {
-      const offer = await getPreferredOfferForVariant.execute({ variantId: variant.id });
-      // No supplier offer at all means nothing to check against — default to available.
-      return [variant.id, offer?.isAvailable ?? true] as const;
-    }),
-  );
-  const availabilityByVariant = new Map(availabilityEntries);
+  const preferredOffer = await getPreferredOfferForProduct.execute({ productId: product.id });
+  // No supplier offer at all means nothing to check against — default to available.
+  const isAvailable = preferredOffer?.isAvailable ?? true;
 
   const images = [
     ...(product.imageUrl ? [{ id: 'primary', url: product.imageUrl }] : []),
@@ -89,7 +84,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   // Cached ~30s inside the provider, and null when the feed is unreachable —
   // the page then shows fiat alone rather than failing.
-  const currency = product.variants[0]?.price.currency ?? 'USD';
+  const currency = product.price.currency;
   const satsPerUnit = await tryGetSatsRate(btcRates, currency);
   const btcRateLabel =
     satsPerUnit === null
@@ -99,17 +94,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
           currency,
           maximumFractionDigits: 0,
         }).format(SATS_PER_BTC / satsPerUnit)}`;
-
-  const variants: BuyBoxVariant[] = product.variants.map((variant) => ({
-    id: variant.id,
-    name: variant.name,
-    sku: variant.sku,
-    priceDisplay: variant.price.toDisplayString(),
-    satsDisplay: satsPerUnit === null ? null : formatSats(variant.price.amountMinor, satsPerUnit),
-    priceMinor: variant.price.amountMinor,
-    currency: variant.price.currency,
-    isAvailable: availabilityByVariant.get(variant.id) ?? true,
-  }));
 
   return (
     <div className={styles.root}>
@@ -138,7 +122,17 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
             <ProductRating productId={product.id} />
 
-            <BuyBox variants={variants} btcRateLabel={btcRateLabel} />
+            <BuyBox
+              productId={product.id}
+              priceDisplay={product.price.toDisplayString()}
+              satsDisplay={
+                satsPerUnit === null ? null : formatSats(product.price.amountMinor, satsPerUnit)
+              }
+              priceMinor={product.price.amountMinor}
+              currency={product.price.currency}
+              isAvailable={isAvailable}
+              btcRateLabel={btcRateLabel}
+            />
 
             <p className={styles.shippingNote}>
               + {shippingRate.toDisplayString()} shipping per order · discreet, unbranded packaging
@@ -181,7 +175,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
             <div className={styles.cardGrid}>
               {relatedProducts.map((related) => {
                 const summary = toProductCardSummary(related);
-                const price = related.cheapestVariantPrice;
+                const price = related.price;
                 return (
                   <ProductCardMini
                     key={summary.id}

@@ -62,7 +62,7 @@ export interface CreateProductActionResult {
   error?: string;
 }
 
-/** One combined form: product + its first variant + its preferred supplier offer. */
+/** One combined form: the product and its preferred supplier offer. */
 export async function createProductWithOfferAction(
   _prevState: CreateProductActionResult | undefined,
   formData: FormData,
@@ -85,25 +85,20 @@ export async function createProductWithOfferAction(
     return { error: parsed.error.issues[0]?.message ?? 'Fill in all required fields.' };
   }
 
-  const { createProduct, createProductVariant, createSupplierOffer } = getContainer();
+  const { createProduct, createSupplierOffer } = getContainer();
 
   const product = await createProduct.execute({
     slug: parsed.data.slug,
     name: parsed.data.name,
     description: parsed.data.description ?? null,
     category: parsed.data.category ?? null,
-  });
-
-  const variant = await createProductVariant.execute({
-    productId: product.id,
     sku: parsed.data.sku,
-    name: 'Default',
     unitAmountMinor: parsed.data.unitAmountMinor,
     currency: parsed.data.currency,
   });
 
   await createSupplierOffer.execute({
-    variantId: variant.id,
+    productId: product.id,
     supplierId: parsed.data.supplierId,
     supplierProductUrl: parsed.data.supplierProductUrl,
     costAmountMinor: parsed.data.costAmountMinor,
@@ -481,24 +476,24 @@ export async function extractProductFromUrlAction(
   return { text, guessedName, guessedDescription, guessedImageUrl, guessedPriceMinor, guessedCurrency };
 }
 
-const UpdateVariantPriceSchema = z.object({
-  variantId: z.string().min(1),
+const UpdateProductPriceSchema = z.object({
+  productId: z.string().min(1),
   price: z.string().min(1),
   currency: z.string().length(3),
 });
 
-export interface UpdateVariantPriceActionResult {
+export interface UpdateProductPriceActionResult {
   message?: string;
   error?: string;
 }
 
-export async function updateVariantPriceAction(
-  _prevState: UpdateVariantPriceActionResult | undefined,
+export async function updateProductPriceAction(
+  _prevState: UpdateProductPriceActionResult | undefined,
   formData: FormData,
-): Promise<UpdateVariantPriceActionResult> {
+): Promise<UpdateProductPriceActionResult> {
   const admin = await requireAdmin();
-  const parsed = UpdateVariantPriceSchema.safeParse({
-    variantId: formData.get('variantId'),
+  const parsed = UpdateProductPriceSchema.safeParse({
+    productId: formData.get('productId'),
     price: formData.get('price'),
     currency: formData.get('currency'),
   });
@@ -507,9 +502,9 @@ export async function updateVariantPriceAction(
   const amountMinor = parseDecimalToMinorUnits(parsed.data.price);
   if (amountMinor === null || amountMinor <= 0) return { error: 'Enter a valid price.' };
 
-  const { updateVariantPrice, recordAuditLogEntry } = getContainer();
-  await updateVariantPrice.execute({
-    variantId: parsed.data.variantId,
+  const { updateProductPrice, recordAuditLogEntry } = getContainer();
+  await updateProductPrice.execute({
+    productId: parsed.data.productId,
     amountMinor,
     currency: parsed.data.currency,
   });
@@ -517,9 +512,9 @@ export async function updateVariantPriceAction(
   await recordAuditLogEntry.execute({
     actorUserId: admin.id,
     actorEmail: admin.email,
-    action: 'variant.price_changed',
-    targetType: 'variant',
-    targetId: parsed.data.variantId,
+    action: 'product.price_changed',
+    targetType: 'product',
+    targetId: parsed.data.productId,
     metadata: { amountMinor, currency: parsed.data.currency },
   });
 
@@ -643,9 +638,8 @@ export interface ApplyMarkupActionResult {
   error?: string;
 }
 
-/** Expands the selected product ids into their variant ids server-side,
- * then applies the markup to all of them — bulk selection today is by
- * product (the existing publish/unpublish/delete checkboxes), not variant. */
+/** Bulk price adjustment over the selected products — same checkbox
+ * selection as publish/unpublish/delete. */
 export async function applyMarkupToProductsAction(
   _prevState: ApplyMarkupActionResult | undefined,
   formData: FormData,
@@ -659,15 +653,9 @@ export async function applyMarkupToProductsAction(
     return { error: parsed.error.issues[0]?.message ?? 'Select products and enter a markup percentage.' };
   }
 
-  const { listAllProductsForAdmin, applyMarkupToVariants, recordAuditLogEntry } = getContainer();
-  const allProducts = await listAllProductsForAdmin.execute();
-  const selectedIds = new Set(parsed.data.productIds);
-  const variantIds = allProducts
-    .filter((p) => selectedIds.has(p.id))
-    .flatMap((p) => p.variants.map((v) => v.id));
-
-  const result = await applyMarkupToVariants.execute({
-    variantIds,
+  const { applyMarkupToProducts, recordAuditLogEntry } = getContainer();
+  const result = await applyMarkupToProducts.execute({
+    productIds: parsed.data.productIds,
     markupPercent: parsed.data.markupPercent,
   });
 
@@ -685,10 +673,10 @@ export async function applyMarkupToProductsAction(
 
   if (result.failed > 0) {
     return {
-      error: `Updated ${result.updated} variant${result.updated === 1 ? '' : 's'}, but ${result.failed} could not be updated.`,
+      error: `Updated ${result.updated} product${result.updated === 1 ? '' : 's'}, but ${result.failed} could not be updated.`,
     };
   }
-  return { message: `Applied markup to ${result.updated} variant${result.updated === 1 ? '' : 's'}.` };
+  return { message: `Applied markup to ${result.updated} product${result.updated === 1 ? '' : 's'}.` };
 }
 
 const AssignCategorySchema = z.object({
@@ -729,47 +717,8 @@ export async function assignCategoryToProductsAction(
   return { message: `Assigned category to ${result.updated} product${result.updated === 1 ? '' : 's'}.` };
 }
 
-const CreateProductVariantSchema = z.object({
-  productId: z.string().min(1),
-  sku: z.string().min(1),
-  name: z.string().min(1),
-  unitAmountMinor: z.coerce.number().int().positive(),
-  currency: z.string().length(3),
-});
-
-export interface CreateProductVariantActionResult {
-  message?: string;
-  error?: string;
-}
-
-/** Adds a further variant to an existing product — the same use case the
- * initial "add product" form already uses for a product's first variant. */
-export async function createProductVariantAction(
-  _prevState: CreateProductVariantActionResult | undefined,
-  formData: FormData,
-): Promise<CreateProductVariantActionResult> {
-  await requireAdmin();
-  const parsed = CreateProductVariantSchema.safeParse({
-    productId: formData.get('productId'),
-    sku: formData.get('sku'),
-    name: formData.get('name'),
-    unitAmountMinor: formData.get('unitAmountMinor'),
-    currency: formData.get('currency') || 'USD',
-  });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? 'Fill in a name, SKU, and price.' };
-  }
-
-  const { createProductVariant } = getContainer();
-  await createProductVariant.execute(parsed.data);
-
-  revalidatePath('/admin/products');
-  revalidatePath('/products');
-  return { message: 'Variant added.' };
-}
-
 const AddSupplierOfferSchema = z.object({
-  variantId: z.string().min(1),
+  productId: z.string().min(1),
   supplierId: z.string().min(1),
   supplierProductUrl: z.string().min(1),
   costAmountMinor: z.coerce.number().int().nonnegative(),
@@ -780,9 +729,9 @@ export interface AddSupplierOfferActionResult {
   error?: string;
 }
 
-/** Adds a further supplier offer to an existing variant — same use case
- * "add product" already uses for a variant's first offer. A new offer only
- * becomes preferred if the variant had none yet (CreateSupplierOffer's own
+/** Adds a further supplier offer to an existing product — same use case
+ * "add product" already uses for a product's first offer. A new offer only
+ * becomes preferred if the product had none yet (CreateSupplierOffer's own
  * rule), so this never silently steals preference from an existing offer. */
 export async function addSupplierOfferAction(
   _prevState: AddSupplierOfferActionResult | undefined,
@@ -790,7 +739,7 @@ export async function addSupplierOfferAction(
 ): Promise<AddSupplierOfferActionResult> {
   await requireAdmin();
   const parsed = AddSupplierOfferSchema.safeParse({
-    variantId: formData.get('variantId'),
+    productId: formData.get('productId'),
     supplierId: formData.get('supplierId'),
     supplierProductUrl: formData.get('supplierProductUrl'),
     costAmountMinor: formData.get('costAmountMinor'),
@@ -809,7 +758,7 @@ export async function addSupplierOfferAction(
 
 const SetPreferredSupplierOfferSchema = z.object({
   offerId: z.string().min(1),
-  variantId: z.string().min(1),
+  productId: z.string().min(1),
 });
 
 export interface SetPreferredSupplierOfferActionResult {
@@ -824,7 +773,7 @@ export async function setPreferredSupplierOfferAction(
   await requireAdmin();
   const parsed = SetPreferredSupplierOfferSchema.safeParse({
     offerId: formData.get('offerId'),
-    variantId: formData.get('variantId'),
+    productId: formData.get('productId'),
   });
   if (!parsed.success) return { error: 'Missing offer.' };
 

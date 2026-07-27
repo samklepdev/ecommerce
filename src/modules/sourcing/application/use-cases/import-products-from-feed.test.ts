@@ -2,11 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { ImportProductsFromFeed } from './import-products-from-feed';
 import { CreateProduct } from '@/modules/catalog/application/use-cases/create-product';
-import { CreateProductVariant } from '@/modules/catalog/application/use-cases/create-product-variant';
 import { CreateSupplierOffer } from '@/modules/sourcing/application/use-cases/create-supplier-offer';
 import { err, ok } from '@/shared/domain/result';
 import type { Product } from '@/modules/catalog/domain/product';
-import type { ProductVariant } from '@/modules/catalog/domain/product-variant';
 import type { ProductRepository } from '@/modules/catalog/application/ports/product-repository';
 import type { SupplierOfferRepository } from '@/modules/sourcing/application/ports/supplier-offer-repository';
 import type { FeedListing, FetchFeedError, SupplierFeedFetcher } from '@/modules/sourcing/application/ports/supplier-feed-fetcher';
@@ -29,7 +27,6 @@ function makeListing(overrides: Partial<FeedListing> = {}): FeedListing {
 
 function makeFakeProducts(existingSlugs: Set<string> = new Set()) {
   const createdProducts: Product[] = [];
-  const createdVariants: ProductVariant[] = [];
   const updatedImages: { productId: string; imageUrl: string }[] = [];
   const repo: Partial<ProductRepository> = {
     async findBySlug(slug) {
@@ -38,23 +35,20 @@ function makeFakeProducts(existingSlugs: Set<string> = new Set()) {
     async createProduct(product) {
       createdProducts.push(product);
     },
-    async createVariant(variant) {
-      createdVariants.push(variant);
-    },
     async updateImageUrl(productId, imageUrl) {
       updatedImages.push({ productId, imageUrl });
     },
   };
-  return { repo: repo as ProductRepository, createdProducts, createdVariants, updatedImages };
+  return { repo: repo as ProductRepository, createdProducts, updatedImages };
 }
 
 function makeFakeSupplierOffers() {
   const created: string[] = [];
   const repo: Partial<SupplierOfferRepository> = {
     async create(offer) {
-      created.push(offer.variantId);
+      created.push(offer.productId);
     },
-    async findPreferredByVariantId() {
+    async findPreferredByProductId() {
       return null;
     },
   };
@@ -101,14 +95,13 @@ function makeImporter(
     fetcher,
     products.repo,
     new CreateProduct(products.repo),
-    new CreateProductVariant(products.repo),
     new CreateSupplierOffer(offers.repo),
     imageStorage,
   );
 }
 
 describe('ImportProductsFromFeed', () => {
-  it('creates a product, variant, and supplier offer for each new listing', async () => {
+  it('creates a product and a supplier offer for each new listing', async () => {
     const products = makeFakeProducts();
     const offers = makeFakeSupplierOffers();
     const { fetcher } = makeFakeFetcher({ async fetchListings() { return ok([makeListing()]); } });
@@ -119,7 +112,6 @@ describe('ImportProductsFromFeed', () => {
     expect(result).toEqual({ status: 'ok', created: 1, skipped: 0 });
     expect(products.createdProducts).toHaveLength(1);
     expect(products.createdProducts[0]?.status).toBe('draft'); // invisible until reviewed
-    expect(products.createdVariants).toHaveLength(1);
     expect(offers.created).toHaveLength(1);
   });
 
@@ -173,11 +165,11 @@ describe('ImportProductsFromFeed', () => {
     const products = makeFakeProducts();
     const offers = makeFakeSupplierOffers();
     let call = 0;
-    const originalCreateVariant = products.repo.createVariant.bind(products.repo);
-    products.repo.createVariant = async (variant) => {
+    const originalCreateProduct = products.repo.createProduct.bind(products.repo);
+    products.repo.createProduct = async (product) => {
       call += 1;
       if (call === 1) throw new Error('db error on first listing');
-      return originalCreateVariant(variant);
+      return originalCreateProduct(product);
     };
     const { fetcher } = makeFakeFetcher({
       async fetchListings() {

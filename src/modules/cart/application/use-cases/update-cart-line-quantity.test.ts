@@ -37,17 +37,17 @@ function makeFakeCarts(cart: Cart | null) {
 
 describe('UpdateCartLineQuantity', () => {
   it('sets the line to the given quantity and saves the cart', async () => {
-    const variantId = randomUUID();
+    const productId = randomUUID();
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
-      lines: [CartLine.create({ variantId, sku: 'A', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
+      lines: [CartLine.create({ productId, sku: 'A', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
     });
     const { repo, saved } = makeFakeCarts(cart);
 
     const updated = await new UpdateCartLineQuantity(repo).execute({
       owner: { type: 'guest', sessionId: 's1' },
-      variantId,
+      productId,
       quantity: 4,
     });
 
@@ -56,17 +56,17 @@ describe('UpdateCartLineQuantity', () => {
   });
 
   it('removes the line when set to zero', async () => {
-    const variantId = randomUUID();
+    const productId = randomUUID();
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
-      lines: [CartLine.create({ variantId, sku: 'A', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
+      lines: [CartLine.create({ productId, sku: 'A', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
     });
     const { repo } = makeFakeCarts(cart);
 
     const updated = await new UpdateCartLineQuantity(repo).execute({
       owner: { type: 'guest', sessionId: 's1' },
-      variantId,
+      productId,
       quantity: 0,
     });
 
@@ -78,7 +78,7 @@ describe('UpdateCartLineQuantity', () => {
 
     const updated = await new UpdateCartLineQuantity(repo).execute({
       owner: { type: 'guest', sessionId: 's1' },
-      variantId: 'missing',
+      productId: 'missing',
       quantity: 3,
     });
 
@@ -87,18 +87,18 @@ describe('UpdateCartLineQuantity', () => {
   });
 
   it('records a cart_changed analytics event when a repository is provided', async () => {
-    const variantId = randomUUID();
+    const productId = randomUUID();
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'user', userId: 'u1' },
-      lines: [CartLine.create({ variantId, sku: 'A', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
+      lines: [CartLine.create({ productId, sku: 'A', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
     });
     const { repo } = makeFakeCarts(cart);
     const { repo: events, recorded } = makeFakeEvents();
 
     await new UpdateCartLineQuantity(repo, events).execute({
       owner: { type: 'user', userId: 'u1' },
-      variantId,
+      productId,
       quantity: 4,
     });
 
@@ -107,17 +107,17 @@ describe('UpdateCartLineQuantity', () => {
         eventType: 'cart_changed',
         sessionId: 'u1',
         userId: 'u1',
-        metadata: { lines: [{ variantId, quantity: 4 }] },
+        metadata: { lines: [{ productId, quantity: 4 }] },
       },
     ]);
   });
 
   it('still updates the quantity when analytics recording fails', async () => {
-    const variantId = randomUUID();
+    const productId = randomUUID();
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'user', userId: 'u1' },
-      lines: [CartLine.create({ variantId, sku: 'A', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
+      lines: [CartLine.create({ productId, sku: 'A', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
     });
     const { repo, saved } = makeFakeCarts(cart);
     const failingEvents: Partial<AnalyticsEventRepository> = {
@@ -129,7 +129,7 @@ describe('UpdateCartLineQuantity', () => {
 
     const updated = await new UpdateCartLineQuantity(repo, events).execute({
       owner: { type: 'user', userId: 'u1' },
-      variantId,
+      productId,
       quantity: 4,
     });
 

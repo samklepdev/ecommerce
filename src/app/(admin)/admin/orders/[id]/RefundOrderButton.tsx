@@ -15,7 +15,7 @@ const initialState: MarkOrderRefundedActionResult = {};
 
 /** A nonce that bumps whenever `result` is a new object — restarts the
  * alert's fade-out on a repeat submission. Same pattern as
- * `VariantPriceEditor`'s `useResultNonce`. */
+ * `ProductPriceEditor`'s `useResultNonce`. */
 function useResultNonce(result: unknown): number {
   const [[prev, nonce], setState] = useState<[unknown, number]>([result, 0]);
   if (prev !== result) {

@@ -11,8 +11,8 @@ export interface RepriceCartInput {
 
 export interface RepriceCartOutput {
   subtotal: Money;
-  /** Variant ids whose catalog price has drifted from what's stored in the cart. */
-  staleVariantIds: string[];
+  /** Product ids whose catalog price has drifted from what's stored in the cart. */
+  staleProductIds: string[];
 }
 
 /**
@@ -28,18 +28,18 @@ export class RepriceCart implements UseCase<RepriceCartInput, RepriceCartOutput>
 
   async execute(input: RepriceCartInput): Promise<RepriceCartOutput> {
     const cart = await this.carts.get(input.owner);
-    if (!cart) return { subtotal: Money.zero(input.currency), staleVariantIds: [] };
+    if (!cart) return { subtotal: Money.zero(input.currency), staleProductIds: [] };
 
     let subtotal = Money.zero(input.currency);
-    const staleVariantIds: string[] = [];
+    const staleProductIds: string[] = [];
 
     for (const line of cart.lines) {
-      const variant = await this.products.findVariantById(line.variantId);
-      if (!variant) continue;
-      if (!variant.price.equals(line.unitPrice)) staleVariantIds.push(line.variantId);
-      subtotal = subtotal.add(variant.price.multiply(line.quantity));
+      const product = await this.products.findById(line.productId);
+      if (!product) continue;
+      if (!product.price.equals(line.unitPrice)) staleProductIds.push(line.productId);
+      subtotal = subtotal.add(product.price.multiply(line.quantity));
     }
 
-    return { subtotal, staleVariantIds };
+    return { subtotal, staleProductIds };
   }
 }

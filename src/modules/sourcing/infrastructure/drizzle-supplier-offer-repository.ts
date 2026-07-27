@@ -11,7 +11,7 @@ type SupplierOfferRow = typeof supplierOffers.$inferSelect;
 function toOffer(row: SupplierOfferRow): SupplierOffer {
   return SupplierOffer.create({
     id: row.id,
-    variantId: row.variantId,
+    productId: row.productId,
     supplierId: row.supplierId,
     supplierProductUrl: row.supplierProductUrl,
     cost: Money.of(row.costAmountMinor, row.costCurrency),
@@ -30,12 +30,12 @@ export class DrizzleSupplierOfferRepository implements SupplierOfferRepository {
           .update(supplierOffers)
           .set({ isPreferred: false, updatedAt: new Date() })
           .where(
-            and(eq(supplierOffers.variantId, offer.variantId), eq(supplierOffers.isPreferred, true)),
+            and(eq(supplierOffers.productId, offer.productId), eq(supplierOffers.isPreferred, true)),
           );
       }
       await tx.insert(supplierOffers).values({
         id: offer.id,
-        variantId: offer.variantId,
+        productId: offer.productId,
         supplierId: offer.supplierId,
         supplierProductUrl: offer.supplierProductUrl,
         costAmountMinor: offer.cost.amountMinor,
@@ -46,12 +46,12 @@ export class DrizzleSupplierOfferRepository implements SupplierOfferRepository {
     });
   }
 
-  async setPreferred(offerId: string, variantId: string): Promise<void> {
+  async setPreferred(offerId: string, productId: string): Promise<void> {
     await this.db.transaction(async (tx) => {
       await tx
         .update(supplierOffers)
         .set({ isPreferred: false, updatedAt: new Date() })
-        .where(and(eq(supplierOffers.variantId, variantId), eq(supplierOffers.isPreferred, true)));
+        .where(and(eq(supplierOffers.productId, productId), eq(supplierOffers.isPreferred, true)));
       await tx
         .update(supplierOffers)
         .set({ isPreferred: true, updatedAt: new Date() })
@@ -66,16 +66,16 @@ export class DrizzleSupplierOfferRepository implements SupplierOfferRepository {
       .where(eq(supplierOffers.id, offerId));
   }
 
-  async findPreferredByVariantId(variantId: string): Promise<SupplierOffer | null> {
+  async findPreferredByProductId(productId: string): Promise<SupplierOffer | null> {
     const row = await this.db.query.supplierOffers.findFirst({
-      where: and(eq(supplierOffers.variantId, variantId), eq(supplierOffers.isPreferred, true)),
+      where: and(eq(supplierOffers.productId, productId), eq(supplierOffers.isPreferred, true)),
     });
     return row ? toOffer(row) : null;
   }
 
-  async listByVariantId(variantId: string): Promise<SupplierOffer[]> {
+  async listByProductId(productId: string): Promise<SupplierOffer[]> {
     const rows = await this.db.query.supplierOffers.findMany({
-      where: eq(supplierOffers.variantId, variantId),
+      where: eq(supplierOffers.productId, productId),
     });
     return rows.map(toOffer);
   }

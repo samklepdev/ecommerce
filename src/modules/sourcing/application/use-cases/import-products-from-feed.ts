@@ -4,7 +4,6 @@ import { logger } from '@/shared/infrastructure/logger';
 import type { ImageStorage } from '@/shared/application/ports/image-storage';
 import type { ProductRepository } from '@/modules/catalog/application/ports/product-repository';
 import type { CreateProduct } from '@/modules/catalog/application/use-cases/create-product';
-import type { CreateProductVariant } from '@/modules/catalog/application/use-cases/create-product-variant';
 import type { SupplierFeedFetcher } from '@/modules/sourcing/application/ports/supplier-feed-fetcher';
 import type { CreateSupplierOffer } from '@/modules/sourcing/application/use-cases/create-supplier-offer';
 
@@ -60,7 +59,6 @@ export class ImportProductsFromFeed
     private readonly fetcher: SupplierFeedFetcher,
     private readonly products: ProductRepository,
     private readonly createProduct: CreateProduct,
-    private readonly createProductVariant: CreateProductVariant,
     private readonly createSupplierOffer: CreateSupplierOffer,
     private readonly imageStorage: ImageStorage,
   ) {}
@@ -113,6 +111,11 @@ export class ImportProductsFromFeed
           description: listing.description,
           status: 'draft',
           source: 'feed_import',
+          // The feed's own slug doubles as the sku — it's the only stable
+          // per-listing identifier a feed is guaranteed to carry.
+          sku: listing.slug,
+          unitAmountMinor: listing.priceMinor,
+          currency: listing.currency,
         });
 
         if (listing.imageUrl) {
@@ -122,16 +125,8 @@ export class ImportProductsFromFeed
           }
         }
 
-        const variant = await this.createProductVariant.execute({
-          productId: product.id,
-          sku: listing.slug,
-          name: 'Default',
-          unitAmountMinor: listing.priceMinor,
-          currency: listing.currency,
-        });
-
         await this.createSupplierOffer.execute({
-          variantId: variant.id,
+          productId: product.id,
           supplierId: input.supplierId,
           supplierProductUrl: listing.productUrl,
           costAmountMinor: listing.priceMinor,

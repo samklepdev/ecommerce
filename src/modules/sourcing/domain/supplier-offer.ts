@@ -2,12 +2,12 @@ import { Entity } from '@/shared/domain/entity';
 import { Money } from '@/shared/domain/money';
 
 /**
- * A candidate source for a catalog variant. Cost is admin/ops-only data —
+ * A candidate source for a catalog product. Cost is admin/ops-only data —
  * nothing in this entity should ever reach a customer-facing repository.
  */
 export interface SupplierOfferProps {
   id: string;
-  variantId: string;
+  productId: string;
   supplierId: string;
   supplierProductUrl: string;
   cost: Money;
@@ -16,7 +16,7 @@ export interface SupplierOfferProps {
 }
 
 export class SupplierOffer extends Entity<string> {
-  readonly variantId: string;
+  readonly productId: string;
   readonly supplierId: string;
   readonly supplierProductUrl: string;
   readonly cost: Money;
@@ -25,7 +25,7 @@ export class SupplierOffer extends Entity<string> {
 
   private constructor(props: SupplierOfferProps) {
     super(props.id);
-    this.variantId = props.variantId;
+    this.productId = props.productId;
     this.supplierId = props.supplierId;
     this.supplierProductUrl = props.supplierProductUrl;
     this.cost = props.cost;

@@ -25,7 +25,7 @@ export function toProductCardSummary(product: Product): ProductCardSummary {
     name: product.name,
     imageUrl: product.imageUrl,
     hoverImageUrl: product.hoverImageUrl,
-    priceDisplay: product.cheapestVariantPrice?.toDisplayString() ?? null,
+    priceDisplay: product.price.toDisplayString(),
     category: product.category,
     glyph: glyphForCategory(product.category),
   };

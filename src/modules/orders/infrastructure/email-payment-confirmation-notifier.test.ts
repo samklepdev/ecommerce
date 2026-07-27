@@ -38,7 +38,7 @@ function makeOrder(overrides: Partial<OrderDetail> = {}): OrderDetail {
     notes: null,
     discountAmountMinor: 0,
     couponCode: null,
-    lines: [{ variantId: 'variant-1', sku: 'SKU-1', quantity: 2, unitAmountMinor: 2100, imageUrl: null }],
+    lines: [{ productId: 'product-1', sku: 'SKU-1', quantity: 2, unitAmountMinor: 2100, imageUrl: null }],
     ...overrides,
   };
 }
