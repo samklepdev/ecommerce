@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { CircleMarker, GeoJSON, MapContainer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
-import { LatLngBounds, type Layer, type PathOptions, type StyleFunction } from 'leaflet';
+import { LatLngBounds, svg, type Layer, type PathOptions, type StyleFunction } from 'leaflet';
 import type { Feature, FeatureCollection, Geometry } from 'geojson';
 
 // Bundled from node_modules, not Leaflet's CDN: the CSP allows no external
@@ -48,6 +48,26 @@ const usStates = statesGeoJson as FeatureCollection<Geometry, StateProps>;
 const WORLD_BOUNDS = new LatLngBounds([-60, -180], [85, 180]);
 
 /**
+ * Leaflet paints concrete colours onto SVG attributes, and re-applies them
+ * as it re-renders. These mirror the palette tokens in
+ * `AdminChrome.module.css` rather than referencing them: a `var()` in a
+ * presentation attribute depends on the element still sitting inside the
+ * styled subtree, which is a fragile assumption for elements a library
+ * creates, moves and recycles during a pan.
+ *
+ * The console is pinned to one light theme, so there is nothing to keep in
+ * sync beyond these five values.
+ */
+const MAP_COLORS = {
+  country: '#22467f', // --accent
+  state: '#7e9cd4', // --accent-light
+  city: '#b87503', // --amber
+  empty: '#dfe5ee', // --line
+  border: '#c6d0de', // --line-strong
+  stateBorder: '#ffffff', // --surface
+} as const;
+
+/**
  * Wheel-zoom is off until the map is clicked, and off again once the
  * pointer leaves.
  *
@@ -91,6 +111,12 @@ export function WorldMap({ countries, regions, cities }: WorldMapProps) {
   const [focus, setFocus] = useState<Focus | null>(null);
   const [wheelZoom, setWheelZoom] = useState(false);
 
+  // Leaflet's SVG renderer only paints a margin of `padding` beyond the
+  // viewport and refreshes on moveend, so at the default 0.1 large country
+  // polygons blank out mid-drag and snap back when you let go. A full
+  // viewport of margin covers any drag between refreshes.
+  const renderer = useMemo(() => svg({ padding: 1 }), []);
+
   // Country names come from our own database and the geometry from Natural
   // Earth, so they're joined on ISO code — "United States" vs "United States
   // of America" would silently never match.
@@ -114,14 +140,14 @@ export function WorldMap({ countries, regions, cities }: WorldMapProps) {
       const iso = feature?.properties?.iso;
       const views = iso ? (countryByIso.get(iso)?.views ?? 0) : 0;
 
-      const base: PathOptions = { weight: 0.6, color: 'var(--line-strong)' };
+      const base: PathOptions = { weight: 0.6, color: MAP_COLORS.border };
 
       // Countries with no traffic stay a flat, very light wash rather than
       // disappearing — the shape of the world is the context that makes the
       // filled ones legible.
-      if (views === 0) return { ...base, fillColor: 'var(--line)', fillOpacity: 0.55 };
+      if (views === 0) return { ...base, fillColor: MAP_COLORS.empty, fillOpacity: 0.55 };
 
-      return { ...base, fillColor: 'var(--accent)', fillOpacity: 0.3 + (views / maxCountry) * 0.55 };
+      return { ...base, fillColor: MAP_COLORS.country, fillOpacity: 0.3 + (views / maxCountry) * 0.55 };
     },
     [countryByIso, maxCountry],
   );
@@ -137,8 +163,8 @@ export function WorldMap({ countries, regions, cities }: WorldMapProps) {
 
       return {
         weight: 0.7,
-        color: 'var(--surface)',
-        fillColor: 'var(--accent-light)',
+        color: MAP_COLORS.stateBorder,
+        fillColor: MAP_COLORS.state,
         fillOpacity: 0.4 + (views / maxRegion) * 0.5,
       };
     },
@@ -207,6 +233,7 @@ export function WorldMap({ countries, regions, cities }: WorldMapProps) {
         touchZoom
         keyboard
         attributionControl={false}
+        renderer={renderer}
       >
         <WheelZoomOnFocus onChange={setWheelZoom} />
 
@@ -221,8 +248,8 @@ export function WorldMap({ countries, regions, cities }: WorldMapProps) {
             // a city with 4x the traffic look 16x bigger.
             radius={4 + Math.sqrt(city.views / maxCity) * 7}
             pathOptions={{
-              color: 'var(--amber)',
-              fillColor: 'var(--amber)',
+              color: MAP_COLORS.city,
+              fillColor: MAP_COLORS.city,
               fillOpacity: 0.75,
               weight: 1.5,
             }}
