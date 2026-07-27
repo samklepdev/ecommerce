@@ -146,8 +146,10 @@
 
 .table td {
   text-align: left;
-  vertical-align: top;
-  padding: 14px;
+  /* Middle, not top: every summary cell is a single line now, and top
+     alignment only made sense when cells held stacked forms. */
+  vertical-align: middle;
+  padding: 16px 14px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -161,19 +163,28 @@
 
 .productCell {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
-  white-space: normal;
-  min-width: 220px;
+  min-width: 240px;
+}
+
+.productText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.productName {
+  font-weight: 500;
+  color: var(--ink);
 }
 
 .slug {
-  display: block;
   font-family: var(--ui-mono);
   font-size: 11px;
   letter-spacing: 0.02em;
   color: var(--faint);
-  margin-bottom: 2px;
 }
 
 .thumb {
@@ -184,14 +195,7 @@
   border: 1px solid var(--line);
 }
 
-/* sku, price & offers ---------------------------------------------- */
-.skuHeading {
-  font-family: var(--ui-mono);
-  font-size: 12px;
-  color: var(--ink);
-  margin: 0 0 10px;
-}
-
+/* sourcing --------------------------------------------------------- */
 .offerList {
   list-style: none;
   display: flex;
@@ -204,7 +208,12 @@
    never nests a bordered card inside another one. */
 .offerRow {
   border-top: 1px solid var(--line);
-  padding: 8px 0;
+  padding: 10px 0;
+}
+
+.offerList > .offerRow:first-child {
+  border-top: 0;
+  padding-top: 0;
 }
 
 .offerInfo {
@@ -240,11 +249,6 @@
 
 .rowField {
   margin-bottom: 16px;
-}
-
-.rowActions form {
-  display: flex;
-  gap: 8px;
 }
 
 /* bulk actions ----------------------------------------------------- */
@@ -322,4 +326,123 @@
   .markupGroup {
     margin-left: 0;
   }
+}
+
+/* summary row ------------------------------------------------------ */
+.selectCol {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.editCol {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* Prices align on the decimal so a column of them can be compared by eye. */
+.numCol {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.skuCell {
+  font-family: var(--ui-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.sourcingCell {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* "+2" — there are more suppliers behind this one, without listing them. */
+.offerCount {
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  color: var(--faint);
+}
+
+.editToggle {
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease;
+}
+
+.editToggle:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.editToggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The open row and its panel read as one block. */
+.rowOpen td {
+  border-bottom: 0;
+  background: var(--surface-hi);
+}
+
+/* detail panel ----------------------------------------------------- */
+.detailRow > td {
+  padding: 0;
+  background: var(--surface-hi);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 28px 32px;
+  padding: 24px 14px 26px;
+}
+
+.detailPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Sourcing carries a list plus a form, so it gets the full width. */
+.detailWide {
+  grid-column: 1 / -1;
+}
+
+.detailTitle {
+  margin: 0;
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.detailActions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+.detailActions form {
+  display: flex;
+  gap: 8px;
+  padding-top: 16px;
 }
