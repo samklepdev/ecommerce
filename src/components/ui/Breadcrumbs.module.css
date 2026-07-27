@@ -1,0 +1,21 @@
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-family: var(--ui-mono);
+  font-size: 11.5px;
+  color: var(--faint);
+}
+
+.crumbs a:hover {
+  color: var(--accent);
+}
+
+.crumbs [aria-current] {
+  color: var(--ink);
+}
+
+.sep {
+  color: var(--line-strong);
+}

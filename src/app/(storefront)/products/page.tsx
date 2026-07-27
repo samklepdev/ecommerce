@@ -4,6 +4,7 @@ import { after } from 'next/server';
 
 import { getContainer } from '@/composition/container';
 import { getSessionUser, GUEST_SESSION_COOKIE } from '@/app/lib/session';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { Pagination } from '@/components/ui/Pagination';
 import { DEFAULT_PAGE_SIZE, parsePage } from '@/components/ui/paginate';
 import type { Product } from '@/modules/catalog/domain/product';
@@ -174,15 +175,15 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         </div>
 
         {pagedProducts.length === 0 ? (
-          <div className={styles.empty}>
-            <p className={styles.emptyTitle}>Nothing matches those filters.</p>
-            <p className={styles.emptyBody}>
-              Try a broader search term, or browse the full catalog.
-            </p>
-            <Link href="/products" className={styles.emptyAction}>
-              Show all products
-            </Link>
-          </div>
+          <EmptyState
+            title="Nothing matches those filters."
+            description="Try a broader search term, or browse the full catalog."
+            action={
+              <Link href="/products" className={styles.emptyAction}>
+                Show all products
+              </Link>
+            }
+          />
         ) : (
           <div className={styles.grid}>
             {pagedProducts.map((product) => {

@@ -6,6 +6,7 @@ import { addToCartAction, type AddToCartActionResult } from '@/app/actions/cart'
 import { useAddToCartFeedback } from '@/app/lib/use-add-to-cart-feedback';
 import { MAX_CART_LINE_QUANTITY } from '@/modules/cart/domain/cart-line';
 import { cx } from '@/components/ui/cx';
+import { QuantityStepper } from '@/components/ui/QuantityStepper';
 import styles from './BuyBox.module.css';
 
 export interface BuyBoxVariant {
@@ -115,25 +116,12 @@ export function BuyBox({ variants, btcRateLabel }: BuyBoxProps) {
         <input type="hidden" name="variantId" value={selected.id} />
         <input type="hidden" name="quantity" value={quantity} />
 
-        <div className={cx(styles.stepper, !available && styles.stepperOff)}>
-          <button
-            type="button"
-            onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-            disabled={!available || quantity <= 1}
-            aria-label="Decrease quantity"
-          >
-            −
-          </button>
-          <span aria-live="polite">{quantity}</span>
-          <button
-            type="button"
-            onClick={() => setQuantity((q) => Math.min(MAX_CART_LINE_QUANTITY, q + 1))}
-            disabled={!available || quantity >= MAX_CART_LINE_QUANTITY}
-            aria-label="Increase quantity"
-          >
-            +
-          </button>
-        </div>
+        <QuantityStepper
+          value={quantity}
+          onChange={setQuantity}
+          max={MAX_CART_LINE_QUANTITY}
+          disabled={!available}
+        />
 
         <button type="submit" className={styles.addButton} disabled={!available || isPending}>
           {!available ? 'Out of stock' : isPending ? 'Adding…' : `Add to cart · ${total}`}

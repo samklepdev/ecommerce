@@ -22,3 +22,51 @@
   border-color: var(--color-border);
   color: var(--foreground);
 }
+
+/* The mark and body were added when Alert gained an optional title and
+   action. A bare <Alert>text</Alert> still renders as one line. */
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  border-left-width: 3px;
+}
+
+.mark {
+  width: 19px;
+  height: 19px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  margin-top: 1px;
+  color: var(--surface, #fff);
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  line-height: 1.5;
+}
+
+.body strong {
+  color: var(--ink, var(--foreground));
+  font-weight: 600;
+}
+
+.action {
+  flex: none;
+}
+
+.warning {
+  border-left-color: var(--amber, var(--color-warning));
+}
+
+.danger .mark { background: var(--rose, var(--color-danger)); }
+.success .mark { background: var(--accent, var(--color-success)); color: var(--accent-ink, #fff); }
+.warning .mark { background: var(--amber, var(--color-warning)); }
+.neutral .mark { background: var(--muted, var(--color-muted)); }

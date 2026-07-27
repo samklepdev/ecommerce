@@ -15,6 +15,9 @@
   --accent-wash: rgba(63, 182, 174, 0.08);
   --amber: #e0a340;
   --rose: #e4695e;
+  --amber-wash: rgba(224, 163, 64, 0.1);
+  --rose-wash: rgba(228, 105, 94, 0.1);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.45);
 
   color-scheme: dark;
   background: var(--canvas);

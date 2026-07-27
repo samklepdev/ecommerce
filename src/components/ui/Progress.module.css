@@ -1,0 +1,33 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.track {
+  height: 5px;
+  background: var(--line);
+}
+
+.track span {
+  display: block;
+  height: 100%;
+  background: var(--amber);
+  transition: width 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track span {
+    transition: none;
+  }
+}

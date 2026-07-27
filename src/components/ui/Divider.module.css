@@ -1,0 +1,28 @@
+.divider {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 0;
+}
+
+/* Rules grow from both sides of the label via pseudo-elements, so the
+   caption stays centred whatever its length. */
+.labelled {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--faint);
+}
+
+.labelled::before,
+.labelled::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--line);
+}
+
+.labelled span {
+  font-family: var(--ui-mono);
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}

@@ -1,0 +1,34 @@
+/* Dashed, so it reads as a placeholder rather than a card with nothing in
+   it — the border itself says "this is where something goes". */
+.empty {
+  border: 1px dashed var(--line-strong);
+  background: var(--surface);
+  padding: 48px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.compact {
+  padding: 26px 18px;
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.body {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 46ch;
+  line-height: 1.55;
+}
+
+.action {
+  margin-top: 10px;
+}

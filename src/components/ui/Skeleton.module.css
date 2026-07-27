@@ -1,0 +1,25 @@
+.skeleton {
+  display: block;
+  background: linear-gradient(
+    90deg,
+    var(--line) 25%,
+    var(--surface-hi) 50%,
+    var(--line) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* A shimmer that can't be turned off is a problem for vestibular
+   sensitivity; the placeholder still communicates without motion. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}

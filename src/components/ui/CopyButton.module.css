@@ -1,0 +1,25 @@
+.copy {
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--faint);
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  font-size: 11px;
+  line-height: 1;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  font-family: inherit;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.copy:hover {
+  color: var(--ink);
+  border-color: var(--muted);
+}
+
+.done {
+  color: var(--accent);
+  border-color: var(--accent);
+}

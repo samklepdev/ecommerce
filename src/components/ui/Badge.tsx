@@ -3,7 +3,9 @@ import type { ReactNode } from 'react';
 import { cx } from './cx';
 import styles from './Badge.module.css';
 
-export type BadgeTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger';
+/** `sats` is filled rather than outlined — it marks a bitcoin-denominated
+ * value, which is the one thing amber means across the whole app. */
+export type BadgeTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'sats';
 
 interface BadgeProps {
   children: ReactNode;
