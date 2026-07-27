@@ -15,6 +15,11 @@ export interface IpLocation {
    * reliable than countries: an address commonly resolves to the ISP's
    * hub rather than the visitor's town. */
   city: string | null;
+  /** Where to put the city on a map. Comes from the database, so no
+   * geocoding is involved. `null` together with `city` when unresolved —
+   * and note it locates the *city*, not the visitor. */
+  latitude: number | null;
+  longitude: number | null;
 }
 
 /**

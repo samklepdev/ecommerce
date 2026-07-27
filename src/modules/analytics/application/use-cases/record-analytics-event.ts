@@ -45,6 +45,9 @@ export class RecordAnalyticsEvent implements UseCase<AnalyticsEventInput, void> 
         // were captured at all.
         region: location.region,
         city: location.city,
+        // Stored so the map can place a point without geocoding later.
+        latitude: location.latitude,
+        longitude: location.longitude,
       },
     };
   }

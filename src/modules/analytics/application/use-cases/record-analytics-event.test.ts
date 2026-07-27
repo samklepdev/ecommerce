@@ -33,6 +33,9 @@ function fakeRepo(recorded: AnalyticsEventInput[]): AnalyticsEventRepository {
     async viewsByRegion() {
       return [];
     },
+    async viewsByCity() {
+      return [];
+    },
     async listBySessionId() {
       return [];
     },
@@ -46,6 +49,8 @@ const US: IpLocation = {
   continent: 'North America',
   region: 'California',
   city: 'Mountain View',
+  latitude: 37.422,
+  longitude: -122.085,
 };
 
 const geoAlways: IpGeoLookup = { lookup: async () => US };
@@ -81,6 +86,8 @@ describe('RecordAnalyticsEvent', () => {
       continent: 'North America',
       region: 'California',
       city: 'Mountain View',
+      latitude: 37.422,
+      longitude: -122.085,
     });
   });
 
@@ -89,7 +96,7 @@ describe('RecordAnalyticsEvent', () => {
     // regions were captured at all".
     const recorded: AnalyticsEventInput[] = [];
     const countryOnly: IpGeoLookup = {
-      lookup: async () => ({ ...US, region: null, city: null }),
+      lookup: async () => ({ ...US, region: null, city: null, latitude: null, longitude: null }),
     };
 
     await new RecordAnalyticsEvent(fakeRepo(recorded), countryOnly).execute({

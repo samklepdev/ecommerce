@@ -59,6 +59,8 @@ export class MmdbIpGeoLookup implements IpGeoLookup {
         // districts, which is finer than anything here reports.
         region: result?.subdivisions?.[0]?.names?.en ?? null,
         city: result?.city?.names?.en ?? null,
+        latitude: result?.location?.latitude ?? null,
+        longitude: result?.location?.longitude ?? null,
       };
     } catch {
       // A missing or corrupt database must not take down the pages that

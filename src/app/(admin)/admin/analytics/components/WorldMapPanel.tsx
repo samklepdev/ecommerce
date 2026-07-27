@@ -2,7 +2,11 @@
 
 import dynamic from 'next/dynamic';
 
-import type { CountryViews } from '@/modules/analytics/application/ports/analytics-event-repository';
+import type {
+  CityViews,
+  CountryViews,
+  RegionViews,
+} from '@/modules/analytics/application/ports/analytics-event-repository';
 import styles from './WorldMap.module.css';
 
 /**
@@ -20,6 +24,12 @@ const WorldMap = dynamic(() => import('./WorldMap').then((m) => m.WorldMap), {
   loading: () => <div className={styles.loading} />,
 });
 
-export function WorldMapPanel({ countries }: { countries: CountryViews[] }) {
-  return <WorldMap countries={countries} />;
+interface WorldMapPanelProps {
+  countries: CountryViews[];
+  regions: RegionViews[];
+  cities: CityViews[];
+}
+
+export function WorldMapPanel(props: WorldMapPanelProps) {
+  return <WorldMap {...props} />;
 }

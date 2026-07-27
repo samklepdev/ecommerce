@@ -25,6 +25,16 @@ describe('MmdbIpGeoLookup', () => {
     });
   });
 
+  it('carries coordinates for the resolved city', async () => {
+    // Straight from the database — the map places a point without any
+    // geocoding step.
+    const result = await lookup.lookup('8.8.8.8');
+
+    expect(result?.city).toBe('Mountain View');
+    expect(result?.latitude).toBeCloseTo(37.4, 1);
+    expect(result?.longitude).toBeCloseTo(-122.1, 1);
+  });
+
   it('resolves regions outside the US too', async () => {
     expect((await lookup.lookup('82.165.1.1'))?.region).toBe('Hesse');
     expect((await lookup.lookup('1.1.1.1'))?.region).toBe('New South Wales');

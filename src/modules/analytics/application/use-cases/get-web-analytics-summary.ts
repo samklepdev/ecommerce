@@ -2,6 +2,7 @@ import type { UseCase } from '@/shared/application/use-case';
 import type {
   AnalyticsEventRepository,
   CountryViews,
+  CityViews,
   DailyCount,
   PathDwell,
   RegionViews,
@@ -27,6 +28,8 @@ export interface GetWebAnalyticsSummaryResult {
   viewsByCountry: CountryViews[];
   /** The same, one level finer: state, province or region. */
   viewsByRegion: RegionViews[];
+  /** Finer still, with coordinates, for the map's city markers. */
+  viewsByCity: CityViews[];
 }
 
 const TOP_LIMIT = 10;
@@ -49,6 +52,7 @@ export class GetWebAnalyticsSummary
       dwellByPath,
       viewsByCountry,
       viewsByRegion,
+      viewsByCity,
     ] = await Promise.all([
         this.events.countByTypePerDay('page_view', since, until),
         this.events.countByTypePerDay('search', since, until),
@@ -59,6 +63,7 @@ export class GetWebAnalyticsSummary
         this.events.averageDwellByPath(since, until, TOP_LIMIT),
         this.events.viewsByCountry(since, until, TOP_LIMIT),
         this.events.viewsByRegion(since, until, TOP_LIMIT),
+        this.events.viewsByCity(since, until, TOP_LIMIT),
       ]);
 
     return {
@@ -71,6 +76,7 @@ export class GetWebAnalyticsSummary
       dwellByPath,
       viewsByCountry,
       viewsByRegion,
+      viewsByCity,
     };
   }
 }

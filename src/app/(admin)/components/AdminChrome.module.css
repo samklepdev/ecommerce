@@ -19,6 +19,9 @@
   --line-strong: #c6d0de;
   --accent: #22467f;
   --accent-bright: #3a6bc4;
+  /* States sit on top of their country's fill, so they need to read as
+     the same hue several steps lighter rather than a different colour. */
+  --accent-light: #7e9cd4;
   --slate: #5a6880;
   --amber: #b87503;
   --rose: #a3231b;

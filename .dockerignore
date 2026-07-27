@@ -8,3 +8,9 @@ public/uploads
 npm-debug.log*
 *.log
 .DS_Store
+
+# The geo database is bind-mounted at runtime (see docker-compose.yml), not
+# baked in — it would otherwise add 59 MB to every image build and push.
+src/modules/analytics/infrastructure/geo/*.mmdb
+src/modules/analytics/infrastructure/geo/*.mmdb.gz
+geo/

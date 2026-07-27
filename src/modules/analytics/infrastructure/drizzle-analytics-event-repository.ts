@@ -7,6 +7,7 @@ import type {
   AnalyticsEventInput,
   AnalyticsEventRepository,
   AnalyticsEventRow,
+  CityViews,
   CountryViews,
   PathDwell,
   RegionViews,
@@ -212,6 +213,41 @@ export class DrizzleAnalyticsEventRepository implements AnalyticsEventRepository
       country: r.country,
       views: Number(r.views),
       topCity: r.topCity,
+    }));
+  }
+
+  async viewsByCity(since: Date, until: Date, limit: number): Promise<CityViews[]> {
+    const city = sql<string>`${analyticsEvents.metadata} ->> 'city'`;
+    const region = sql<string | null>`${analyticsEvents.metadata} ->> 'region'`;
+    const country = sql<string>`${analyticsEvents.metadata} ->> 'country'`;
+    const latitude = sql<string>`${analyticsEvents.metadata} ->> 'latitude'`;
+    const longitude = sql<string>`${analyticsEvents.metadata} ->> 'longitude'`;
+
+    const rows = await this.db
+      .select({ city, region, country, latitude, longitude, views: sql<number>`count(*)` })
+      .from(analyticsEvents)
+      .where(
+        and(
+          eq(analyticsEvents.eventType, 'page_view'),
+          gte(analyticsEvents.createdAt, since),
+          lte(analyticsEvents.createdAt, until),
+          sql`${analyticsEvents.metadata} ->> 'city' IS NOT NULL`,
+          // Grouped on the coordinates too, so a city without them can't
+          // collapse into one that has them.
+          sql`${analyticsEvents.metadata} ->> 'latitude' IS NOT NULL`,
+        ),
+      )
+      .groupBy(city, region, country, latitude, longitude)
+      .orderBy(desc(sql`count(*)`))
+      .limit(limit);
+
+    return rows.map((r) => ({
+      city: r.city,
+      region: r.region,
+      country: r.country,
+      views: Number(r.views),
+      latitude: Number(r.latitude),
+      longitude: Number(r.longitude),
     }));
   }
 

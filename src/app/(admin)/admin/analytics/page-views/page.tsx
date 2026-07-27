@@ -89,7 +89,11 @@ export default async function PageViewsPage({ searchParams }: PageViewsPageProps
           Resolved from each visitor&apos;s IP against a local database — no
           request leaves the server.
         </p>
-        <WorldMapPanel countries={summary.viewsByCountry} />
+        <WorldMapPanel
+          countries={summary.viewsByCountry}
+          regions={summary.viewsByRegion}
+          cities={summary.viewsByCity}
+        />
 
         <div className={styles.geoSplit}>
           <CountryList items={summary.viewsByCountry} />

@@ -27,6 +27,9 @@ function fakeRepo(overrides: Partial<AnalyticsEventRepository> = {}): AnalyticsE
     async viewsByRegion() {
       return [];
     },
+    async viewsByCity() {
+      return [];
+    },
     async listBySessionId() {
       return [];
     },

@@ -50,6 +50,17 @@ export interface RegionViews {
   topCity: string | null;
 }
 
+export interface CityViews {
+  city: string;
+  region: string | null;
+  country: string;
+  views: number;
+  /** Coordinates of the *city*, not of any visitor — the database locates
+   * the place, not the person. */
+  latitude: number;
+  longitude: number;
+}
+
 export interface PathDwell {
   path: string;
   meanMs: number;
@@ -109,6 +120,9 @@ export interface AnalyticsEventRepository {
    * excluded rather than bucketed as "Unknown" — the region genuinely isn't
    * known for them. */
   viewsByRegion(since: Date, until: Date, limit: number): Promise<RegionViews[]>;
+  /** Page views grouped by city, busiest first. Only cities that resolved
+   * with coordinates — a city we can't place is no use to a map. */
+  viewsByCity(since: Date, until: Date, limit: number): Promise<CityViews[]>;
   /** Mean dwell time per path, in milliseconds, from `page_exit` events —
    * paths with no exit events recorded simply don't appear. */
   averageDwellByPath(since: Date, until: Date, limit: number): Promise<PathDwell[]>;
