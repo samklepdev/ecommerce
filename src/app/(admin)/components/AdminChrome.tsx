@@ -30,9 +30,9 @@ export function AdminChrome({ accountMenu, defaultOpen = true, children }: Admin
     document.cookie = navOpenCookie(next);
   }
 
-  // Escape closes it at every width — one of the three ways out, alongside
-  // the chevron and clicking outside. Bound only while open, so there's no
-  // listener sitting idle the rest of the time.
+  // Escape collapses it at every width — one of the three ways, alongside
+  // the chevron and clicking outside. Bound only while expanded, so there's
+  // no listener sitting idle the rest of the time.
   useEffect(() => {
     if (!navOpen) return;
 
@@ -45,20 +45,23 @@ export function AdminChrome({ accountMenu, defaultOpen = true, children }: Admin
 
   return (
     <div className={styles.shell}>
-      <AdminSidebar pathname={pathname} open={navOpen} onClose={() => setOpen(false)} />
+      <AdminSidebar
+        pathname={pathname}
+        open={navOpen}
+        onToggle={() => setOpen(!navOpen)}
+        onClose={() => setOpen(false)}
+      />
 
       {/* Anything outside the rail — topbar included — counts as "outside".
           It doesn't swallow the click: links and buttons still fire, the nav
-          just gets out of the way at the same time. The topbar's burger is
-          only rendered while the nav is shut, so its click bubbling up here
-          hits the `navOpen` guard and can't undo the open it just did. */}
+          just collapses at the same time. */}
       <div
         className={styles.main}
         onClick={() => {
           if (navOpen) setOpen(false);
         }}
       >
-        <AdminTopbar onOpenNav={() => setOpen(true)} navOpen={navOpen} accountMenu={accountMenu} />
+        <AdminTopbar accountMenu={accountMenu} />
         <main className={styles.content}>{children}</main>
       </div>
     </div>

@@ -130,14 +130,6 @@ export function GearIcon(props: IconProps) {
   );
 }
 
-export function MenuIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M4 7h16M4 12h16M4 17h16" />
-    </Icon>
-  );
-}
-
 export function ChevronLeftIcon(props: IconProps) {
   return (
     <Icon {...props}>

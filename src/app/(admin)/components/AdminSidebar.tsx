@@ -7,25 +7,29 @@ import styles from './AdminSidebar.module.css';
 
 interface AdminSidebarProps {
   pathname: string;
+  /** Expanded (labels) vs collapsed (icons only). The rail itself is always
+   * on screen — closed means narrow, not gone. */
   open: boolean;
-  /** Called by the chevron and by the backdrop. Escape and clicks on the
-   * page content are handled a level up, where the state lives. */
+  /** The chevron, which works both ways. */
+  onToggle: () => void;
+  /** The backdrop. Escape and clicks on the page content are handled a
+   * level up, where the state lives. */
   onClose: () => void;
 }
 
-export function AdminSidebar({ pathname, open, onClose }: AdminSidebarProps) {
+export function AdminSidebar({ pathname, open, onToggle, onClose }: AdminSidebarProps) {
   return (
     <>
-      {/* Only dims below the desktop breakpoint, where the rail overlays the
-          page. Above it the rail sits beside the content, so dimming would
-          mean a permanently greyed-out page. */}
+      {/* Only dims below the desktop breakpoint, where expanding overlays
+          the page. Above it the rail sits beside the content, so dimming
+          would mean a permanently greyed-out page. */}
       <div
         className={cx(styles.backdrop, open && styles.backdropVisible)}
         onClick={onClose}
         aria-hidden="true"
       />
 
-      <aside className={cx(styles.sidebar, open && styles.sidebarOpen)} aria-hidden={!open}>
+      <aside className={cx(styles.sidebar, open && styles.sidebarOpen)}>
         <div className={styles.inner}>
           <div className={styles.head}>
             <Link href="/admin" className={styles.brand}>
@@ -38,14 +42,14 @@ export function AdminSidebar({ pathname, open, onClose }: AdminSidebarProps) {
 
             <button
               type="button"
-              className={styles.closeToggle}
-              onClick={onClose}
-              aria-label="Close menu"
-              // Not focusable while shut — a hidden rail shouldn't sit in
-              // the tab order waiting to be reached.
-              tabIndex={open ? 0 : -1}
+              className={styles.toggle}
+              onClick={onToggle}
+              aria-label={open ? 'Collapse menu' : 'Expand menu'}
+              aria-expanded={open}
             >
-              <ChevronLeftIcon className={styles.closeIcon} />
+              {/* One icon, rotated when collapsed — it always points the way
+                  the rail will move. */}
+              <ChevronLeftIcon className={styles.toggleIcon} />
             </button>
           </div>
 
@@ -64,7 +68,6 @@ export function AdminSidebar({ pathname, open, onClose }: AdminSidebarProps) {
                           href={item.href}
                           className={cx(styles.item, active && styles.itemActive)}
                           aria-current={active ? 'page' : undefined}
-                          tabIndex={open ? 0 : -1}
                         >
                           <Icon className={styles.itemIcon} />
                           <span className={styles.itemLabel}>{item.label}</span>
@@ -77,7 +80,7 @@ export function AdminSidebar({ pathname, open, onClose }: AdminSidebarProps) {
             ))}
           </nav>
 
-          <Link href="/" className={styles.exit} tabIndex={open ? 0 : -1}>
+          <Link href="/" className={styles.exit}>
             <span className={styles.exitArrow} aria-hidden="true">
               ←
             </span>
