@@ -1,16 +1,38 @@
+import { existsSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
-import { MmdbIpGeoLookup } from './mmdb-ip-geo-lookup';
+import { BUNDLED_DB_PATH, MmdbIpGeoLookup } from './mmdb-ip-geo-lookup';
 
 /**
- * Runs against the committed database — no network, no DB server.
+ * The database is gitignored — 59 MB, refreshed monthly — so a fresh clone
+ * or an offline machine legitimately has none. The data assertions skip in
+ * that case rather than failing: a missing optional asset isn't a broken
+ * build, and red for a reason that isn't your code teaches people to ignore
+ * red. Run `npm run geo:fetch` to fetch it; CI does exactly that.
  *
- * These assertions are about the wiring, not about DB-IP's data: that the
- * file is present, is a readable mmdb, is found at the path the container
- * uses, and maps onto our `IpLocation` shape. The specific IPs are
- * long-standing anycast addresses chosen because their country is stable.
+ * The degradation test below always runs, because it needs no database by
+ * definition.
  */
-describe('MmdbIpGeoLookup', () => {
+const hasDatabase = existsSync(BUNDLED_DB_PATH);
+
+describe('MmdbIpGeoLookup without a database', () => {
+  it('returns null rather than throwing when the file is missing', async () => {
+    // A misdeployed or unfetched file must degrade to "no location", not
+    // take down every page that records an analytics event.
+    const broken = new MmdbIpGeoLookup('/nonexistent/does-not-exist.mmdb.gz');
+
+    expect(await broken.lookup('8.8.8.8')).toBeNull();
+  });
+});
+
+/**
+ * These assert the wiring, not DB-IP's data: that the archive is present,
+ * decompresses, is found at the path the container uses, and maps onto our
+ * `IpLocation` shape. The IPs are long-standing anycast addresses chosen
+ * because their location is stable.
+ */
+describe.skipIf(!hasDatabase)('MmdbIpGeoLookup', () => {
   const lookup = new MmdbIpGeoLookup();
 
   it('resolves a well-known IPv4 address down to its region', async () => {
@@ -62,7 +84,7 @@ describe('MmdbIpGeoLookup', () => {
   });
 
   it('decompresses the database only once across many lookups', async () => {
-    // The gzip is ~125 MB decompressed; doing that per lookup would be
+    // The archive is ~125 MB decompressed; doing that per lookup would be
     // ruinous. Concurrent first-callers must share one load.
     const fresh = new MmdbIpGeoLookup();
     const results = await Promise.all(
@@ -70,13 +92,5 @@ describe('MmdbIpGeoLookup', () => {
     );
 
     expect(results.every((r) => r !== null)).toBe(true);
-  });
-
-  it('returns null rather than throwing when the database is missing', async () => {
-    // A misdeployed file must degrade to "no country", not take down every
-    // page that records an analytics event.
-    const broken = new MmdbIpGeoLookup('/nonexistent/does-not-exist.mmdb.gz');
-
-    expect(await broken.lookup('8.8.8.8')).toBeNull();
   });
 });

@@ -86,6 +86,17 @@ ANALYTICS_DEV_IP=8.8.8.8
 Location is attached **when the event is recorded**. Page views captured
 before this feature existed have none and won't gain any retroactively.
 
+## CI
+
+The workflow fetches this file before running tests, cached on a
+year-month key — one download per DB-IP release, cache hits in between.
+
+The adapter's tests skip their data assertions when the archive is absent
+rather than failing, so a fresh clone or an offline machine stays green. The
+"missing database degrades to null" test always runs, since it needs no
+database by definition. That does mean an unfetched database in CI would
+show as skipped rather than red — the fetch step is what keeps them honest.
+
 ## Deployment
 
 `next.config.ts` lists this file under `outputFileTracingIncludes` so the
