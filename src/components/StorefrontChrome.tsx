@@ -14,7 +14,7 @@ import styles from './StorefrontChrome.module.css';
  */
 export function StorefrontChrome({ children }: { children: ReactNode }) {
   return (
-    <div className={styles.storefront}>
+    <div className={styles.storefront} data-theme-scope>
       <Header />
       {children}
       <Footer />
