@@ -9,7 +9,7 @@ export interface UpdateSupplierInput {
 }
 
 /** Non-empty-name/valid-URL invariants are enforced by the action layer's
- * Zod schema, same convention as UpdateProductDetails. */
+ * Zod schema, same convention as UpdateProduct. */
 export class UpdateSupplier implements UseCase<UpdateSupplierInput, void> {
   constructor(private readonly suppliers: SupplierRepository) {}
 

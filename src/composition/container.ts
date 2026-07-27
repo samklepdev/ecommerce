@@ -64,13 +64,11 @@ import { EmailPaymentConfirmationNotifier } from '@/modules/orders/infrastructur
 import { DrizzleProductRepository } from '@/modules/catalog/infrastructure/drizzle-product-repository';
 import { ListProducts } from '@/modules/catalog/application/use-cases/list-products';
 import { ListProductCategories } from '@/modules/catalog/application/use-cases/list-product-categories';
-import { UpdateProductCategory } from '@/modules/catalog/application/use-cases/update-product-category';
-import { UpdateProductDetails } from '@/modules/catalog/application/use-cases/update-product-details';
 import { GetProductBySlug } from '@/modules/catalog/application/use-cases/get-product-by-slug';
 import { GetProduct } from '@/modules/catalog/application/use-cases/get-product';
 import { GetProductsByIds } from '@/modules/catalog/application/use-cases/get-products-by-ids';
 import { CreateProduct } from '@/modules/catalog/application/use-cases/create-product';
-import { UpdateProductPrice } from '@/modules/catalog/application/use-cases/update-product-price';
+import { UpdateProduct } from '@/modules/catalog/application/use-cases/update-product';
 import { ApplyMarkupToProducts } from '@/modules/catalog/application/use-cases/apply-markup-to-products';
 import { BulkAssignCategory } from '@/modules/catalog/application/use-cases/bulk-assign-category';
 import { DrizzleAuditLogRepository } from '@/modules/audit/infrastructure/drizzle-audit-log-repository';
@@ -174,13 +172,11 @@ export interface Container {
 
   listProducts: ListProducts;
   listProductCategories: ListProductCategories;
-  updateProductCategory: UpdateProductCategory;
-  updateProductDetails: UpdateProductDetails;
   getProductBySlug: GetProductBySlug;
   getProduct: GetProduct;
   getProductsByIds: GetProductsByIds;
   createProduct: CreateProduct;
-  updateProductPrice: UpdateProductPrice;
+  updateProduct: UpdateProduct;
   applyMarkupToProducts: ApplyMarkupToProducts;
   bulkAssignCategory: BulkAssignCategory;
   recordAuditLogEntry: RecordAuditLogEntry;
@@ -323,13 +319,11 @@ function build(): Container {
   const products = new DrizzleProductRepository(db);
   const listProducts = new ListProducts(products);
   const listProductCategories = new ListProductCategories(products);
-  const updateProductCategory = new UpdateProductCategory(products);
-  const updateProductDetails = new UpdateProductDetails(products);
   const getProductBySlug = new GetProductBySlug(products);
   const getProduct = new GetProduct(products);
   const getProductsByIds = new GetProductsByIds(products);
   const createProduct = new CreateProduct(products);
-  const updateProductPrice = new UpdateProductPrice(products);
+  const updateProduct = new UpdateProduct(products);
   const applyMarkupToProducts = new ApplyMarkupToProducts(products);
   const bulkAssignCategory = new BulkAssignCategory(products);
   const auditLogRepository = new DrizzleAuditLogRepository(db);
@@ -534,13 +528,11 @@ function build(): Container {
     btcRates: rates,
     listProducts,
     listProductCategories,
-    updateProductCategory,
-    updateProductDetails,
     getProductBySlug,
     getProduct,
     getProductsByIds,
     createProduct,
-    updateProductPrice,
+    updateProduct,
     applyMarkupToProducts,
     bulkAssignCategory,
     recordAuditLogEntry,

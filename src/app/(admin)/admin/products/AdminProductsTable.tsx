@@ -19,13 +19,7 @@ import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { Input } from '@/components/ui/Input';
 import { cx } from '@/components/ui/cx';
-import { ProductImagesManager } from './ProductImagesManager';
-import { ProductCategoryEditor } from './ProductCategoryEditor';
-import { ProductDetailsEditor } from './ProductDetailsEditor';
-import { ProductPriceEditor } from './ProductPriceEditor';
-import { SupplierOfferCostEditor } from './SupplierOfferCostEditor';
-import { AddSupplierOfferForm } from './AddSupplierOfferForm';
-import { SetPreferredOfferButton } from './SetPreferredOfferButton';
+import { ProductEditPanel } from './ProductEditPanel';
 import styles from './page.module.css';
 
 export interface AdminProductOfferRow {
@@ -199,69 +193,10 @@ export function AdminProductsTable({ products, emptyMessage, suppliers }: AdminP
                   {open && (
                     <tr className={styles.detailRow}>
                       <td colSpan={7} id={`product-detail-${p.id}`}>
-                        <div className={styles.detailGrid}>
-                          <section className={styles.detailPanel}>
-                            <h3 className={styles.detailTitle}>Details</h3>
-                            <ProductDetailsEditor
-                              productId={p.id}
-                              name={p.name}
-                              description={p.description}
-                            />
-                            <ProductCategoryEditor productId={p.id} category={p.category} />
-                          </section>
-
-                          <section className={styles.detailPanel}>
-                            <h3 className={styles.detailTitle}>Price</h3>
-                            <ProductPriceEditor
-                              productId={p.id}
-                              priceAmountMinor={p.priceAmountMinor}
-                              currency={p.currency}
-                            />
-                          </section>
-
-                          <section className={styles.detailPanel}>
-                            <h3 className={styles.detailTitle}>Images</h3>
-                            <ProductImagesManager
-                              productId={p.id}
-                              productName={p.name}
-                              imageUrl={p.imageUrl}
-                              additionalImages={p.additionalImages}
-                            />
-                          </section>
-
-                          <section className={cx(styles.detailPanel, styles.detailWide)}>
-                            <h3 className={styles.detailTitle}>Sourcing</h3>
-                            <ul className={styles.offerList}>
-                              {p.offers.map((offer) => (
-                                <li key={offer.id} className={styles.offerRow}>
-                                  <div className={styles.offerInfo}>
-                                    <span>
-                                      {offer.supplierName}
-                                      {offer.isPreferred && (
-                                        <Badge tone="accent" className={styles.preferredBadge}>
-                                          preferred
-                                        </Badge>
-                                      )}
-                                    </span>
-                                    <div className={styles.offerCost}>
-                                      cost
-                                      <SupplierOfferCostEditor
-                                        offerId={offer.id}
-                                        costAmountMinor={offer.costAmountMinor}
-                                        currency={offer.currency}
-                                      />
-                                    </div>
-                                    {!offer.isPreferred && (
-                                      <SetPreferredOfferButton offerId={offer.id} productId={p.id} />
-                                    )}
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                            <AddSupplierOfferForm productId={p.id} suppliers={suppliers} />
-                          </section>
-
-                          <div className={styles.detailActions}>
+                        <ProductEditPanel
+                          product={p}
+                          suppliers={suppliers}
+                          actions={
                             <form action={deleteFormAction}>
                               <input type="hidden" name="productIds" value={p.id} />
                               {p.status === 'active' ? (
@@ -287,8 +222,8 @@ export function AdminProductsTable({ products, emptyMessage, suppliers }: AdminP
                                 Delete
                               </Button>
                             </form>
-                          </div>
-                        </div>
+                          }
+                        />
                       </td>
                     </tr>
                   )}

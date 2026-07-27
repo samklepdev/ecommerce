@@ -1,0 +1,153 @@
+/* The edit panel gets room deliberately: it opens one row at a time, so it
+   can spend the width the collapsed table saves. Same editorial system as
+   the rest of the console — hairlines, mono labels, no radius. */
+
+.panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 40px;
+  padding: 32px 24px 36px;
+  align-items: start;
+}
+
+/* Below ~1100px the two columns would each be too narrow to be worth
+   splitting, so the aside drops beneath the form. */
+@media (max-width: 1100px) {
+  .panel {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+  }
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  min-width: 0;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 22px 24px;
+}
+
+.field,
+.fieldWide {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Description wants the full width of the form column — a five-row textarea
+   squeezed into a half-column is the squash this panel was built to fix. */
+.fieldWide {
+  grid-column: 1 / -1;
+}
+
+.label {
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* footer ------------------------------------------------------------ */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+/* Holds its place whether or not there's a message, so pressing Save
+   doesn't shove the buttons sideways. */
+.footerMessage {
+  min-height: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.footerActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.footerActions form {
+  display: flex;
+  gap: 10px;
+}
+
+/* aside -------------------------------------------------------------- */
+.aside {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  min-width: 0;
+}
+
+.asideSection {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.asideTitle {
+  margin: 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.asideNote {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.offerList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+}
+
+.offerRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.offerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.offerSupplier {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.offerCost {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
