@@ -1,0 +1,53 @@
+.rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The filled layer sits on top of the empty one and is clipped by width, so
+   a 4.6 shows as 4.6 rather than being rounded to a half-star glyph. */
+.stars {
+  position: relative;
+  display: inline-block;
+  font-size: var(--star-size);
+  line-height: 1;
+  letter-spacing: 0.09em;
+  white-space: nowrap;
+}
+
+.base {
+  color: var(--line-strong);
+}
+
+.fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: hidden;
+  color: var(--ink);
+}
+
+.value {
+  font-family: var(--ui-mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.count {
+  font-family: var(--ui-mono);
+  font-size: 11.5px;
+  color: var(--faint);
+  transition: color 0.15s ease;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

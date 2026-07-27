@@ -1,122 +1,154 @@
+/* Follows the buy box down a long page — the price and the picture are the
+   two things you compare against each other while reading. */
 .wrap {
+  position: sticky;
+  top: 24px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  max-width: 420px;
-  margin: 0 auto;
+  gap: 10px;
+}
+
+.main {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  cursor: zoom-in;
+  overflow: hidden;
+}
+
+.mainImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.index {
+  position: absolute;
+  bottom: 12px;
+  right: 14px;
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  color: var(--faint);
 }
 
 .placeholder {
-  width: 100%;
-  max-width: 420px;
-  aspect-ratio: 1 / 1;
-  border-radius: var(--radius-md);
-  background: var(--color-border);
-  margin: 0 auto;
+  aspect-ratio: 4 / 3;
+  background: var(--surface);
+  border: 1px solid var(--line);
 }
 
-.heroButton {
-  display: block;
-  width: 100%;
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
-}
-
-.heroImage {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  object-fit: cover;
-  border-radius: var(--radius-md);
-}
-
-.thumbList {
+.thumbs {
   list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  justify-content: center;
-}
-
-.thumbButton {
+  margin: 0;
   padding: 0;
-  border: 2px solid transparent;
-  border-radius: var(--radius-sm);
-  background: none;
-  cursor: pointer;
-  line-height: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 8px;
 }
 
-.thumbButton:hover {
-  border-color: var(--color-accent);
+.thumb {
+  aspect-ratio: 1;
+  width: 100%;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.thumb:hover {
+  border-color: var(--line-strong);
+}
+
+.thumbOn {
+  border-color: var(--accent);
 }
 
 .thumbImage {
-  width: 56px;
-  height: 56px;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  border-radius: var(--radius-sm);
 }
 
+/* modal carousel ---------------------------------------------------- */
 .carouselModal {
-  max-width: 720px;
-  width: 100%;
+  max-width: min(92vw, 1100px);
 }
 
 .carousel {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  align-items: center;
+  gap: 12px;
 }
 
 .carouselMain {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-  width: 100%;
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  min-height: min(70vh, 560px);
 }
 
 .carouselImage {
-  width: 100%;
-  max-height: 60vh;
+  max-width: 100%;
+  max-height: min(70vh, 560px);
   object-fit: contain;
-  border-radius: var(--radius-sm);
 }
 
 .navButton {
-  flex-shrink: 0;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 50%;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  font-size: 1.25rem;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 56px;
+  border: 1px solid var(--line-strong);
+  background: var(--canvas);
+  color: var(--ink);
+  font-size: 22px;
   line-height: 1;
   cursor: pointer;
 }
 
+.navButton:first-of-type {
+  left: 8px;
+}
+
+.navButton:last-of-type {
+  right: 8px;
+}
+
 .navButton:hover {
-  background: var(--color-border);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .dots {
   display: flex;
-  gap: var(--space-2);
+  justify-content: center;
+  gap: 6px;
 }
 
 .dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   padding: 0;
-  border-radius: 50%;
-  border: none;
-  background: var(--color-border);
+  border: 0;
+  background: var(--line-strong);
   cursor: pointer;
 }
 
 .dotActive {
-  background: var(--color-accent);
+  background: var(--accent);
+}
+
+@media (max-width: 980px) {
+  .wrap {
+    position: static;
+  }
 }

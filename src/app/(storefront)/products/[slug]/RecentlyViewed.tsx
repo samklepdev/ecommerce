@@ -4,8 +4,6 @@ import { useEffect, useState } from 'react';
 
 import { getRecentlyViewedProductsAction } from '@/app/actions/products';
 import { ProductCardMini, type ProductCardSummary } from '../ProductCardMini';
-import cardStyles from '../ProductCardMini.module.css';
-import { cx } from '@/components/ui/cx';
 import styles from './page.module.css';
 
 const STORAGE_KEY = 'recentlyViewed';
@@ -60,17 +58,18 @@ export function RecentlyViewed({ currentProductId }: RecentlyViewedProps) {
   if (products.length === 0) return null;
 
   return (
-    <div>
-      <h2 className={styles.sectionTitle}>Recently viewed</h2>
-      <div className={cx(styles.relatedGrid, products.length === 1 && styles.single)}>
+    <section>
+      <div className={styles.sectionHeader}>
+        <h2>Recently viewed</h2>
+      </div>
+      {/* No sats figure here: the rate is fetched on the server and this
+          list is assembled in the browser from localStorage. Fiat alone is
+          better than a stale or invented conversion. */}
+      <div className={styles.cardGrid}>
         {products.map((product) => (
-          <ProductCardMini key={product.id} product={product}>
-            {product.priceDisplay && (
-              <span className={cardStyles.price}>{product.priceDisplay}</span>
-            )}
-          </ProductCardMini>
+          <ProductCardMini key={product.id} product={product} />
         ))}
       </div>
-    </div>
+    </section>
   );
 }

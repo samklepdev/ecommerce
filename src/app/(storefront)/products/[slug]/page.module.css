@@ -1,119 +1,242 @@
-.description {
-  color: var(--color-muted);
-  margin-top: var(--space-2);
+/* Dark scope, the same role tokens the catalog listing defines — so
+   ProductCardMini and the rest restyle by context rather than by prop. */
+.root {
+  --canvas: #0a0e13;
+  --surface: #121821;
+  --surface-hi: #171f29;
+  --ink: #e9eef4;
+  --muted: #98a5b6;
+  --faint: #66748a;
+  --line: #1e2833;
+  --line-strong: #2c3846;
+  --accent: #3fb6ae;
+  --accent-dim: #1f5f5c;
+  --accent-ink: #04211f;
+  --accent-wash: rgba(63, 182, 174, 0.08);
+  --amber: #e0a340;
+  --rose: #e4695e;
+
+  color-scheme: dark;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--ui-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  flex: 1;
 }
 
-.description p {
-  margin: 0 0 var(--space-2);
+.root a {
+  color: inherit;
+  text-decoration: none;
 }
 
-.description p:last-child {
-  margin-bottom: 0;
+.root a:focus-visible,
+.root button:focus-visible,
+.root input:focus-visible,
+.root select:focus-visible,
+.root textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-.description ul,
-.description ol {
-  margin: 0 0 var(--space-2);
-  padding-left: 1.25rem;
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 22px 24px 96px;
 }
 
-.description a {
-  color: var(--color-accent);
+.eyebrow {
+  font-family: var(--ui-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
 }
 
-.variantCard {
+/* breadcrumbs ------------------------------------------------------- */
+.crumbs {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-family: var(--ui-mono);
+  font-size: 11.5px;
+  color: var(--faint);
+  margin-bottom: 24px;
 }
 
-.variantCard > div {
+.crumbs a:hover {
+  color: var(--accent);
+}
+
+.crumbs [aria-current] {
+  color: var(--ink);
+}
+
+.crumbSep {
+  color: var(--line-strong);
+}
+
+/* buy area ---------------------------------------------------------- */
+.buyArea {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 32px;
+  align-items: start;
+}
+
+.buyColumn {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  align-items: flex-start;
+  gap: 14px;
 }
 
-.variantName {
-  font-weight: 500;
+.title {
+  margin: 4px 0 0;
+  font-size: clamp(26px, 3.2vw, 34px);
+  font-weight: 600;
+  letter-spacing: -0.032em;
+  line-height: 1.1;
 }
 
-.price {
-  color: var(--color-muted);
-  font-size: 0.875rem;
+.ratingLink {
+  display: inline-flex;
+  width: fit-content;
 }
 
 .shippingNote {
-  color: var(--color-muted);
-  font-size: 0.875rem;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
 }
 
-.sectionTitle {
-  font-size: 1.125rem;
-  margin-bottom: var(--space-3);
+.trust {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
 }
 
-.relatedGrid {
+.trust span {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.trust i {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  margin-top: 5px;
+}
+
+.dotAccent {
+  background: var(--accent);
+}
+
+.dotAmber {
+  background: var(--amber);
+}
+
+/* description ------------------------------------------------------- */
+.prose {
+  max-width: 68ch;
+  font-size: 14.5px;
+  line-height: 1.68;
+  color: var(--muted);
+}
+
+.prose :global(p) {
+  margin: 0 0 16px;
+}
+
+.prose :global(p:last-child) {
+  margin-bottom: 0;
+}
+
+.prose :global(strong) {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.prose :global(ul),
+.prose :global(ol) {
+  margin: 0 0 16px;
+  padding-left: 20px;
+}
+
+.prose :global(li) {
+  margin-bottom: 6px;
+}
+
+.prose :global(li)::marker {
+  color: var(--accent);
+}
+
+.prose :global(a) {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.prose :global(h2),
+.prose :global(h3) {
+  color: var(--ink);
+  font-size: 15px;
+  margin: 24px 0 10px;
+}
+
+/* sections ---------------------------------------------------------- */
+.sectionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 11px;
+  margin: 56px 0 20px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.sectionHeader h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.022em;
+}
+
+.cardGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: var(--space-4);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
 }
 
-/* A single card would otherwise stretch to fill the full row width via
-   the 1fr track above — cap it at a normal card width and center it. */
-.relatedGrid.single {
-  grid-template-columns: minmax(160px, 240px);
-  justify-content: center;
+/* responsive -------------------------------------------------------- */
+@media (max-width: 980px) {
+  .buyArea {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .cardGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-.meta {
-  color: var(--color-muted);
-  font-size: 0.875rem;
+@media (max-width: 640px) {
+  .cardGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
 }
 
-.reviewsSummary {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
-}
-
-.reviewsStars {
-  color: var(--color-accent);
-  letter-spacing: 0.1em;
-}
-
-.reviewForm {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  max-width: 480px;
-  margin: var(--space-4) 0;
-}
-
-.reviewsList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  margin-top: var(--space-4);
-}
-
-.reviewCard {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.reviewHeader {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.reviewTitle {
-  font-weight: 500;
-}
-
-.reviewBody {
-  white-space: pre-wrap;
+@media (prefers-reduced-motion: reduce) {
+  .root *,
+  .root *::before,
+  .root *::after {
+    transition: none !important;
+    animation: none !important;
+  }
 }

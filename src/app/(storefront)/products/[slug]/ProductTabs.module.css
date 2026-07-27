@@ -1,0 +1,67 @@
+.detail {
+  margin-top: 56px;
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--line-strong);
+  overflow-x: auto;
+}
+
+.tab {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 13.5px;
+  padding: 10px 16px;
+  border-bottom: 2px solid transparent;
+  /* Pulls the active underline onto the container's own rule so the two
+     read as one line rather than two stacked. */
+  margin-bottom: -1px;
+  white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.tab:hover {
+  color: var(--ink);
+}
+
+.tabOn {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+  font-weight: 500;
+}
+
+.panel {
+  padding-top: 24px;
+}
+
+.empty {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+/* Also applied to the server-rendered markdown, via :global in page.module.css. */
+.prose {
+  max-width: 68ch;
+  font-size: 14.5px;
+  line-height: 1.68;
+  color: var(--muted);
+}
+
+.prose p {
+  margin: 0 0 16px;
+}
+
+.prose p:last-child {
+  margin-bottom: 0;
+}
+
+.prose strong {
+  color: var(--ink);
+  font-weight: 600;
+}
