@@ -124,7 +124,7 @@ export function AdminProductsTable({ products, emptyMessage, suppliers }: AdminP
               <th>Product</th>
               <th>Status</th>
               <th>Images</th>
-              <th>SKU, price &amp; supplier offers</th>
+              <th>SKU, price &amp; sourcing</th>
               <th></th>
             </tr>
           </thead>
@@ -246,6 +246,7 @@ export function AdminProductsTable({ products, emptyMessage, suppliers }: AdminP
       </div>
 
       <div className={styles.bulkActions}>
+        <span className={styles.bulkLabel}>Selected</span>
         <Button
           type="submit"
           form={BULK_FORM_ID}

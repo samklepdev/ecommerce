@@ -3,8 +3,6 @@ import { requireAdmin } from '@/app/lib/session';
 import { ProductActionsBar } from './ProductActionsBar';
 import { SupplierFilterSelect } from './SupplierFilterSelect';
 import { AdminProductsTable, type AdminProductRow } from './AdminProductsTable';
-import { PageContainer } from '@/components/ui/PageContainer';
-import { Stack } from '@/components/ui/Stack';
 import { Pagination } from '@/components/ui/Pagination';
 import { paginate, parsePage, DEFAULT_PAGE_SIZE } from '@/components/ui/paginate';
 import type { SupplierOffer } from '@/modules/sourcing/domain/supplier-offer';
@@ -88,33 +86,53 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
     })),
   }));
 
-  return (
-    <PageContainer>
-      <Stack gap={5}>
-        <h1>Products</h1>
+  const activeCount = allProducts.filter((p) => p.status === 'active').length;
 
-        <div className={styles.toolbar}>
-          <ProductActionsBar suppliers={activeSupplierOptions} />
-          <div className={styles.filterRow}>
-            <SupplierFilterSelect suppliers={supplierOptions} selectedSupplierId={supplierId} />
-          </div>
+  return (
+    <div className={styles.page}>
+      <header className={styles.pageHead}>
+        <div className={styles.brand}>
+          <span className={styles.brandMark} aria-hidden="true" />
+          <h1>Products</h1>
+        </div>
+        {/* The dashboard puts the date range here; the equivalent fact for a
+            catalog is how much of it is actually live. */}
+        <span className={styles.headMeta}>
+          {allProducts.length} total · {activeCount} live · {suppliers.length} suppliers
+        </span>
+      </header>
+
+      <div className={styles.toolbar}>
+        <ProductActionsBar suppliers={activeSupplierOptions} />
+        <div className={styles.filterRow}>
+          <SupplierFilterSelect suppliers={supplierOptions} selectedSupplierId={supplierId} />
+        </div>
+      </div>
+
+      <section className={styles.section}>
+        <div className={styles.sectionHead}>
+          {/* Not "Catalog" — that's already the sidebar's group name, and one
+              word meaning two things is how a console stops being learnable. */}
+          <h2>All products</h2>
+          <span className={styles.sectionCount}>
+            {products.length === allProducts.length
+              ? `${products.length} products`
+              : `${products.length} of ${allProducts.length} products`}
+          </span>
         </div>
 
-        <section>
-          <h2 className={styles.sectionTitle}>Existing products</h2>
-          <AdminProductsTable
-            products={rows}
-            emptyMessage={supplierId ? 'No products from this supplier.' : 'No products yet.'}
-            suppliers={activeSupplierOptions}
-          />
+        <AdminProductsTable
+          products={rows}
+          emptyMessage={supplierId ? 'No products from this supplier.' : 'No products yet.'}
+          suppliers={activeSupplierOptions}
+        />
 
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            buildHref={(p) => buildHref(supplierId, p)}
-          />
-        </section>
-      </Stack>
-    </PageContainer>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          buildHref={(p) => buildHref(supplierId, p)}
+        />
+      </section>
+    </div>
   );
 }
