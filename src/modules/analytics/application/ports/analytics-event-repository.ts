@@ -26,6 +26,10 @@ export interface ValueCount {
 }
 
 export interface CountryViews {
+  /** ISO 3166-1 alpha-2. The map joins geometry on this rather than on the
+   * name — "United States" vs "United States of America" would silently
+   * never match. */
+  countryCode: string;
   country: string;
   continent: string;
   views: number;

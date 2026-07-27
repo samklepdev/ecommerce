@@ -12,8 +12,7 @@ import { RankedList } from '../components/RankedList';
 import { PathFilter } from '../components/PathFilter';
 import { DwellList } from '../components/DwellList';
 import { CountryList } from '../components/CountryList';
-import { ContinentMap } from '../components/ContinentMap';
-import { busiestContinent, summarizeByContinent } from '../continents';
+import { WorldMapPanel } from '../components/WorldMapPanel';
 import { EventLogTable } from '../components/EventLogTable';
 import styles from '../drill-down.module.css';
 
@@ -52,8 +51,6 @@ export default async function PageViewsPage({ searchParams }: PageViewsPageProps
   const total = perDay.reduce((t, v) => t + v, 0);
   const totalPages = Math.max(1, Math.ceil(listed.total / PAGE_SIZE));
 
-  const continents = summarizeByContinent(summary.viewsByCountry);
-
   return (
     <div className={styles.page}>
       <DrillDownHeader
@@ -91,7 +88,7 @@ export default async function PageViewsPage({ searchParams }: PageViewsPageProps
           Resolved from each visitor&apos;s IP against a local database — no
           request leaves the server.
         </p>
-        <ContinentMap summaries={continents} busiest={busiestContinent(continents)} />
+        <WorldMapPanel countries={summary.viewsByCountry} />
         {/* CC BY 4.0 requires attribution wherever the data is shown. */}
         <p className={styles.attribution}>
           IP geolocation by{' '}

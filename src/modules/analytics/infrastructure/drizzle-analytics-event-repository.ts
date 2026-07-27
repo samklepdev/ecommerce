@@ -143,11 +143,13 @@ export class DrizzleAnalyticsEventRepository implements AnalyticsEventRepository
 
   async viewsByCountry(since: Date, until: Date, limit: number): Promise<CountryViews[]> {
     const country = sql<string>`${analyticsEvents.metadata} ->> 'country'`;
+    const countryCode = sql<string>`${analyticsEvents.metadata} ->> 'countryCode'`;
     const continent = sql<string>`${analyticsEvents.metadata} ->> 'continent'`;
 
     const rows = await this.db
       .select({
         country,
+        countryCode,
         continent,
         views: sql<number>`count(*)`,
         // max() rather than a random pick so the sample is stable between
@@ -163,12 +165,13 @@ export class DrizzleAnalyticsEventRepository implements AnalyticsEventRepository
           sql`${analyticsEvents.metadata} ->> 'country' IS NOT NULL`,
         ),
       )
-      .groupBy(country, continent)
+      .groupBy(country, countryCode, continent)
       .orderBy(desc(sql`count(*)`))
       .limit(limit);
 
     return rows.map((r) => ({
       country: r.country,
+      countryCode: r.countryCode,
       continent: r.continent,
       views: Number(r.views),
       sampleIp: r.sampleIp,
