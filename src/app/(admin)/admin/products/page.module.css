@@ -110,6 +110,48 @@
   max-width: 320px;
 }
 
+/* The console's own dialog look, applied to the shared Modal from outside.
+   Reaches the chrome by element (header / h2 / button) because the Modal's
+   own class names are hashed by CSS modules and can't be named here. The
+   storefront's lightbox uses the same Modal and is untouched by this. */
+/* Doubled deliberately: `.adminModal` and the Modal's own `.panel` are both
+   single classes on the same element, so equal specificity would leave the
+   winner down to stylesheet order. `.adminModal.adminModal` settles it
+   without reaching for !important. */
+.adminModal.adminModal {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.adminModal header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+/* Matches the page's own section heads, so a dialog reads as part of the
+   console rather than a component borrowed from somewhere else. */
+.adminModal h2 {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.adminModal header button {
+  font-family: var(--ui-mono);
+  color: var(--faint);
+}
+
+.adminModal header button:hover {
+  color: var(--ink);
+}
+
+.adminModal > div:last-child {
+  padding: 24px;
+}
+
 .addProductModal {
   max-width: 640px;
 }

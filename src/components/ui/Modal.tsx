@@ -102,7 +102,11 @@ export function Modal({ trigger, open: controlledOpen, onOpenChange, title, chil
               tabIndex={-1}
               onMouseDown={(e) => e.stopPropagation()}
             >
-              <div className={styles.header}>
+              {/* `header` and `h2` rather than divs so a calling area can
+                  theme the chrome from its own stylesheet — CSS-module class
+                  names are hashed and can't be selected across modules, but
+                  elements can. See `.adminModal` on the products page. */}
+              <header className={styles.header}>
                 <h2 id={titleId} className={styles.title}>
                   {title}
                 </h2>
@@ -114,7 +118,7 @@ export function Modal({ trigger, open: controlledOpen, onOpenChange, title, chil
                 >
                   ×
                 </button>
-              </div>
+              </header>
               <div className={styles.body}>
                 {typeof children === 'function' ? children(close) : children}
               </div>

@@ -5,6 +5,7 @@ import { AddProductForm } from './AddProductForm';
 import { ImportFeedForm } from './ImportFeedForm';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
+import { cx } from '@/components/ui/cx';
 import styles from './page.module.css';
 
 interface Supplier {
@@ -23,12 +24,17 @@ interface ProductActionsBarProps {
 export function ProductActionsBar({ suppliers }: ProductActionsBarProps) {
   return (
     <div className={styles.actionsRow}>
-      <Modal title="Add supplier" trigger={(open) => <Button onClick={open}>+ Add supplier</Button>}>
+      <Modal
+        title="Add supplier"
+        className={styles.adminModal}
+        trigger={(open) => <Button onClick={open}>+ Add supplier</Button>}
+      >
         {(close) => <AddSupplierForm onSuccess={close} />}
       </Modal>
 
       <Modal
         title="Import Products"
+        className={styles.adminModal}
         trigger={(open) => (
           <Button onClick={open} variant="secondary">
             + Import Products
@@ -44,7 +50,7 @@ export function ProductActionsBar({ suppliers }: ProductActionsBarProps) {
 
       <Modal
         title="Add product"
-        className={styles.addProductModal}
+        className={cx(styles.adminModal, styles.addProductModal)}
         trigger={(open) => (
           <Button onClick={open} variant="secondary">
             + Add product
