@@ -11,6 +11,8 @@ export interface ListAnalyticsEventsInput {
   until: Date;
   limit: number;
   offset: number;
+  /** Narrows to events whose path contains this substring. */
+  pathContains?: string;
 }
 
 export interface ListAnalyticsEventsResult {
@@ -22,6 +24,13 @@ export class ListAnalyticsEvents implements UseCase<ListAnalyticsEventsInput, Li
   constructor(private readonly events: AnalyticsEventRepository) {}
 
   async execute(input: ListAnalyticsEventsInput): Promise<ListAnalyticsEventsResult> {
-    return this.events.listByType(input.eventType, input.since, input.until, input.limit, input.offset);
+    return this.events.listByType(
+      input.eventType,
+      input.since,
+      input.until,
+      input.limit,
+      input.offset,
+      input.pathContains,
+    );
   }
 }

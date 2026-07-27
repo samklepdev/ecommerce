@@ -45,26 +45,29 @@
 /* Desktop: the drawer becomes a permanent rail and the toggle machinery
    (transform, backdrop, close button) goes away entirely.
 
-   `position: static` makes the <aside> an ordinary flex item, so it
-   stretches to the height of the whole shell — its navy reaches the bottom
-   of a long page instead of stopping at the fold. The nav itself stays put
-   via `position: sticky` on `.inner`. */
+   The shell is exactly one viewport tall and doesn't scroll, so the rail is
+   pinned without `sticky` — it simply fills the full height of a container
+   that never moves. Only the nav list scrolls, and only when it's longer
+   than the screen. */
 @media (min-width: 1024px) {
   .sidebar {
     position: static;
     flex-shrink: 0;
     transform: none;
-    transition: none;
+    transition: width 180ms ease;
+    height: 100%;
   }
 
   .inner {
-    position: sticky;
-    top: 0;
-    /* Caps at the viewport so a nav longer than the screen scrolls on its
-       own rather than being clipped by the sticky container. */
-    max-height: 100vh;
-    height: auto;
-    min-height: 100vh;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* Only this scrolls — the brand and the exit link stay put. */
+  .nav {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    min-height: 0;
   }
 
   .backdrop,
@@ -211,12 +214,102 @@
 }
 
 .exit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: none;
   padding: var(--space-3);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   font-size: 0.85rem;
   color: var(--admin-sidebar-muted);
 }
 
+.exitArrow {
+  flex: none;
+  width: 1.25rem;
+  text-align: center;
+}
+
 .exit:hover {
   color: #ffffff;
+}
+
+/* collapse ---------------------------------------------------------- */
+
+/* Hidden on mobile: the drawer is an overlay there, so narrowing it saves
+   nothing and would only remove the labels. */
+.collapseToggle {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .collapseToggle {
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    flex: none;
+    border: 0;
+    background: transparent;
+    color: var(--admin-sidebar-muted);
+    cursor: pointer;
+    transition: color 140ms ease, transform 180ms ease;
+  }
+
+  .collapseToggle:hover {
+    color: #ffffff;
+  }
+
+  .collapseIcon {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  .collapsed {
+    /* Wide enough for the icon plus the item's own padding, so the icons
+       stay on the same optical centre line as when expanded. */
+    width: 4.75rem;
+  }
+
+  .collapsed .brandText,
+  .collapsed .groupLabel,
+  .collapsed .itemLabel {
+    /* clip rather than display:none — the text stays in the accessibility
+       tree, so the nav still reads correctly to a screen reader. */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .collapsed .head {
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-2) 0 var(--space-4);
+  }
+
+  .collapsed .brand,
+  .collapsed .item,
+  .collapsed .exit {
+    justify-content: center;
+    gap: 0;
+  }
+
+  .collapsed .collapseToggle {
+    transform: rotate(180deg);
+  }
+
+  /* Groups lose their headings when collapsed, so a rule stands in for the
+     grouping the labels used to carry. */
+  .collapsed .group + .group {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: var(--space-3);
+  }
+
+  .collapsed .exitArrow {
+    width: auto;
+  }
 }

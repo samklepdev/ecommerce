@@ -12,9 +12,16 @@ function toDateParam(d: Date): string {
 }
 
 /** Link back to the same page with a different page number, carrying the
- * current range so paging never silently resets it. */
-export function pageHref(basePath: string, { since, until }: DateRange, page: number): string {
+ * current range — and any path filter — so paging never silently resets
+ * what you're looking at. */
+export function pageHref(
+  basePath: string,
+  { since, until }: DateRange,
+  page: number,
+  pathContains?: string,
+): string {
   const params = new URLSearchParams({ from: toDateParam(since), to: toDateParam(until) });
+  if (pathContains) params.set('path', pathContains);
   if (page > 1) params.set('page', String(page));
   return `${basePath}?${params.toString()}`;
 }

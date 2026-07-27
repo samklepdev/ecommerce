@@ -62,11 +62,25 @@
 
   display: flex;
   flex: 1;
-  min-height: 100vh;
   background: var(--canvas);
   color: var(--ink);
   font-family: var(--ui-sans), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Desktop is an app shell: the whole thing is exactly one viewport tall and
+   never scrolls, so the rail is pinned by construction and only `.main`
+   moves. Below the breakpoint the rail is an overlay drawer, so the page
+   scrolls normally instead. */
+@media (min-width: 1024px) {
+  .shell {
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .main {
+    overflow-y: auto;
+  }
 }
 
 .shell a:focus-visible,

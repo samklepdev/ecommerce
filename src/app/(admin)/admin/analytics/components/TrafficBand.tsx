@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 
+import { cx } from '@/components/ui/cx';
 import { formatCount, shortDay } from '../format';
 import styles from './TrafficBand.module.css';
 
@@ -35,8 +36,10 @@ const PAD_B = 26;
  * The two aren't on a shared scale — views outnumber cart changes by an
  * order of magnitude, and the question worth answering is whether visits
  * and intent move together, which is about shape rather than magnitude.
- * Exact figures live in the readout strip below, so nothing floats over
- * the plot.
+ *
+ * Hovering gives exact figures in a tooltip anchored to the day under the
+ * cursor; the strip below stays a legend, so the colours are readable
+ * without hovering anything.
  */
 export function TrafficBand({ points }: TrafficBandProps) {
   const [hover, setHover] = useState<number | null>(null);
@@ -182,27 +185,41 @@ export function TrafficBand({ points }: TrafficBandProps) {
         ))}
       </div>
 
-      {/* A fixed strip rather than a tooltip that follows the cursor: it
-          never covers the data it describes, and it holds the legend when
-          nothing is hovered instead of appearing from nowhere. */}
+      {/* Anchored to the hovered point and pinned above the plot area, so it
+          never covers the line it describes. It flips to the other side of
+          the cursor near the edges rather than overflowing the card. */}
+      {hover !== null && active && (
+        <div
+          className={cx(
+            styles.tooltip,
+            hover / points.length > 0.5 ? styles.tooltipLeft : styles.tooltipRight,
+          )}
+          style={{ left: `${((hover + 0.5) / points.length) * 100}%` }}
+          role="status"
+        >
+          <span className={styles.tooltipDay}>{shortDay(active.day)}</span>
+          <span className={styles.tooltipRow}>
+            <span className={cx(styles.dot, styles.accentDot)} />
+            {formatCount(active.views)} views
+          </span>
+          <span className={styles.tooltipRow}>
+            <span className={cx(styles.dot, styles.brightDot)} />
+            {formatCount(active.cartChanges)} cart changes
+          </span>
+          <span className={styles.tooltipRow}>
+            <span className={styles.dotSpacer} />
+            {formatCount(active.searches)} searches
+          </span>
+        </div>
+      )}
+
+      {/* Legend only — the hovered day's figures are in the tooltip, and
+          having both show them made the same numbers appear twice. */}
       <div className={styles.readout}>
-        {active ? (
-          <>
-            <span className={styles.day}>{shortDay(active.day)}</span>
-            <span className={`${styles.dot} ${styles.accentDot}`} />
-            <span className={styles.value}>{formatCount(active.views)} views</span>
-            <span className={`${styles.dot} ${styles.brightDot}`} />
-            <span className={styles.value}>{formatCount(active.cartChanges)} cart changes</span>
-            <span className={styles.meta}>{formatCount(active.searches)} searches</span>
-          </>
-        ) : (
-          <>
-            <span className={`${styles.dot} ${styles.accentDot}`} />
-            <span className={styles.meta}>Page views</span>
-            <span className={`${styles.dot} ${styles.brightDot}`} />
-            <span className={styles.meta}>Cart changes</span>
-          </>
-        )}
+        <span className={cx(styles.dot, styles.accentDot)} />
+        <span className={styles.meta}>Page views</span>
+        <span className={cx(styles.dot, styles.brightDot)} />
+        <span className={styles.meta}>Cart changes</span>
       </div>
     </div>
   );

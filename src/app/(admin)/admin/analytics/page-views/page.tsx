@@ -9,6 +9,7 @@ import { exportHref, pageHref, type DrillDownSearchParams } from '../drill-down'
 import { DrillDownHeader } from '../components/DrillDownHeader';
 import { DailyColumnChart } from '../components/DailyColumnChart';
 import { RankedList } from '../components/RankedList';
+import { PathFilter } from '../components/PathFilter';
 import { EventLogTable } from '../components/EventLogTable';
 import styles from '../drill-down.module.css';
 
@@ -18,7 +19,7 @@ const PAGE_SIZE = 25;
 const BASE_PATH = '/admin/analytics/page-views';
 
 interface PageViewsPageProps {
-  searchParams: Promise<DrillDownSearchParams>;
+  searchParams: Promise<DrillDownSearchParams & { path?: string }>;
 }
 
 export default async function PageViewsPage({ searchParams }: PageViewsPageProps) {
@@ -27,6 +28,7 @@ export default async function PageViewsPage({ searchParams }: PageViewsPageProps
   const range = parseDateRange(params);
   const { since, until } = range;
   const page = parsePage(params.page);
+  const pathFilter = params.path?.trim() || undefined;
 
   const { getWebAnalyticsSummary, listAnalyticsEvents } = getContainer();
   const [summary, listed] = await Promise.all([
@@ -37,6 +39,7 @@ export default async function PageViewsPage({ searchParams }: PageViewsPageProps
       until,
       limit: PAGE_SIZE,
       offset: (page - 1) * PAGE_SIZE,
+      pathContains: pathFilter,
     }),
   ]);
 
@@ -55,10 +58,13 @@ export default async function PageViewsPage({ searchParams }: PageViewsPageProps
         exportHref={exportHref('page-views', range)}
       />
 
+      <PathFilter value={pathFilter} since={since} until={until} action={BASE_PATH} />
+
       <div className={styles.card}>
         <h2 className={styles.cardTitle}>Views per day</h2>
         <p className={styles.meta}>
           {formatCount(total)} views · {(total / Math.max(1, dayKeys.length)).toFixed(1)} a day
+          {pathFilter && ' · chart covers all pages'}
         </p>
         <DailyColumnChart
           points={dayKeys.map((day, i) => ({ day, value: perDay[i] ?? 0 }))}
@@ -73,19 +79,25 @@ export default async function PageViewsPage({ searchParams }: PageViewsPageProps
       </div>
 
       <div className={styles.card}>
-        <h2 className={styles.cardTitle}>Recent page views</h2>
+        <h2 className={styles.cardTitle}>
+          {pathFilter ? `Recent page views matching “${pathFilter}”` : 'Recent page views'}
+        </h2>
         <EventLogTable
           rows={listed.items}
           detailHeader="Path"
           detail={(row) => row.path ?? '—'}
-          emptyLabel="No page views in this range."
+          emptyLabel={
+            pathFilter
+              ? `No page views matching “${pathFilter}” in this range.`
+              : 'No page views in this range.'
+          }
         />
       </div>
 
       <Pagination
         page={page}
         totalPages={totalPages}
-        buildHref={(p) => pageHref(BASE_PATH, range, p)}
+        buildHref={(p) => pageHref(BASE_PATH, range, p, pathFilter)}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, ilike, lte, sql } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { analyticsEvents } from '@/shared/infrastructure/db/schema';
@@ -113,11 +113,16 @@ export class DrizzleAnalyticsEventRepository implements AnalyticsEventRepository
     until: Date,
     limit: number,
     offset: number,
+    pathContains?: string,
   ): Promise<{ items: AnalyticsEventRow[]; total: number }> {
+    // A blank filter is the same as no filter — an empty `ILIKE '%%'` would
+    // still exclude rows with a null path, silently dropping data.
+    const trimmedPath = pathContains?.trim();
     const whereClause = and(
       eq(analyticsEvents.eventType, eventType),
       gte(analyticsEvents.createdAt, since),
       lte(analyticsEvents.createdAt, until),
+      trimmedPath ? ilike(analyticsEvents.path, `%${trimmedPath}%`) : undefined,
     );
 
     const [rows, countRows] = await Promise.all([

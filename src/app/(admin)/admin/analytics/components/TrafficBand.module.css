@@ -93,3 +93,50 @@
     padding: 10px 20px;
   }
 }
+
+/* tooltip ----------------------------------------------------------- */
+.tooltip {
+  position: absolute;
+  top: 10px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 11px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 6px 18px rgba(16, 28, 51, 0.12);
+  font-family: var(--ui-mono);
+  font-size: 11px;
+  color: var(--ink);
+  white-space: nowrap;
+  /* The cursor drives it; it must never eat its own pointer events. */
+  pointer-events: none;
+}
+
+.tooltipRight {
+  transform: translateX(10px);
+}
+
+.tooltipLeft {
+  transform: translateX(calc(-100% - 10px));
+}
+
+.tooltipDay {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.tooltipRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Keeps the searches row's text aligned with the two that have dots. */
+.dotSpacer {
+  width: 7px;
+  flex: none;
+}

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { activePreset, parseDateRange, presetHref, previousWindow } from './date-range';
+import { pageHref } from './drill-down';
 
 describe('parseDateRange', () => {
   beforeEach(() => {
@@ -116,5 +117,33 @@ describe('activePreset', () => {
     const { since, until } = parseDateRange({ from: '2026-03-01', to: '2026-03-08' });
 
     expect(activePreset(since, until, now)).toBeNull();
+  });
+});
+
+describe('pageHref', () => {
+  const range = parseDateRange({ from: '2026-07-01', to: '2026-07-25' });
+
+  it('carries the range so paging never resets the window', () => {
+    expect(pageHref('/admin/analytics/page-views', range, 3)).toBe(
+      '/admin/analytics/page-views?from=2026-07-01&to=2026-07-25&page=3',
+    );
+  });
+
+  it('omits page=1, since that is the default', () => {
+    expect(pageHref('/admin/analytics/page-views', range, 1)).toBe(
+      '/admin/analytics/page-views?from=2026-07-01&to=2026-07-25',
+    );
+  });
+
+  it('carries a path filter through paging', () => {
+    // Paging to page 2 of a filtered list must stay filtered, otherwise the
+    // rows change meaning underneath you.
+    expect(pageHref('/admin/analytics/page-views', range, 2, '/products')).toBe(
+      '/admin/analytics/page-views?from=2026-07-01&to=2026-07-25&path=%2Fproducts&page=2',
+    );
+  });
+
+  it('leaves the path param off when there is no filter', () => {
+    expect(pageHref('/admin/analytics/page-views', range, 2)).not.toContain('path=');
   });
 });

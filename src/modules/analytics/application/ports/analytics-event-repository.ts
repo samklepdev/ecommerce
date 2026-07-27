@@ -49,13 +49,18 @@ export interface AnalyticsEventRepository {
   /** Top search terms, read from `metadata.term` on `search` events. */
   topSearchTerms(since: Date, until: Date, limit: number): Promise<ValueCount[]>;
   /** Paginated raw rows for one event type, newest first — backs each
-   * per-type page's table and CSV export. */
+   * per-type page's table and CSV export.
+   *
+   * `pathContains` narrows to rows whose `path` contains that substring,
+   * case-insensitively. Undefined means no path filter at all, which is not
+   * the same as an empty string. */
   listByType(
     eventType: AnalyticsEventType,
     since: Date,
     until: Date,
     limit: number,
     offset: number,
+    pathContains?: string,
   ): Promise<{ items: AnalyticsEventRow[]; total: number }>;
   /** All web events (any type) for one `sessionId`, chronological
    * (oldest first) — backs the per-identity timeline. Logged-in users

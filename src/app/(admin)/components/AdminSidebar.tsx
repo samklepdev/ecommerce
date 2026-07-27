@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import { cx } from '@/components/ui/cx';
 import { ADMIN_NAV, isNavItemActive } from './nav-items';
-import { CloseIcon } from './icons';
+import { ChevronLeftIcon, CloseIcon } from './icons';
 import styles from './AdminSidebar.module.css';
 
 interface AdminSidebarProps {
@@ -10,13 +10,23 @@ interface AdminSidebarProps {
   /** Drawer state — only consulted below the desktop breakpoint, where the
    * sidebar slides in over the content instead of sitting beside it. */
   open: boolean;
+  /** Icon-only rail. Desktop only; the mobile drawer is always full width,
+   * since there's no room to save when it's an overlay. */
+  collapsed: boolean;
   /** Called on the backdrop, the close button, and every nav link: following
    * a link should land you on the new page, not on the new page with the
    * drawer still covering it. */
   onClose: () => void;
+  onToggleCollapsed: () => void;
 }
 
-export function AdminSidebar({ pathname, open, onClose }: AdminSidebarProps) {
+export function AdminSidebar({
+  pathname,
+  open,
+  collapsed,
+  onClose,
+  onToggleCollapsed,
+}: AdminSidebarProps) {
   return (
     <>
       <div
@@ -25,10 +35,9 @@ export function AdminSidebar({ pathname, open, onClose }: AdminSidebarProps) {
         aria-hidden="true"
       />
 
-      {/* The <aside> stretches to the full height of the page so its navy
-          runs to the bottom however long the content is; `.inner` is what
-          sticks to the viewport as you scroll. */}
-      <aside className={cx(styles.sidebar, open && styles.sidebarOpen)}>
+      <aside
+        className={cx(styles.sidebar, open && styles.sidebarOpen, collapsed && styles.collapsed)}
+      >
         <div className={styles.inner}>
           <div className={styles.head}>
             <Link href="/admin" className={styles.brand}>
@@ -46,6 +55,16 @@ export function AdminSidebar({ pathname, open, onClose }: AdminSidebarProps) {
               aria-label="Close menu"
             >
               <CloseIcon className={styles.closeIcon} />
+            </button>
+
+            <button
+              type="button"
+              className={styles.collapseToggle}
+              onClick={onToggleCollapsed}
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-pressed={collapsed}
+            >
+              <ChevronLeftIcon className={styles.collapseIcon} />
             </button>
           </div>
 
@@ -65,9 +84,12 @@ export function AdminSidebar({ pathname, open, onClose }: AdminSidebarProps) {
                           className={cx(styles.item, active && styles.itemActive)}
                           aria-current={active ? 'page' : undefined}
                           onClick={onClose}
+                          // The label is the only thing identifying an entry
+                          // once it's icon-only, so it moves to the tooltip.
+                          title={collapsed ? item.label : undefined}
                         >
                           <Icon className={styles.itemIcon} />
-                          {item.label}
+                          <span className={styles.itemLabel}>{item.label}</span>
                         </Link>
                       </li>
                     );
@@ -77,8 +99,16 @@ export function AdminSidebar({ pathname, open, onClose }: AdminSidebarProps) {
             ))}
           </nav>
 
-          <Link href="/" className={styles.exit} onClick={onClose}>
-            ← Back to storefront
+          <Link
+            href="/"
+            className={styles.exit}
+            onClick={onClose}
+            title={collapsed ? 'Back to storefront' : undefined}
+          >
+            <span className={styles.exitArrow} aria-hidden="true">
+              ←
+            </span>
+            <span className={styles.itemLabel}>Back to storefront</span>
           </Link>
         </div>
       </aside>
