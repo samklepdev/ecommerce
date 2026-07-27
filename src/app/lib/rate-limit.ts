@@ -9,17 +9,17 @@ import type { RateLimitResult } from '@/shared/application/ports/rate-limiter';
  * deployment behind nothing does not) — the rate limiters keyed on this are
  * spoofable if that assumption doesn't hold for your deployment target. */
 export async function getClientIp(): Promise<string> {
+  // Checked first, and unconditionally: locally the header *is* present, set
+  // to the loopback address `::1`, which resolves to no country. A fallback
+  // that only applied when the header was missing would therefore never fire
+  // — the whole point of the override is to replace a useless real value.
+  // `env` forces this to undefined outside development, so it cannot put a
+  // fabricated address into real data.
+  if (env.ANALYTICS_DEV_IP) return env.ANALYTICS_DEV_IP;
+
   const headerStore = await headers();
   const forwardedFor = headerStore.get('x-forwarded-for');
-  const ip = forwardedFor?.split(',')[0]?.trim();
-  if (ip) return ip;
-
-  // Nothing set the header. In development that's every request to
-  // localhost, which leaves the country breakdown permanently empty while
-  // you're building it — ANALYTICS_DEV_IP stands in so the feature is
-  // visible. `env` forces it to undefined outside development, so it can
-  // never put a fabricated address into real data.
-  return env.ANALYTICS_DEV_IP ?? 'unknown';
+  return forwardedFor?.split(',')[0]?.trim() || 'unknown';
 }
 
 /** Thin wrapper over the container's `RateLimiter`, mirroring `requireAdmin`/
