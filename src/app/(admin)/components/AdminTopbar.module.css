@@ -41,12 +41,6 @@
   outline-offset: 2px;
 }
 
-@media (min-width: 1024px) {
-  .menu {
-    display: none;
-  }
-}
-
 .menuIcon {
   width: 1.35rem;
   height: 1.35rem;

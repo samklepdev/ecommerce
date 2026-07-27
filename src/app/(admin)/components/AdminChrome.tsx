@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 
 import { AdminSidebar } from './AdminSidebar';
 import { AdminTopbar } from './AdminTopbar';
-import { navCollapsedCookie } from './nav-collapse';
+import { navOpenCookie } from './nav-state';
 import styles from './AdminChrome.module.css';
 
 interface AdminChromeProps {
@@ -13,50 +13,52 @@ interface AdminChromeProps {
    * chrome can be a client component without dragging session lookups
    * into the browser bundle. */
   accountMenu: ReactNode;
-  /** Read from a cookie by the layout, so the rail renders at its final
-   * width in the first paint instead of snapping shut after hydration. */
-  defaultCollapsed?: boolean;
+  /** Read from a cookie by the layout, so the rail renders in its final
+   * state in the first paint instead of snapping after hydration. */
+  defaultOpen?: boolean;
   children: ReactNode;
 }
 
-export function AdminChrome({ accountMenu, defaultCollapsed = false, children }: AdminChromeProps) {
+export function AdminChrome({ accountMenu, defaultOpen = true, children }: AdminChromeProps) {
   const pathname = usePathname();
-  const [navOpen, setNavOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  const [navOpen, setNavOpen] = useState(defaultOpen);
 
-  // The drawer has no close button, so Escape and the backdrop are how it
-  // gets dismissed. Bound only while it's open — a global key listener that
-  // does nothing 99% of the time is a listener you forget you added.
+  function setOpen(next: boolean) {
+    setNavOpen(next);
+    // Written on the interaction rather than in an effect: a click is the
+    // only thing that changes this, so there's nothing to synchronise after.
+    document.cookie = navOpenCookie(next);
+  }
+
+  // Escape closes it at every width — one of the three ways out, alongside
+  // the chevron and clicking outside. Bound only while open, so there's no
+  // listener sitting idle the rest of the time.
   useEffect(() => {
     if (!navOpen) return;
 
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setNavOpen(false);
+      if (e.key === 'Escape') setOpen(false);
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [navOpen]);
 
-  function toggleCollapsed() {
-    const next = !collapsed;
-    setCollapsed(next);
-    // Written here rather than in an effect: the click is the only thing
-    // that changes this, so there's nothing to synchronise afterwards.
-    document.cookie = navCollapsedCookie(next);
-  }
-
   return (
     <div className={styles.shell}>
-      <AdminSidebar
-        pathname={pathname}
-        open={navOpen}
-        collapsed={collapsed}
-        onClose={() => setNavOpen(false)}
-        onToggleCollapsed={toggleCollapsed}
-      />
+      <AdminSidebar pathname={pathname} open={navOpen} onClose={() => setOpen(false)} />
 
-      <div className={styles.main}>
-        <AdminTopbar onOpenNav={() => setNavOpen(true)} accountMenu={accountMenu} />
+      {/* Anything outside the rail — topbar included — counts as "outside".
+          It doesn't swallow the click: links and buttons still fire, the nav
+          just gets out of the way at the same time. The topbar's burger is
+          only rendered while the nav is shut, so its click bubbling up here
+          hits the `navOpen` guard and can't undo the open it just did. */}
+      <div
+        className={styles.main}
+        onClick={() => {
+          if (navOpen) setOpen(false);
+        }}
+      >
+        <AdminTopbar onOpenNav={() => setOpen(true)} navOpen={navOpen} accountMenu={accountMenu} />
         <main className={styles.content}>{children}</main>
       </div>
     </div>

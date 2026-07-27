@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { getSessionUser } from '@/app/lib/session';
 import { AdminChrome } from './components/AdminChrome';
 import { AdminAccountMenu } from './components/AdminAccountMenu';
-import { NAV_COLLAPSED_COOKIE } from './components/nav-collapse';
+import { NAV_OPEN_COOKIE } from './components/nav-state';
 
 /**
  * Chrome only — the sidebar, the topbar, and the admin palette.
@@ -17,11 +17,13 @@ import { NAV_COLLAPSED_COOKIE } from './components/nav-collapse';
  */
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const [user, cookieStore] = await Promise.all([getSessionUser(), cookies()]);
-  const collapsed = cookieStore.get(NAV_COLLAPSED_COOKIE)?.value === '1';
+  // Open unless explicitly closed — an admin who has never touched it
+  // should see the nav.
+  const navOpen = cookieStore.get(NAV_OPEN_COOKIE)?.value !== '0';
 
   return (
     <AdminChrome
-      defaultCollapsed={collapsed}
+      defaultOpen={navOpen}
       accountMenu={
         user ? <AdminAccountMenu email={user.email} avatarUrl={user.avatarUrl} /> : null
       }
