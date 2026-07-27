@@ -1,6 +1,7 @@
 import type { UseCase } from '@/shared/application/use-case';
 import type {
   AnalyticsEventRepository,
+  CountryViews,
   DailyCount,
   PathDwell,
   ValueCount,
@@ -21,6 +22,8 @@ export interface GetWebAnalyticsSummaryResult {
   /** Mean time on page per path, from `page_exit` events. Empty until the
    * dwell tracker has seen traffic. */
   dwellByPath: PathDwell[];
+  /** Page views by country, resolved from the visitor's IP at record time. */
+  viewsByCountry: CountryViews[];
 }
 
 const TOP_LIMIT = 10;
@@ -41,6 +44,7 @@ export class GetWebAnalyticsSummary
       topSearchTerms,
       cartChangesPerDay,
       dwellByPath,
+      viewsByCountry,
     ] = await Promise.all([
         this.events.countByTypePerDay('page_view', since, until),
         this.events.countByTypePerDay('search', since, until),
@@ -49,6 +53,7 @@ export class GetWebAnalyticsSummary
         this.events.topSearchTerms(since, until, TOP_LIMIT),
         this.events.countByTypePerDay('cart_changed', since, until),
         this.events.averageDwellByPath(since, until, TOP_LIMIT),
+        this.events.viewsByCountry(since, until, TOP_LIMIT),
       ]);
 
     return {
@@ -59,6 +64,7 @@ export class GetWebAnalyticsSummary
       topSearchTerms,
       cartChangesPerDay,
       dwellByPath,
+      viewsByCountry,
     };
   }
 }

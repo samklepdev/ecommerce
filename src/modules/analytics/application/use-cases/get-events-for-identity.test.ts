@@ -21,6 +21,9 @@ function fakeRepo(overrides: Partial<AnalyticsEventRepository> = {}): AnalyticsE
     async averageDwellByPath() {
       return [];
     },
+    async viewsByCountry() {
+      return [];
+    },
     async listBySessionId() {
       return [];
     },

@@ -55,3 +55,23 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Required by the IP database's CC BY 4.0 licence — quiet, but present
+   wherever the data it produced is displayed. */
+.attribution {
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  color: var(--faint);
+}
+
+.attribution a {
+  color: var(--muted);
+  text-decoration: underline;
+}
+
+.attribution a:hover {
+  color: var(--accent);
+}

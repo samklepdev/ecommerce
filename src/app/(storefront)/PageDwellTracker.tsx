@@ -19,9 +19,9 @@ const MIN_DWELL_MS = 250;
  * it silently loses most mobile traffic. `sendBeacon` is used because a
  * normal fetch is cancelled when the page goes away.
  *
- * The beacon carries only the path and a duration — the session is resolved
- * server-side from the cookie, so a client can't attribute time to someone
- * else's session.
+ * The beacon carries only the path and a duration. The session and the
+ * visitor's country are both resolved server-side, so a client can't
+ * attribute time to someone else's session or invent a location.
  */
 export function PageDwellTracker() {
   const pathname = usePathname();

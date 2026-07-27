@@ -43,6 +43,9 @@ describe('GetWebAnalyticsSummary', () => {
       async averageDwellByPath() {
         return [];
       },
+      async viewsByCountry() {
+        return [];
+      },
       async listBySessionId() {
         throw new Error('not used by this use case');
       },
@@ -58,6 +61,7 @@ describe('GetWebAnalyticsSummary', () => {
       topSearchTerms,
       cartChangesPerDay,
       dwellByPath: [],
+      viewsByCountry: [],
     });
   });
 });

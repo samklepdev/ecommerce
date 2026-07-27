@@ -25,6 +25,17 @@ export interface ValueCount {
   count: number;
 }
 
+export interface CountryViews {
+  country: string;
+  continent: string;
+  views: number;
+  /** One representative address for the country, so an admin can spot-check
+   * a row. Deliberately a sample, not a list — the point of this breakdown
+   * is the aggregate, and enumerating every visitor's IP here would be a
+   * needless spread of personal data across the UI. */
+  sampleIp: string | null;
+}
+
 export interface PathDwell {
   path: string;
   meanMs: number;
@@ -74,6 +85,11 @@ export interface AnalyticsEventRepository {
     offset: number,
     pathContains?: string,
   ): Promise<{ items: AnalyticsEventRow[]; total: number }>;
+  /** Page views grouped by the country resolved at record time, busiest
+   * first. Events whose IP didn't resolve are excluded rather than bucketed
+   * as "Unknown" — a private or missing address says nothing about where
+   * the visitor was. */
+  viewsByCountry(since: Date, until: Date, limit: number): Promise<CountryViews[]>;
   /** Mean dwell time per path, in milliseconds, from `page_exit` events —
    * paths with no exit events recorded simply don't appear. */
   averageDwellByPath(since: Date, until: Date, limit: number): Promise<PathDwell[]>;

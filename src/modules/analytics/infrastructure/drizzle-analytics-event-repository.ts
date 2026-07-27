@@ -7,6 +7,7 @@ import type {
   AnalyticsEventInput,
   AnalyticsEventRepository,
   AnalyticsEventRow,
+  CountryViews,
   PathDwell,
   AnalyticsEventType,
   DailyCount,
@@ -138,6 +139,40 @@ export class DrizzleAnalyticsEventRepository implements AnalyticsEventRepository
     ]);
 
     return { items: rows.map(toRow), total: Number(countRows[0]?.count ?? 0) };
+  }
+
+  async viewsByCountry(since: Date, until: Date, limit: number): Promise<CountryViews[]> {
+    const country = sql<string>`${analyticsEvents.metadata} ->> 'country'`;
+    const continent = sql<string>`${analyticsEvents.metadata} ->> 'continent'`;
+
+    const rows = await this.db
+      .select({
+        country,
+        continent,
+        views: sql<number>`count(*)`,
+        // max() rather than a random pick so the sample is stable between
+        // reloads — a value that changes every refresh reads as a bug.
+        sampleIp: sql<string | null>`max(${analyticsEvents.ipAddress})`,
+      })
+      .from(analyticsEvents)
+      .where(
+        and(
+          eq(analyticsEvents.eventType, 'page_view'),
+          gte(analyticsEvents.createdAt, since),
+          lte(analyticsEvents.createdAt, until),
+          sql`${analyticsEvents.metadata} ->> 'country' IS NOT NULL`,
+        ),
+      )
+      .groupBy(country, continent)
+      .orderBy(desc(sql`count(*)`))
+      .limit(limit);
+
+    return rows.map((r) => ({
+      country: r.country,
+      continent: r.continent,
+      views: Number(r.views),
+      sampleIp: r.sampleIp,
+    }));
   }
 
   async averageDwellByPath(since: Date, until: Date, limit: number): Promise<PathDwell[]> {

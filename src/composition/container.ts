@@ -79,6 +79,7 @@ import { RecordAuditLogEntry } from '@/modules/audit/application/use-cases/recor
 import { ListAuditLogEntries } from '@/modules/audit/application/use-cases/list-audit-log-entries';
 import { DrizzleAnalyticsEventRepository } from '@/modules/analytics/infrastructure/drizzle-analytics-event-repository';
 import { RecordAnalyticsEvent } from '@/modules/analytics/application/use-cases/record-analytics-event';
+import { MmdbIpGeoLookup } from '@/modules/analytics/infrastructure/geo/mmdb-ip-geo-lookup';
 import { GetWebAnalyticsSummary } from '@/modules/analytics/application/use-cases/get-web-analytics-summary';
 import { ListAnalyticsEvents } from '@/modules/analytics/application/use-cases/list-analytics-events';
 import { GetEventsForIdentity } from '@/modules/analytics/application/use-cases/get-events-for-identity';
@@ -337,7 +338,10 @@ function build(): Container {
   const auditLogRepository = new DrizzleAuditLogRepository(db);
   const recordAuditLogEntry = new RecordAuditLogEntry(auditLogRepository);
   const analyticsEventRepository = new DrizzleAnalyticsEventRepository(db);
-  const recordAnalyticsEvent = new RecordAnalyticsEvent(analyticsEventRepository);
+  // Local database read, no per-request network call — see the README beside
+  // the .mmdb for licence and refresh.
+  const ipGeo = new MmdbIpGeoLookup();
+  const recordAnalyticsEvent = new RecordAnalyticsEvent(analyticsEventRepository, ipGeo);
   const getWebAnalyticsSummary = new GetWebAnalyticsSummary(analyticsEventRepository);
   const listAnalyticsEvents = new ListAnalyticsEvents(analyticsEventRepository);
   const getEventsForIdentity = new GetEventsForIdentity(analyticsEventRepository);
