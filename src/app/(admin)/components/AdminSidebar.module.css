@@ -1,6 +1,6 @@
 /* The rail is always there. It has two widths — expanded, with labels, and
-   collapsed to icons only — and the same three ways to collapse it at every
-   breakpoint: Escape, the chevron, or a click outside.
+   collapsed to icons only — toggled by the chevron or by Escape, at every
+   breakpoint.
 
    Nothing here ever hides the rail, so every nav item stays clickable in
    both states and nothing needs taking out of the tab order. */
@@ -82,9 +82,9 @@
     width: auto;
   }
 
-  /* The rail sits beside the content up here, so dimming would mean a
-     permanently greyed-out page. Clicking the content collapses it
-     instead — see AdminChrome. */
+  /* The rail sits beside the content up here rather than over it, so
+     there's nothing to dim — and an always-visible rail with a permanent
+     backdrop would mean a permanently greyed-out page. */
   .backdrop {
     display: none;
   }
@@ -192,8 +192,8 @@
   color: var(--admin-sidebar-muted);
 }
 
-/* The visible half of the three ways in and out — Escape and clicking
-   outside do the same thing without anything to look at. */
+/* The visible way in and out. Escape does the same thing, without anything
+   to look at. */
 .toggle {
   display: grid;
   place-items: center;

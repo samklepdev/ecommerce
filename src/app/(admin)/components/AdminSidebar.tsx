@@ -12,8 +12,8 @@ interface AdminSidebarProps {
   open: boolean;
   /** The chevron, which works both ways. */
   onToggle: () => void;
-  /** The backdrop. Escape and clicks on the page content are handled a
-   * level up, where the state lives. */
+  /** The backdrop, which only exists below the desktop breakpoint. Escape
+   * is handled a level up, where the state lives. */
   onClose: () => void;
 }
 

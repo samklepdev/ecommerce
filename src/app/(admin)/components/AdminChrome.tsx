@@ -30,9 +30,9 @@ export function AdminChrome({ accountMenu, defaultOpen = true, children }: Admin
     document.cookie = navOpenCookie(next);
   }
 
-  // Escape collapses it at every width — one of the three ways, alongside
-  // the chevron and clicking outside. Bound only while expanded, so there's
-  // no listener sitting idle the rest of the time.
+  // Escape collapses it at every width, the chevron being the other way.
+  // Bound only while expanded, so there's no listener sitting idle the rest
+  // of the time.
   useEffect(() => {
     if (!navOpen) return;
 
@@ -52,15 +52,12 @@ export function AdminChrome({ accountMenu, defaultOpen = true, children }: Admin
         onClose={() => setOpen(false)}
       />
 
-      {/* Anything outside the rail — topbar included — counts as "outside".
-          It doesn't swallow the click: links and buttons still fire, the nav
-          just collapses at the same time. */}
-      <div
-        className={styles.main}
-        onClick={() => {
-          if (navOpen) setOpen(false);
-        }}
-      >
+      {/* No collapse-on-click out here: clicking a link is a request to
+          navigate, and collapsing the rail at the same time is a second
+          thing nobody asked for. Escape and the chevron are the ways out.
+          (The backdrop still closes, but that only exists below the
+          breakpoint, where it's dimmed overlay rather than page content.) */}
+      <div className={styles.main}>
         <AdminTopbar accountMenu={accountMenu} />
         <main className={styles.content}>{children}</main>
       </div>
