@@ -7,6 +7,7 @@ import { Field } from '@/components/ui/Field';
 import { Input, Select, Textarea } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
+import styles from './page.module.css';
 
 interface Supplier {
   id: string;
@@ -26,7 +27,7 @@ export function ImportFeedForm({ suppliers }: ImportFeedFormProps) {
   const [sourceType, setSourceType] = useState<SourceType>('url');
 
   return (
-    <form action={formAction}>
+    <form action={formAction} className={styles.modalForm}>
       <Field label="Supplier" htmlFor="importSupplierId">
         <Select id="importSupplierId" name="supplierId" required defaultValue="">
           <option value="" disabled>
@@ -91,9 +92,11 @@ export function ImportFeedForm({ suppliers }: ImportFeedFormProps) {
       {state.error && <Alert tone="danger">{state.error}</Alert>}
       {state.message && <Alert tone="success">{state.message}</Alert>}
 
-      <Button type="submit" disabled={isPending}>
-        {isPending ? 'Importing…' : 'Import products'}
-      </Button>
+      <div className={styles.modalFooter}>
+        <Button type="submit" disabled={isPending}>
+          {isPending ? 'Importing…' : 'Import products'}
+        </Button>
+      </div>
     </form>
   );
 }

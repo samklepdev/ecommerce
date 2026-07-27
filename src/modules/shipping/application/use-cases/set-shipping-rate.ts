@@ -10,7 +10,7 @@ export interface SetShippingRateInput {
 /** Zero is a valid rate (free shipping) — unlike a product's sell price,
  * which must be positive, this only rejects malformed shape (non-integer,
  * bad currency code) via `Money.of`. Negative-amount rejection is a form
- * boundary concern, handled by the admin action, same as `UpdateProductPrice`. */
+ * boundary concern, handled by the admin action, same as `UpdateProduct`. */
 export class SetShippingRate implements UseCase<SetShippingRateInput, void> {
   constructor(private readonly shippingRates: ShippingRateRepository) {}
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { Fragment, useActionState, useState } from 'react';
 
 import {
   deleteProductsAction,
@@ -18,14 +18,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { Input } from '@/components/ui/Input';
-import { Stack } from '@/components/ui/Stack';
-import { ProductImagesManager } from './ProductImagesManager';
-import { ProductCategoryEditor } from './ProductCategoryEditor';
-import { ProductDetailsEditor } from './ProductDetailsEditor';
-import { ProductPriceEditor } from './ProductPriceEditor';
-import { SupplierOfferCostEditor } from './SupplierOfferCostEditor';
-import { AddSupplierOfferForm } from './AddSupplierOfferForm';
-import { SetPreferredOfferButton } from './SetPreferredOfferButton';
+import { cx } from '@/components/ui/cx';
+import { ProductEditPanel } from './ProductEditPanel';
 import styles from './page.module.css';
 
 export interface AdminProductOfferRow {
@@ -73,6 +67,10 @@ const markupInitialState: ApplyMarkupActionResult = {};
 const assignCategoryInitialState: AssignCategoryActionResult = {};
 const BULK_FORM_ID = 'admin-products-bulk-actions';
 
+function formatMoney(minor: number, currency: string): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(minor / 100);
+}
+
 export function AdminProductsTable({ products, emptyMessage, suppliers }: AdminProductsTableProps) {
   const [deleteState, deleteFormAction, isDeletePending] = useActionState(
     deleteProductsAction,
@@ -96,6 +94,7 @@ export function AdminProductsTable({ products, emptyMessage, suppliers }: AdminP
   );
   const isPending =
     isDeletePending || isPublishPending || isUnpublishPending || isMarkupPending || isAssignCategoryPending;
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (products.length === 0) {
     return <p className={styles.empty}>{emptyMessage}</p>;
@@ -120,132 +119,123 @@ export function AdminProductsTable({ products, emptyMessage, suppliers }: AdminP
         <table className={styles.table}>
           <thead>
             <tr>
-              <th></th>
+              <th className={styles.selectCol}></th>
               <th>Product</th>
               <th>Status</th>
-              <th>Images</th>
-              <th>SKU, price &amp; supplier offers</th>
-              <th></th>
+              <th>SKU</th>
+              <th className={styles.numCol}>Price</th>
+              <th>Sourcing</th>
+              <th className={styles.editCol}></th>
             </tr>
           </thead>
           <tbody>
-            {products.map((p) => (
-              <tr key={p.id}>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="productIds"
-                    value={p.id}
-                    form={BULK_FORM_ID}
-                    aria-label={`Select ${p.name}`}
-                  />
-                </td>
-                <td className={styles.productCell}>
-                  {p.imageUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.imageUrl} alt="" className={styles.thumb} />
-                  )}
-                  <div>
-                    <span className={styles.slug}>{p.slug}</span>
-                    <ProductDetailsEditor
-                      productId={p.id}
-                      name={p.name}
-                      description={p.description}
-                    />
-                    <ProductCategoryEditor productId={p.id} category={p.category} />
-                  </div>
-                </td>
-                <td>
-                  <Badge tone={p.status === 'active' ? 'success' : 'neutral'}>{p.status}</Badge>
-                </td>
-                <td>
-                  <ProductImagesManager
-                    productId={p.id}
-                    productName={p.name}
-                    imageUrl={p.imageUrl}
-                    additionalImages={p.additionalImages}
-                  />
-                </td>
-                <td>
-                  <Stack gap={3}>
-                    <p className={styles.skuHeading}>
-                      {p.sku}
-                      {p.hasNoOffers && (
-                        <Badge tone="danger" className={styles.preferredBadge}>
-                          No supplier offer
-                        </Badge>
-                      )}
-                    </p>
-                    <ProductPriceEditor
-                      productId={p.id}
-                      priceAmountMinor={p.priceAmountMinor}
-                      currency={p.currency}
-                    />
+            {products.map((p) => {
+              const open = expandedId === p.id;
+              const preferred = p.offers.find((o) => o.isPreferred) ?? null;
 
-                    <ul className={styles.offerList}>
-                      {p.offers.map((offer) => (
-                        <li key={offer.id} className={styles.offerRow}>
-                          <div className={styles.offerInfo}>
-                            <span>
-                              {offer.supplierName}
-                              {offer.isPreferred && (
-                                <Badge tone="accent" className={styles.preferredBadge}>
-                                  preferred
-                                </Badge>
+              return (
+                <Fragment key={p.id}>
+                  <tr className={cx(open && styles.rowOpen)}>
+                    <td className={styles.selectCol}>
+                      <input
+                        type="checkbox"
+                        name="productIds"
+                        value={p.id}
+                        form={BULK_FORM_ID}
+                        aria-label={`Select ${p.name}`}
+                      />
+                    </td>
+                    <td>
+                      <div className={styles.productCell}>
+                        {p.imageUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={p.imageUrl} alt="" className={styles.thumb} />
+                        )}
+                        <div className={styles.productText}>
+                          <span className={styles.productName}>{p.name}</span>
+                          <span className={styles.slug}>{p.slug}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <Badge tone={p.status === 'active' ? 'success' : 'neutral'}>{p.status}</Badge>
+                    </td>
+                    <td className={styles.skuCell}>{p.sku}</td>
+                    <td className={styles.numCol}>{formatMoney(p.priceAmountMinor, p.currency)}</td>
+                    <td>
+                      {p.hasNoOffers ? (
+                        <Badge tone="danger">No supplier offer</Badge>
+                      ) : (
+                        <span className={styles.sourcingCell}>
+                          {preferred ? preferred.supplierName : 'None preferred'}
+                          {p.offers.length > 1 && (
+                            <span className={styles.offerCount}>+{p.offers.length - 1}</span>
+                          )}
+                        </span>
+                      )}
+                    </td>
+                    <td className={styles.editCol}>
+                      {/* Everything editable lives behind this. A row that is
+                          also six live forms can't be scanned, and scanning is
+                          what this page is for most of the time. */}
+                      <button
+                        type="button"
+                        className={styles.editToggle}
+                        onClick={() => setExpandedId(open ? null : p.id)}
+                        aria-expanded={open}
+                        aria-controls={`product-detail-${p.id}`}
+                      >
+                        {open ? 'Close' : 'Edit'}
+                      </button>
+                    </td>
+                  </tr>
+
+                  {open && (
+                    <tr className={styles.detailRow}>
+                      <td colSpan={7} id={`product-detail-${p.id}`}>
+                        <ProductEditPanel
+                          product={p}
+                          suppliers={suppliers}
+                          actions={
+                            <form action={deleteFormAction}>
+                              <input type="hidden" name="productIds" value={p.id} />
+                              {p.status === 'active' ? (
+                                <Button
+                                  type="submit"
+                                  formAction={unpublishFormAction}
+                                  variant="secondary"
+                                  disabled={isPending}
+                                >
+                                  Unpublish
+                                </Button>
+                              ) : (
+                                <Button
+                                  type="submit"
+                                  formAction={publishFormAction}
+                                  variant="secondary"
+                                  disabled={isPending}
+                                >
+                                  Publish
+                                </Button>
                               )}
-                            </span>
-                            <div className={styles.offerCost}>
-                              cost
-                              <SupplierOfferCostEditor
-                                offerId={offer.id}
-                                costAmountMinor={offer.costAmountMinor}
-                                currency={offer.currency}
-                              />
-                            </div>
-                            {!offer.isPreferred && (
-                              <SetPreferredOfferButton offerId={offer.id} productId={p.id} />
-                            )}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                    <AddSupplierOfferForm productId={p.id} suppliers={suppliers} />
-                  </Stack>
-                </td>
-                <td className={styles.rowActions}>
-                  <form action={deleteFormAction}>
-                    <input type="hidden" name="productIds" value={p.id} />
-                    {p.status === 'active' ? (
-                      <Button
-                        type="submit"
-                        formAction={unpublishFormAction}
-                        variant="secondary"
-                        disabled={isPending}
-                      >
-                        Unpublish
-                      </Button>
-                    ) : (
-                      <Button
-                        type="submit"
-                        formAction={publishFormAction}
-                        variant="secondary"
-                        disabled={isPending}
-                      >
-                        Publish
-                      </Button>
-                    )}
-                    <Button type="submit" variant="danger" disabled={isPending}>
-                      Delete
-                    </Button>
-                  </form>
-                </td>
-              </tr>
-            ))}
+                              <Button type="submit" variant="danger" disabled={isPending}>
+                                Delete
+                              </Button>
+                            </form>
+                          }
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       <div className={styles.bulkActions}>
+        <span className={styles.bulkLabel}>Selected</span>
         <Button
           type="submit"
           form={BULK_FORM_ID}

@@ -476,121 +476,6 @@ export async function extractProductFromUrlAction(
   return { text, guessedName, guessedDescription, guessedImageUrl, guessedPriceMinor, guessedCurrency };
 }
 
-const UpdateProductPriceSchema = z.object({
-  productId: z.string().min(1),
-  price: z.string().min(1),
-  currency: z.string().length(3),
-});
-
-export interface UpdateProductPriceActionResult {
-  message?: string;
-  error?: string;
-}
-
-export async function updateProductPriceAction(
-  _prevState: UpdateProductPriceActionResult | undefined,
-  formData: FormData,
-): Promise<UpdateProductPriceActionResult> {
-  const admin = await requireAdmin();
-  const parsed = UpdateProductPriceSchema.safeParse({
-    productId: formData.get('productId'),
-    price: formData.get('price'),
-    currency: formData.get('currency'),
-  });
-  if (!parsed.success) return { error: 'Enter a valid price.' };
-
-  const amountMinor = parseDecimalToMinorUnits(parsed.data.price);
-  if (amountMinor === null || amountMinor <= 0) return { error: 'Enter a valid price.' };
-
-  const { updateProductPrice, recordAuditLogEntry } = getContainer();
-  await updateProductPrice.execute({
-    productId: parsed.data.productId,
-    amountMinor,
-    currency: parsed.data.currency,
-  });
-
-  await recordAuditLogEntry.execute({
-    actorUserId: admin.id,
-    actorEmail: admin.email,
-    action: 'product.price_changed',
-    targetType: 'product',
-    targetId: parsed.data.productId,
-    metadata: { amountMinor, currency: parsed.data.currency },
-  });
-
-  revalidatePath('/admin/products');
-  revalidatePath('/products');
-  return { message: 'Price updated.' };
-}
-
-const UpdateProductCategorySchema = z.object({
-  productId: z.string().min(1),
-  category: z.string().optional(),
-});
-
-export interface UpdateProductCategoryActionResult {
-  message?: string;
-  error?: string;
-}
-
-export async function updateProductCategoryAction(
-  _prevState: UpdateProductCategoryActionResult | undefined,
-  formData: FormData,
-): Promise<UpdateProductCategoryActionResult> {
-  await requireAdmin();
-  const parsed = UpdateProductCategorySchema.safeParse({
-    productId: formData.get('productId'),
-    category: formData.get('category') || undefined,
-  });
-  if (!parsed.success) return { error: 'Missing product.' };
-
-  const { updateProductCategory } = getContainer();
-  await updateProductCategory.execute({
-    productId: parsed.data.productId,
-    category: parsed.data.category ?? null,
-  });
-
-  revalidatePath('/admin/products');
-  revalidatePath('/products');
-  return { message: 'Category updated.' };
-}
-
-const UpdateProductDetailsSchema = z.object({
-  productId: z.string().min(1),
-  name: z.string().min(1),
-  description: z.string().optional(),
-});
-
-export interface UpdateProductDetailsActionResult {
-  message?: string;
-  error?: string;
-}
-
-/** Slug is intentionally not editable — see ProductRepository.updateDetails. */
-export async function updateProductDetailsAction(
-  _prevState: UpdateProductDetailsActionResult | undefined,
-  formData: FormData,
-): Promise<UpdateProductDetailsActionResult> {
-  await requireAdmin();
-  const parsed = UpdateProductDetailsSchema.safeParse({
-    productId: formData.get('productId'),
-    name: formData.get('name'),
-    description: formData.get('description') || undefined,
-  });
-  if (!parsed.success) return { error: 'Name is required.' };
-
-  const { updateProductDetails } = getContainer();
-  await updateProductDetails.execute({
-    productId: parsed.data.productId,
-    name: parsed.data.name,
-    description: parsed.data.description ?? null,
-  });
-
-  revalidatePath('/admin/products');
-  revalidatePath('/products');
-  return { message: 'Product updated.' };
-}
-
 const UpdateSupplierOfferCostSchema = z.object({
   offerId: z.string().min(1),
   cost: z.string().min(1),
@@ -626,6 +511,75 @@ export async function updateSupplierOfferCostAction(
 
   revalidatePath('/admin/products');
   return { message: 'Cost updated.' };
+}
+
+const UpdateProductSchema = z.object({
+  productId: z.string().min(1),
+  name: z.string().min(1, 'Enter a product name.'),
+  description: z.string().optional(),
+  category: z.string().optional(),
+  price: z.string().min(1, 'Enter a price.'),
+  currency: z.string().length(3),
+});
+
+export interface UpdateProductActionResult {
+  message?: string;
+  error?: string;
+}
+
+/** The edit panel's single save — name, description, category and price in
+ * one submit, so the panel isn't four forms wearing a trenchcoat. */
+export async function updateProductAction(
+  _prevState: UpdateProductActionResult | undefined,
+  formData: FormData,
+): Promise<UpdateProductActionResult> {
+  const admin = await requireAdmin();
+  const parsed = UpdateProductSchema.safeParse({
+    productId: formData.get('productId'),
+    name: formData.get('name'),
+    description: formData.get('description') || undefined,
+    category: formData.get('category') || undefined,
+    price: formData.get('price'),
+    currency: formData.get('currency'),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Check the fields and try again.' };
+  }
+
+  const amountMinor = parseDecimalToMinorUnits(parsed.data.price);
+  if (amountMinor === null || amountMinor <= 0) return { error: 'Enter a valid price.' };
+
+  const { updateProduct, recordAuditLogEntry } = getContainer();
+  await updateProduct.execute({
+    productId: parsed.data.productId,
+    name: parsed.data.name,
+    // An emptied field means "clear it", not "leave it".
+    description: parsed.data.description ?? null,
+    category: parsed.data.category ?? null,
+    amountMinor,
+    currency: parsed.data.currency,
+  });
+
+  // Price changes were audited when price had its own action, and folding
+  // the forms together mustn't quietly drop that. The whole save is recorded
+  // rather than just the price, since one submit now covers all of it.
+  await recordAuditLogEntry.execute({
+    actorUserId: admin.id,
+    actorEmail: admin.email,
+    action: 'product.updated',
+    targetType: 'product',
+    targetId: parsed.data.productId,
+    metadata: {
+      name: parsed.data.name,
+      category: parsed.data.category ?? null,
+      amountMinor,
+      currency: parsed.data.currency,
+    },
+  });
+
+  revalidatePath('/admin/products');
+  revalidatePath('/products');
+  return { message: 'Saved.' };
 }
 
 const ApplyMarkupSchema = z.object({

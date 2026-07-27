@@ -57,6 +57,15 @@
   --color-success: var(--accent);
   --color-warning: var(--amber);
   --color-danger: var(--rose);
+  /* The *-foreground half has to be pinned too, not just the fills. The
+     console commits to one light treatment (see color-scheme below), but
+     globals.css still flips these to near-black inside its
+     prefers-color-scheme: dark block — which on a dark-mode machine left
+     black text sitting on a navy Badge. All three fills here are dark, so
+     their text is white in both schemes. */
+  --color-success-foreground: #ffffff;
+  --color-warning-foreground: #ffffff;
+  --color-danger-foreground: #ffffff;
   --color-row-stripe: rgba(16, 28, 51, 0.022);
   --color-row-hover: rgba(34, 70, 127, 0.05);
 

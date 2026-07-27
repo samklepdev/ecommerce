@@ -1,29 +1,10 @@
 'use client';
 
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type ReactNode,
-} from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 import { cx } from './cx';
 import styles from './Modal.module.css';
-
-const noopSubscribe = () => () => {};
-/** True only once mounted client-side — lets us defer `createPortal` (which
- * needs `document`) without a setState-in-effect render cascade. */
-function useMounted(): boolean {
-  return useSyncExternalStore(
-    noopSubscribe,
-    () => true,
-    () => false,
-  );
-}
 
 export interface ModalProps {
   /** Renders whatever you want as the trigger — a `Button`, an icon, plain
@@ -53,9 +34,27 @@ export function Modal({ trigger, open: controlledOpen, onOpenChange, title, chil
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : uncontrolledOpen;
-  const mounted = useMounted();
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const [container, setContainer] = useState<HTMLElement | null>(null);
+
+  /* Where the dialog is portaled to decides which theme it gets.
+   *
+   * Portaling to `document.body` puts it outside the chrome element that
+   * declares the palette (`.shell` in admin, `.storefront` on the shop), so
+   * every `--background` / `--foreground` / `--surface` falls back to :root
+   * — which, on a dark-mode machine, rendered black inputs in a light
+   * dialog. Landing inside the nearest theme scope keeps the tokens, and
+   * still escapes any overflow or stacking context in between.
+   *
+   * Runs once on mount: `container` staying null through the server render
+   * is also what keeps `createPortal` away from a `document` that isn't
+   * there yet. */
+  useEffect(() => {
+    const scope = anchorRef.current?.closest<HTMLElement>('[data-theme-scope]');
+    setContainer(scope ?? document.body);
+  }, []);
 
   const setOpen = useCallback(
     (value: boolean) => {
@@ -87,10 +86,12 @@ export function Modal({ trigger, open: controlledOpen, onOpenChange, title, chil
 
   return (
     <>
+      {/* Inert marker used only to find the theme scope above it. */}
+      <span ref={anchorRef} hidden />
       {trigger?.(() => setOpen(true))}
 
       {open &&
-        mounted &&
+        container &&
         createPortal(
           <div className={styles.backdrop} onMouseDown={close}>
             <div
@@ -102,7 +103,11 @@ export function Modal({ trigger, open: controlledOpen, onOpenChange, title, chil
               tabIndex={-1}
               onMouseDown={(e) => e.stopPropagation()}
             >
-              <div className={styles.header}>
+              {/* `header` and `h2` rather than divs so a calling area can
+                  theme the chrome from its own stylesheet — CSS-module class
+                  names are hashed and can't be selected across modules, but
+                  elements can. See `.adminModal` on the products page. */}
+              <header className={styles.header}>
                 <h2 id={titleId} className={styles.title}>
                   {title}
                 </h2>
@@ -114,13 +119,13 @@ export function Modal({ trigger, open: controlledOpen, onOpenChange, title, chil
                 >
                   ×
                 </button>
-              </div>
+              </header>
               <div className={styles.body}>
                 {typeof children === 'function' ? children(close) : children}
               </div>
             </div>
           </div>,
-          document.body,
+          container,
         )}
     </>
   );

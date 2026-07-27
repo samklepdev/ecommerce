@@ -7,6 +7,7 @@ import { Field } from '@/components/ui/Field';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
+import styles from './page.module.css';
 
 interface AddSupplierFormProps {
   onSuccess?: () => void;
@@ -24,7 +25,7 @@ export function AddSupplierForm({ onSuccess }: AddSupplierFormProps) {
   }, [state.message, onSuccess]);
 
   return (
-    <form action={formAction}>
+    <form action={formAction} className={styles.modalForm}>
       <Field label="Name" htmlFor="supplierName">
         <Input type="text" id="supplierName" name="name" required />
       </Field>
@@ -38,9 +39,11 @@ export function AddSupplierForm({ onSuccess }: AddSupplierFormProps) {
       {state.error && <Alert tone="danger">{state.error}</Alert>}
       {state.message && <Alert tone="success">{state.message}</Alert>}
 
-      <Button type="submit" disabled={isPending}>
-        {isPending ? 'Adding…' : 'Add supplier'}
-      </Button>
+      <div className={styles.modalFooter}>
+        <Button type="submit" disabled={isPending}>
+          {isPending ? 'Adding…' : 'Add supplier'}
+        </Button>
+      </div>
     </form>
   );
 }

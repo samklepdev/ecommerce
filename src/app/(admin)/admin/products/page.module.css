@@ -1,147 +1,356 @@
-.sectionTitle {
-  font-size: 1.125rem;
-  margin-bottom: var(--space-3);
+/* Same system as /admin/analytics: fixed px type, hairline rules instead of
+   boxes, mono for anything you'd read as data, and no radius or shadow
+   anywhere. The dashboard expresses it as cards because it's a set of
+   independent readings; this page is one dense table, so the rules do the
+   work the card borders do there. */
+
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* header ----------------------------------------------------------- */
+.pageHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 4px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* The accent-over-amber mark, same as the dashboard and the sidebar — it's
+   the one piece of ornament the console allows itself. */
+.brandMark {
+  width: 10px;
+  height: 22px;
+  flex: none;
+  background: linear-gradient(180deg, var(--accent) 0 55%, var(--amber) 55% 100%);
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* Reads as the dashboard's date-range line: mono, quiet, factual. */
+.headMeta {
+  font-family: var(--ui-mono);
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* shared ----------------------------------------------------------- */
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--line-strong);
+  padding-bottom: 10px;
+}
+
+.sectionHead h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.sectionCount {
+  font-family: var(--ui-mono);
+  font-size: 11.5px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .empty {
-  color: var(--color-muted);
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
 }
 
+/* toolbar ---------------------------------------------------------- */
 .toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: 14px;
 }
 
 .actionsRow {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: 10px;
 }
 
 .filterRow {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 10px;
   max-width: 320px;
+}
+
+/* The console's own dialog look, applied to the shared Modal from outside.
+   Reaches the chrome by element (header / h2 / button) because the Modal's
+   own class names are hashed by CSS modules and can't be named here. The
+   storefront's lightbox uses the same Modal and is untouched by this. */
+/* Doubled deliberately: `.adminModal` and the Modal's own `.panel` are both
+   single classes on the same element, so equal specificity would leave the
+   winner down to stylesheet order. `.adminModal.adminModal` settles it
+   without reaching for !important. */
+.adminModal.adminModal {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.adminModal header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+/* Matches the page's own section heads, so a dialog reads as part of the
+   console rather than a component borrowed from somewhere else. */
+.adminModal h2 {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.adminModal header button {
+  font-family: var(--ui-mono);
+  color: var(--faint);
+}
+
+.adminModal header button:hover {
+  color: var(--ink);
+}
+
+.adminModal > div:last-child {
+  padding: 24px;
 }
 
 .addProductModal {
   max-width: 640px;
 }
 
-.slug {
-  color: var(--color-muted);
-  font-size: 0.875rem;
-}
-
-.thumb {
-  width: 40px;
-  height: 40px;
-  object-fit: cover;
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
-}
-
+/* table ------------------------------------------------------------ */
 .tableWrap {
   overflow-x: auto;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--line);
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: 13px;
 }
 
-.table th,
+/* Column headings get the same eyebrow treatment as every other label in
+   the console, so the table reads as part of the dashboard rather than a
+   stock HTML table dropped into it. */
+.table th {
+  text-align: left;
+  vertical-align: bottom;
+  padding: 12px 14px;
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+}
+
 .table td {
   text-align: left;
-  vertical-align: top;
-  padding: var(--space-3);
-  border-bottom: 1px solid var(--color-border);
+  /* Middle, not top: every summary cell is a single line now, and top
+     alignment only made sense when cells held stacked forms. */
+  vertical-align: middle;
+  padding: 16px 14px;
+  border-bottom: 1px solid var(--line);
 }
 
 .table tbody tr:last-child td {
   border-bottom: none;
 }
 
+.table tbody tr:hover {
+  background: var(--color-row-hover);
+}
+
 .productCell {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  white-space: normal;
+  gap: 12px;
+  min-width: 240px;
 }
 
-/* The product's stock-keeping identity, above its price and offers. */
-.skuHeading {
+.productText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.productName {
   font-weight: 500;
-  margin-bottom: var(--space-2);
+  color: var(--ink);
 }
 
+.slug {
+  font-family: var(--ui-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--faint);
+}
+
+.thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+}
+
+/* sourcing --------------------------------------------------------- */
 .offerList {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  margin: 10px 0 0;
+  padding: 0;
 }
 
+/* Hairline-separated rows rather than boxes inside a box — the dashboard
+   never nests a bordered card inside another one. */
 .offerRow {
-  background: var(--background);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-3);
+  border-top: 1px solid var(--line);
+  padding: 10px 0;
+}
+
+.offerList > .offerRow:first-child {
+  border-top: 0;
+  padding-top: 0;
 }
 
 .offerInfo {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
-  font-size: 0.875rem;
+  gap: 12px;
+  font-size: 12.5px;
 }
 
 .preferredBadge {
-  margin-left: var(--space-2);
+  margin-left: 8px;
 }
 
 .offerCost {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  color: var(--color-muted);
+  gap: 6px;
+  font-family: var(--ui-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* modal forms ------------------------------------------------------ */
+/* Scoped to this page rather than changing the shared `Field`, which the
+   storefront uses too. Element selectors reach inside Field's own markup —
+   the only way to restyle a CSS-module component from outside it. */
+.modalForm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.modalForm label {
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* Field ships a bottom margin for standalone use; the flex gap above is
+   doing that job here, so two spacings don't stack. */
+.modalForm > *,
+.modalForm .row > * {
+  margin-bottom: 0;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
 }
 
 .row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: var(--space-3);
+  /* 140px columns meant three fields in a modal were each too narrow to
+     read their own label. */
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 18px 20px;
 }
 
 .rowField {
-  margin-bottom: var(--space-4);
+  margin-bottom: 0;
 }
 
-.rowActions form {
-  display: flex;
-  gap: var(--space-2);
-}
-
+/* bulk actions ----------------------------------------------------- */
 .bulkActions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-strong);
+}
+
+.bulkLabel {
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-right: 4px;
 }
 
 .markupGroup {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
   margin-left: auto;
 }
 
@@ -149,12 +358,12 @@
   width: 6rem;
 }
 
+/* paste-a-url helper ----------------------------------------------- */
 .pasteUrlBox {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-4);
-  margin-bottom: var(--space-4);
-  background: var(--color-surface);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 18px 20px 16px;
+  margin-bottom: 16px;
 }
 
 .pasteUrlBox .row {
@@ -162,20 +371,155 @@
 }
 
 .fetchedTextDetails {
-  margin-top: var(--space-3);
-  font-size: 0.875rem;
+  margin-top: 12px;
+  font-size: 12.5px;
 }
 
 .fetchedImageNote {
-  margin: var(--space-2) 0;
-  font-size: 0.8125rem;
-  color: var(--color-muted);
+  margin: 8px 0;
+  font-family: var(--ui-mono);
+  font-size: 11px;
+  color: var(--muted);
   word-break: break-all;
 }
 
 .fetchedTextArea {
   width: 100%;
-  margin-top: var(--space-2);
-  font-family: monospace;
-  font-size: 0.75rem;
+  margin-top: 8px;
+  font-family: var(--ui-mono);
+  font-size: 12px;
+}
+
+/* responsive ------------------------------------------------------- */
+@media (max-width: 640px) {
+  .toolbar {
+    align-items: stretch;
+  }
+
+  .filterRow {
+    max-width: none;
+  }
+
+  .markupGroup {
+    margin-left: 0;
+  }
+}
+
+/* summary row ------------------------------------------------------ */
+.selectCol {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.editCol {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* Prices align on the decimal so a column of them can be compared by eye. */
+.numCol {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.skuCell {
+  font-family: var(--ui-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.sourcingCell {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+/* "+2" — there are more suppliers behind this one, without listing them. */
+.offerCount {
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  color: var(--faint);
+}
+
+.editToggle {
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease;
+}
+
+.editToggle:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.editToggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The open row and its panel read as one block. */
+.rowOpen td {
+  border-bottom: 0;
+  background: var(--surface-hi);
+}
+
+/* detail panel ----------------------------------------------------- */
+.detailRow > td {
+  padding: 0;
+  background: var(--surface-hi);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 28px 32px;
+  padding: 24px 14px 26px;
+}
+
+.detailPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Sourcing carries a list plus a form, so it gets the full width. */
+.detailWide {
+  grid-column: 1 / -1;
+}
+
+.detailTitle {
+  margin: 0;
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.detailActions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+.detailActions form {
+  display: flex;
+  gap: 8px;
+  padding-top: 16px;
 }

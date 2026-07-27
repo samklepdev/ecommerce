@@ -9,7 +9,7 @@ export interface UpdateSupplierOfferCostInput {
 }
 
 /** Lets an admin correct/update what a supplier charges, independent of the
- * product's sell price (`UpdateProductPrice`) — the two are deliberately
+ * product's sell price (`UpdateProduct`) — the two are deliberately
  * unlinked, see `SupplierOffer`'s own doc comment. */
 export class UpdateSupplierOfferCost implements UseCase<UpdateSupplierOfferCostInput, void> {
   constructor(private readonly offers: SupplierOfferRepository) {}

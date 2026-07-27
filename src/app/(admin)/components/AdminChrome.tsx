@@ -44,7 +44,10 @@ export function AdminChrome({ accountMenu, defaultOpen = true, children }: Admin
   }, [navOpen]);
 
   return (
-    <div className={styles.shell}>
+    // `data-theme-scope`: the admin palette is declared on this element,
+    // so anything portaled (see Modal) has to land inside it or it gets
+    // the bare :root theme instead.
+    <div className={styles.shell} data-theme-scope>
       <AdminSidebar
         pathname={pathname}
         open={navOpen}
