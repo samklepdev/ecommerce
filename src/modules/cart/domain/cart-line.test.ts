@@ -6,7 +6,7 @@ import { Money } from '@/shared/domain/money';
 
 function makeProps(overrides: Partial<Parameters<typeof CartLine.create>[0]> = {}) {
   return {
-    variantId: randomUUID(),
+    productId: randomUUID(),
     sku: 'WIDGET-X',
     quantity: 2,
     unitPrice: Money.of(1000, 'USD'),
@@ -41,7 +41,7 @@ describe('CartLine#withQuantity', () => {
     const line = CartLine.create(makeProps({ quantity: 2 }));
     const updated = line.withQuantity(5);
     expect(updated.quantity).toBe(5);
-    expect(updated.variantId).toBe(line.variantId);
+    expect(updated.productId).toBe(line.productId);
     expect(updated).not.toBe(line);
   });
 

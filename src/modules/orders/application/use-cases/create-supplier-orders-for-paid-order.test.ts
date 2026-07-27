@@ -18,10 +18,10 @@ import type {
 import type { OrderFulfillmentRepository } from '@/modules/orders/application/ports/order-fulfillment-repository';
 import type { FulfillmentStatus, PaymentStatus } from '@/modules/orders/domain/order-status';
 
-function makeOffer(variantId: string, supplierId: string, costMinor: number) {
+function makeOffer(productId: string, supplierId: string, costMinor: number) {
   return SupplierOffer.create({
     id: randomUUID(),
-    variantId,
+    productId,
     supplierId,
     supplierProductUrl: 'https://supplier.example.com/x',
     cost: Money.of(costMinor, 'USD'),
@@ -43,10 +43,10 @@ function makeFakeOrderLines(lines: PaidOrderLine[]) {
   return { repo, flagged };
 }
 
-function makeFakeSupplierOffers(offersByVariantId: Map<string, SupplierOffer>) {
+function makeFakeSupplierOffers(offersByProductId: Map<string, SupplierOffer>) {
   const repo: Partial<SupplierOfferRepository> = {
-    async findPreferredByVariantId(variantId) {
-      return offersByVariantId.get(variantId) ?? null;
+    async findPreferredByProductId(productId) {
+      return offersByProductId.get(productId) ?? null;
     },
   };
   return repo as SupplierOfferRepository;
@@ -80,20 +80,20 @@ function makeFakeOrderFulfillment(paymentStatus: PaymentStatus | null, fulfillme
 
 describe('CreateSupplierOrdersForPaidOrder', () => {
   it('groups lines by preferred supplier into one supplier order per distinct supplier', async () => {
-    const variantA = randomUUID();
-    const variantB = randomUUID();
-    const variantC = randomUUID();
+    const productA = randomUUID();
+    const productB = randomUUID();
+    const productC = randomUUID();
     const lines: PaidOrderLine[] = [
-      { id: 'line-a', variantId: variantA, quantity: 1 },
-      { id: 'line-b', variantId: variantB, quantity: 2 },
-      { id: 'line-c', variantId: variantC, quantity: 1 },
+      { id: 'line-a', productId: productA, quantity: 1 },
+      { id: 'line-b', productId: productB, quantity: 2 },
+      { id: 'line-c', productId: productC, quantity: 1 },
     ];
     const { repo: orders } = makeFakeOrderLines(lines);
     const offers = makeFakeSupplierOffers(
       new Map([
-        [variantA, makeOffer(variantA, 'supplier-1', 1000)],
-        [variantB, makeOffer(variantB, 'supplier-1', 2000)], // same supplier as A
-        [variantC, makeOffer(variantC, 'supplier-2', 500)],
+        [productA, makeOffer(productA, 'supplier-1', 1000)],
+        [productB, makeOffer(productB, 'supplier-1', 2000)], // same supplier as A
+        [productC, makeOffer(productC, 'supplier-2', 500)],
       ]),
     );
     const { repo: supplierOrders, created } = makeFakeSupplierOrders();
@@ -110,15 +110,15 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
     expect(supplier2Order.lines).toHaveLength(1);
   });
 
-  it('skips lines whose variant has no preferred supplier offer, logging a warning', async () => {
-    const variantA = randomUUID();
-    const variantNoOffer = randomUUID();
+  it('skips lines whose product has no preferred supplier offer, logging a warning', async () => {
+    const productA = randomUUID();
+    const productNoOffer = randomUUID();
     const lines: PaidOrderLine[] = [
-      { id: 'line-a', variantId: variantA, quantity: 1 },
-      { id: 'line-b', variantId: variantNoOffer, quantity: 1 },
+      { id: 'line-a', productId: productA, quantity: 1 },
+      { id: 'line-b', productId: productNoOffer, quantity: 1 },
     ];
     const { repo: orders, flagged } = makeFakeOrderLines(lines);
-    const offers = makeFakeSupplierOffers(new Map([[variantA, makeOffer(variantA, 'supplier-1', 1000)]]));
+    const offers = makeFakeSupplierOffers(new Map([[productA, makeOffer(productA, 'supplier-1', 1000)]]));
     const { repo: supplierOrders, created } = makeFakeSupplierOrders();
     const { repo: fulfillment } = makeFakeOrderFulfillment('paid', 'unfulfilled');
     const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
@@ -132,7 +132,7 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
     expect(warnSpy).toHaveBeenCalledTimes(1);
     expect(warnSpy).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ orderId: 'order-1', orderLineId: 'line-b', variantId: variantNoOffer }),
+      expect.objectContaining({ orderId: 'order-1', orderLineId: 'line-b', productId: productNoOffer }),
     );
     warnSpy.mockRestore();
 
@@ -141,9 +141,9 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
   });
 
   it('advances the order to processing when it was unfulfilled', async () => {
-    const variantA = randomUUID();
-    const { repo: orders } = makeFakeOrderLines([{ id: 'line-a', variantId: variantA, quantity: 1 }]);
-    const offers = makeFakeSupplierOffers(new Map([[variantA, makeOffer(variantA, 'supplier-1', 1000)]]));
+    const productA = randomUUID();
+    const { repo: orders } = makeFakeOrderLines([{ id: 'line-a', productId: productA, quantity: 1 }]);
+    const offers = makeFakeSupplierOffers(new Map([[productA, makeOffer(productA, 'supplier-1', 1000)]]));
     const { repo: supplierOrders } = makeFakeSupplierOrders();
     const { repo: fulfillment, getFulfillment } = makeFakeOrderFulfillment('paid', 'unfulfilled');
 
@@ -169,8 +169,8 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
   });
 
   it('does nothing when no line has a preferred offer (no supplier orders created, no advancement)', async () => {
-    const variantA = randomUUID();
-    const { repo: orders } = makeFakeOrderLines([{ id: 'line-a', variantId: variantA, quantity: 1 }]);
+    const productA = randomUUID();
+    const { repo: orders } = makeFakeOrderLines([{ id: 'line-a', productId: productA, quantity: 1 }]);
     const offers = makeFakeSupplierOffers(new Map()); // no offers at all
     const { repo: supplierOrders, created } = makeFakeSupplierOrders();
     const { repo: fulfillment, getFulfillment } = makeFakeOrderFulfillment('paid', 'unfulfilled');
@@ -184,9 +184,9 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
   });
 
   it('does not re-advance an order that already moved past unfulfilled', async () => {
-    const variantA = randomUUID();
-    const { repo: orders } = makeFakeOrderLines([{ id: 'line-a', variantId: variantA, quantity: 1 }]);
-    const offers = makeFakeSupplierOffers(new Map([[variantA, makeOffer(variantA, 'supplier-1', 1000)]]));
+    const productA = randomUUID();
+    const { repo: orders } = makeFakeOrderLines([{ id: 'line-a', productId: productA, quantity: 1 }]);
+    const offers = makeFakeSupplierOffers(new Map([[productA, makeOffer(productA, 'supplier-1', 1000)]]));
     const { repo: supplierOrders } = makeFakeSupplierOrders();
     const { repo: fulfillment, getFulfillment } = makeFakeOrderFulfillment('paid', 'processing');
 

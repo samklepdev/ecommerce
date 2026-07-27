@@ -12,7 +12,7 @@ export interface DeleteProductsResult {
 }
 
 /** Deletes each product independently so one failure (e.g. a product whose
- * variant was actually ordered — the DB restricts that) doesn't block the
+ * product was actually ordered — the DB restricts that) doesn't block the
  * rest of a bulk selection. */
 export class DeleteProducts implements UseCase<DeleteProductsInput, DeleteProductsResult> {
   constructor(private readonly products: ProductRepository) {}

@@ -3,15 +3,15 @@
 import { useActionState, useState } from 'react';
 
 import {
-  updateVariantPriceAction,
-  type UpdateVariantPriceActionResult,
+  updateProductPriceAction,
+  type UpdateProductPriceActionResult,
 } from '@/app/actions/admin/catalog';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
-import styles from './VariantPriceEditor.module.css';
+import styles from './ProductPriceEditor.module.css';
 
-const initialState: UpdateVariantPriceActionResult = {};
+const initialState: UpdateProductPriceActionResult = {};
 
 /** A nonce that bumps whenever `result` is a new object — used to `key` the
  * alert so a repeat submission restarts its fade-out. Same pattern as
@@ -24,8 +24,8 @@ function useResultNonce(result: unknown): number {
   return nonce;
 }
 
-export interface VariantPriceEditorProps {
-  variantId: string;
+export interface ProductPriceEditorProps {
+  productId: string;
   priceAmountMinor: number;
   currency: string;
 }
@@ -34,13 +34,13 @@ export interface VariantPriceEditorProps {
  * this is an occasional admin action, not a frequent one. Sell price is
  * independent of supplier cost; editing it here never touches cost/offer
  * records. */
-export function VariantPriceEditor({ variantId, priceAmountMinor, currency }: VariantPriceEditorProps) {
-  const [state, formAction, isPending] = useActionState(updateVariantPriceAction, initialState);
+export function ProductPriceEditor({ productId, priceAmountMinor, currency }: ProductPriceEditorProps) {
+  const [state, formAction, isPending] = useActionState(updateProductPriceAction, initialState);
   const nonce = useResultNonce(state);
 
   return (
     <form action={formAction} className={styles.form}>
-      <input type="hidden" name="variantId" value={variantId} />
+      <input type="hidden" name="productId" value={productId} />
       <input type="hidden" name="currency" value={currency} />
       <Input
         type="number"

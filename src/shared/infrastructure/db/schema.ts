@@ -185,30 +185,18 @@ export const products = pgTable(
     category: text('category'), // free-text tag; null means uncategorized
     status: text('status').notNull().default('draft'), // draft | active | archived
     source: text('source').notNull().default('manual'), // manual | feed_import
+    // The product is the sellable unit — these came off `product_variants`
+    // when that table was dropped (see 0021), which was 1:1 with products
+    // in practice anyway.
+    sku: text('sku').notNull(),
+    unitAmountMinor: bigint('unit_amount_minor', { mode: 'number' }).notNull(),
+    currency: text('currency').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     slugUnique: uniqueIndex('products_slug_unique').on(t.slug),
-  }),
-);
-
-export const productVariants = pgTable(
-  'product_variants',
-  {
-    id: text('id').primaryKey(),
-    productId: text('product_id')
-      .notNull()
-      .references(() => products.id, { onDelete: 'cascade' }),
-    sku: text('sku').notNull(),
-    name: text('name').notNull(), // e.g. size/color
-    unitAmountMinor: bigint('unit_amount_minor', { mode: 'number' }).notNull(),
-    currency: text('currency').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => ({
-    skuUnique: uniqueIndex('product_variants_sku_unique').on(t.sku),
-    productIdx: index('product_variants_product_id_idx').on(t.productId),
+    skuUnique: uniqueIndex('products_sku_unique').on(t.sku),
   }),
 );
 
@@ -231,7 +219,7 @@ export const productImages = pgTable(
   }),
 );
 
-/** One review per user per product (not per-variant). Pending until an
+/** One review per user per product. Pending until an
  * admin approves it — see `Review.status` for the moderation states. */
 export const reviews = pgTable(
   'reviews',
@@ -293,18 +281,18 @@ export const suppliers = pgTable('suppliers', {
 });
 
 /**
- * A candidate source for a variant. Cost is admin/ops-only data — never read by
+ * A candidate source for a product. Cost is admin/ops-only data — never read by
  * any customer-facing repository (see DrizzleProductRepository). Exactly one
- * offer per variant may be `isPreferred` (partial unique index below); that's
+ * offer per product may be `isPreferred` (partial unique index below); that's
  * the one CreateSupplierOrdersForPaidOrder buys from.
  */
 export const supplierOffers = pgTable(
   'supplier_offers',
   {
     id: text('id').primaryKey(),
-    variantId: text('variant_id')
+    productId: text('product_id')
       .notNull()
-      .references(() => productVariants.id, { onDelete: 'cascade' }),
+      .references(() => products.id, { onDelete: 'cascade' }),
     supplierId: text('supplier_id')
       .notNull()
       .references(() => suppliers.id, { onDelete: 'restrict' }),
@@ -325,9 +313,9 @@ export const supplierOffers = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    variantIdx: index('supplier_offers_variant_id_idx').on(t.variantId),
+    productIdx: index('supplier_offers_product_id_idx').on(t.productId),
     preferredUnique: uniqueIndex('supplier_offers_preferred_unique')
-      .on(t.variantId)
+      .on(t.productId)
       .where(sql`${t.isPreferred} = true`),
   }),
 );
@@ -408,11 +396,11 @@ export const orderLines = pgTable(
     orderId: text('order_id')
       .notNull()
       .references(() => orders.id, { onDelete: 'cascade' }),
-    variantId: text('variant_id')
+    productId: text('product_id')
       .notNull()
-      .references(() => productVariants.id),
+      .references(() => products.id),
     // Denormalized snapshot at order time — never re-read from the catalog
-    // after the order is placed, even if the variant's price/sku later changes.
+    // after the order is placed, even if the product's price/sku later changes.
     sku: text('sku').notNull(),
     quantity: integer('quantity').notNull(),
     unitAmountMinor: bigint('unit_amount_minor', { mode: 'number' }).notNull(),
@@ -468,9 +456,9 @@ export const supplierOrderLines = pgTable(
     orderLineId: text('order_line_id')
       .notNull()
       .references(() => orderLines.id, { onDelete: 'cascade' }),
-    variantId: text('variant_id')
+    productId: text('product_id')
       .notNull()
-      .references(() => productVariants.id),
+      .references(() => products.id),
     quantity: integer('quantity').notNull(),
     // Snapshotted at creation — cost drift later shouldn't rewrite history.
     unitCostMinor: bigint('unit_cost_minor', { mode: 'number' }).notNull(),

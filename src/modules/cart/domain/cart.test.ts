@@ -5,10 +5,10 @@ import { Cart } from './cart';
 import { CartLine, MAX_CART_LINE_QUANTITY } from './cart-line';
 import { Money } from '@/shared/domain/money';
 
-function makeLine(variantId: string, quantity: number, unitAmountMinor = 1000) {
+function makeLine(productId: string, quantity: number, unitAmountMinor = 1000) {
   return CartLine.create({
-    variantId,
-    sku: `SKU-${variantId.slice(0, 4)}`,
+    productId,
+    sku: `SKU-${productId.slice(0, 4)}`,
     quantity,
     unitPrice: Money.of(unitAmountMinor, 'USD'),
   });
@@ -29,7 +29,7 @@ describe('Cart#isEmpty', () => {
 });
 
 describe('Cart#addLine', () => {
-  it('adds a new line for a variant not already in the cart', () => {
+  it('adds a new line for a product not already in the cart', () => {
     const cart = makeCart();
     const line = makeLine(randomUUID(), 2);
     const updated = cart.addLine(line);
@@ -37,10 +37,10 @@ describe('Cart#addLine', () => {
     expect(updated.lines[0]?.quantity).toBe(2);
   });
 
-  it('sums quantities when adding a line for a variant already in the cart', () => {
-    const variantId = randomUUID();
-    const cart = makeCart([makeLine(variantId, 2)]);
-    const updated = cart.addLine(makeLine(variantId, 3));
+  it('sums quantities when adding a line for a product already in the cart', () => {
+    const productId = randomUUID();
+    const cart = makeCart([makeLine(productId, 2)]);
+    const updated = cart.addLine(makeLine(productId, 3));
     expect(updated.lines).toHaveLength(1);
     expect(updated.lines[0]?.quantity).toBe(5);
   });
@@ -58,36 +58,36 @@ describe('Cart#addLine', () => {
   });
 
   it('clamps the summed quantity to the max even when each add was individually within bounds', () => {
-    const variantId = randomUUID();
-    const cart = makeCart([makeLine(variantId, MAX_CART_LINE_QUANTITY - 10)]);
-    const updated = cart.addLine(makeLine(variantId, 20));
+    const productId = randomUUID();
+    const cart = makeCart([makeLine(productId, MAX_CART_LINE_QUANTITY - 10)]);
+    const updated = cart.addLine(makeLine(productId, 20));
     expect(updated.lines[0]?.quantity).toBe(MAX_CART_LINE_QUANTITY);
   });
 });
 
 describe('Cart#removeLine', () => {
-  it('removes the line for the given variant', () => {
-    const variantId = randomUUID();
-    const cart = makeCart([makeLine(variantId, 1)]);
-    expect(cart.removeLine(variantId).isEmpty).toBe(true);
+  it('removes the line for the given product', () => {
+    const productId = randomUUID();
+    const cart = makeCart([makeLine(productId, 1)]);
+    expect(cart.removeLine(productId).isEmpty).toBe(true);
   });
 
-  it('is a no-op for a variant not in the cart', () => {
+  it('is a no-op for a product not in the cart', () => {
     const cart = makeCart([makeLine(randomUUID(), 1)]);
     expect(cart.removeLine(randomUUID()).lines).toHaveLength(1);
   });
 });
 
 describe('Cart#setLineQuantity', () => {
-  it('sets the quantity for the given variant', () => {
-    const variantId = randomUUID();
-    const cart = makeCart([makeLine(variantId, 2)]);
-    const updated = cart.setLineQuantity(variantId, 5);
+  it('sets the quantity for the given product', () => {
+    const productId = randomUUID();
+    const cart = makeCart([makeLine(productId, 2)]);
+    const updated = cart.setLineQuantity(productId, 5);
     expect(updated.lines).toHaveLength(1);
     expect(updated.lines[0]?.quantity).toBe(5);
   });
 
-  it('is a no-op for a variant not in the cart', () => {
+  it('is a no-op for a product not in the cart', () => {
     const cart = makeCart([makeLine(randomUUID(), 2)]);
     const updated = cart.setLineQuantity(randomUUID(), 5);
     expect(updated.lines).toHaveLength(1);
@@ -95,23 +95,23 @@ describe('Cart#setLineQuantity', () => {
   });
 
   it('removes the line when set to zero or a negative quantity', () => {
-    const variantId = randomUUID();
-    const cart = makeCart([makeLine(variantId, 2)]);
-    expect(cart.setLineQuantity(variantId, 0).isEmpty).toBe(true);
-    expect(cart.setLineQuantity(variantId, -1).isEmpty).toBe(true);
+    const productId = randomUUID();
+    const cart = makeCart([makeLine(productId, 2)]);
+    expect(cart.setLineQuantity(productId, 0).isEmpty).toBe(true);
+    expect(cart.setLineQuantity(productId, -1).isEmpty).toBe(true);
   });
 
   it('does not mutate the original cart', () => {
-    const variantId = randomUUID();
-    const cart = makeCart([makeLine(variantId, 2)]);
-    cart.setLineQuantity(variantId, 9);
+    const productId = randomUUID();
+    const cart = makeCart([makeLine(productId, 2)]);
+    cart.setLineQuantity(productId, 9);
     expect(cart.lines[0]?.quantity).toBe(2);
   });
 
   it('clamps to the max quantity', () => {
-    const variantId = randomUUID();
-    const cart = makeCart([makeLine(variantId, 2)]);
-    const updated = cart.setLineQuantity(variantId, MAX_CART_LINE_QUANTITY + 50);
+    const productId = randomUUID();
+    const cart = makeCart([makeLine(productId, 2)]);
+    const updated = cart.setLineQuantity(productId, MAX_CART_LINE_QUANTITY + 50);
     expect(updated.lines[0]?.quantity).toBe(MAX_CART_LINE_QUANTITY);
   });
 });
@@ -121,10 +121,10 @@ describe('Cart#mergeWith', () => {
     const cart = makeCart([makeLine('v1', 1)]);
     const other = makeCart([makeLine('v2', 1)]);
     const merged = cart.mergeWith(other);
-    expect(merged.lines.map((l) => l.variantId).sort()).toEqual(['v1', 'v2']);
+    expect(merged.lines.map((l) => l.productId).sort()).toEqual(['v1', 'v2']);
   });
 
-  it('sums quantities on a colliding variant', () => {
+  it('sums quantities on a colliding product', () => {
     const cart = makeCart([makeLine('v1', 2)]);
     const other = makeCart([makeLine('v1', 3)]);
     const merged = cart.mergeWith(other);

@@ -22,9 +22,8 @@ import { Stack } from '@/components/ui/Stack';
 import { ProductImagesManager } from './ProductImagesManager';
 import { ProductCategoryEditor } from './ProductCategoryEditor';
 import { ProductDetailsEditor } from './ProductDetailsEditor';
-import { VariantPriceEditor } from './VariantPriceEditor';
+import { ProductPriceEditor } from './ProductPriceEditor';
 import { SupplierOfferCostEditor } from './SupplierOfferCostEditor';
-import { AddVariantForm } from './AddVariantForm';
 import { AddSupplierOfferForm } from './AddSupplierOfferForm';
 import { SetPreferredOfferButton } from './SetPreferredOfferButton';
 import styles from './page.module.css';
@@ -38,15 +37,7 @@ export interface AdminProductOfferRow {
   currency: string;
 }
 
-export interface AdminProductVariantRow {
-  id: string;
-  sku: string;
-  name: string;
-  priceAmountMinor: number;
-  currency: string;
-  hasNoOffers: boolean;
-  offers: AdminProductOfferRow[];
-}
+
 
 export interface AdminProductRow {
   id: string;
@@ -57,7 +48,11 @@ export interface AdminProductRow {
   category: string | null;
   imageUrl: string | null;
   additionalImages: { id: string; url: string }[];
-  variants: AdminProductVariantRow[];
+  sku: string;
+  priceAmountMinor: number;
+  currency: string;
+  hasNoOffers: boolean;
+  offers: AdminProductOfferRow[];
 }
 
 interface Supplier {
@@ -129,7 +124,7 @@ export function AdminProductsTable({ products, emptyMessage, suppliers }: AdminP
               <th>Product</th>
               <th>Status</th>
               <th>Images</th>
-              <th>Variants &amp; supplier offers</th>
+              <th>SKU, price &amp; supplier offers</th>
               <th></th>
             </tr>
           </thead>
@@ -173,53 +168,48 @@ export function AdminProductsTable({ products, emptyMessage, suppliers }: AdminP
                 </td>
                 <td>
                   <Stack gap={3}>
-                    {p.variants.map((v) => (
-                      <div key={v.id} className={styles.variantBlock}>
-                        <p className={styles.variantHeading}>
-                          {v.name} ({v.sku})
-                          {v.hasNoOffers && (
-                            <Badge tone="danger" className={styles.preferredBadge}>
-                              No supplier offer
-                            </Badge>
-                          )}
-                        </p>
-                        <VariantPriceEditor
-                          variantId={v.id}
-                          priceAmountMinor={v.priceAmountMinor}
-                          currency={v.currency}
-                        />
+                    <p className={styles.skuHeading}>
+                      {p.sku}
+                      {p.hasNoOffers && (
+                        <Badge tone="danger" className={styles.preferredBadge}>
+                          No supplier offer
+                        </Badge>
+                      )}
+                    </p>
+                    <ProductPriceEditor
+                      productId={p.id}
+                      priceAmountMinor={p.priceAmountMinor}
+                      currency={p.currency}
+                    />
 
-                        <ul className={styles.offerList}>
-                          {v.offers.map((offer) => (
-                            <li key={offer.id} className={styles.offerRow}>
-                              <div className={styles.offerInfo}>
-                                <span>
-                                  {offer.supplierName}
-                                  {offer.isPreferred && (
-                                    <Badge tone="accent" className={styles.preferredBadge}>
-                                      preferred
-                                    </Badge>
-                                  )}
-                                </span>
-                                <div className={styles.offerCost}>
-                                  cost
-                                  <SupplierOfferCostEditor
-                                    offerId={offer.id}
-                                    costAmountMinor={offer.costAmountMinor}
-                                    currency={offer.currency}
-                                  />
-                                </div>
-                                {!offer.isPreferred && (
-                                  <SetPreferredOfferButton offerId={offer.id} variantId={v.id} />
-                                )}
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                        <AddSupplierOfferForm variantId={v.id} suppliers={suppliers} />
-                      </div>
-                    ))}
-                    <AddVariantForm productId={p.id} />
+                    <ul className={styles.offerList}>
+                      {p.offers.map((offer) => (
+                        <li key={offer.id} className={styles.offerRow}>
+                          <div className={styles.offerInfo}>
+                            <span>
+                              {offer.supplierName}
+                              {offer.isPreferred && (
+                                <Badge tone="accent" className={styles.preferredBadge}>
+                                  preferred
+                                </Badge>
+                              )}
+                            </span>
+                            <div className={styles.offerCost}>
+                              cost
+                              <SupplierOfferCostEditor
+                                offerId={offer.id}
+                                costAmountMinor={offer.costAmountMinor}
+                                currency={offer.currency}
+                              />
+                            </div>
+                            {!offer.isPreferred && (
+                              <SetPreferredOfferButton offerId={offer.id} productId={p.id} />
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    <AddSupplierOfferForm productId={p.id} suppliers={suppliers} />
                   </Stack>
                 </td>
                 <td className={styles.rowActions}>

@@ -9,7 +9,7 @@ import { resolveCartOwner } from '@/app/lib/session';
 import { MAX_CART_LINE_QUANTITY } from '@/modules/cart/domain/cart-line';
 
 const AddToCartSchema = z.object({
-  variantId: z.string().min(1),
+  productId: z.string().min(1),
   quantity: z.coerce.number().int().positive().max(MAX_CART_LINE_QUANTITY),
 });
 
@@ -23,7 +23,7 @@ export async function addToCartAction(
   formData: FormData,
 ): Promise<AddToCartActionResult> {
   const parsed = AddToCartSchema.safeParse({
-    variantId: formData.get('variantId'),
+    productId: formData.get('productId'),
     quantity: formData.get('quantity') ?? 1,
   });
   if (!parsed.success) return { error: 'Could not add to cart.' };
@@ -42,12 +42,12 @@ export async function addToCartAction(
 }
 
 export async function removeFromCartAction(formData: FormData): Promise<void> {
-  const variantId = String(formData.get('variantId') ?? '');
-  if (!variantId) return;
+  const productId = String(formData.get('productId') ?? '');
+  if (!productId) return;
 
   const owner = await resolveCartOwner();
   const { removeFromCart } = getContainer();
-  await removeFromCart.execute({ owner, variantId });
+  await removeFromCart.execute({ owner, productId });
 
   revalidatePath('/cart');
   // The cart item-count badge lives in the root layout (Header), which the
@@ -57,13 +57,13 @@ export async function removeFromCartAction(formData: FormData): Promise<void> {
 }
 
 const UpdateCartLineQuantitySchema = z.object({
-  variantId: z.string().min(1),
+  productId: z.string().min(1),
   quantity: z.coerce.number().int().min(0).max(MAX_CART_LINE_QUANTITY),
 });
 
 export async function updateCartLineQuantityAction(formData: FormData): Promise<void> {
   const parsed = UpdateCartLineQuantitySchema.safeParse({
-    variantId: formData.get('variantId'),
+    productId: formData.get('productId'),
     quantity: formData.get('quantity'),
   });
   if (!parsed.success) return;

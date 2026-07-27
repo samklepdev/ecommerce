@@ -3,14 +3,14 @@ import type { SupplierOfferRepository } from '@/modules/sourcing/application/por
 
 export interface SetPreferredSupplierOfferInput {
   offerId: string;
-  variantId: string;
+  productId: string;
 }
 
-/** Switches which existing offer is preferred for a variant without creating a new one. */
+/** Switches which existing offer is preferred for a product without creating a new one. */
 export class SetPreferredSupplierOffer implements UseCase<SetPreferredSupplierOfferInput, void> {
   constructor(private readonly offers: SupplierOfferRepository) {}
 
   async execute(input: SetPreferredSupplierOfferInput): Promise<void> {
-    await this.offers.setPreferred(input.offerId, input.variantId);
+    await this.offers.setPreferred(input.offerId, input.productId);
   }
 }

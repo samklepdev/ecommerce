@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, gte, ilike, inArray, isNotNull, lt, lte, sql } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
-import { orderLines, orderEvents, orders, productVariants, products } from '@/shared/infrastructure/db/schema';
+import { orderLines, orderEvents, orders, products } from '@/shared/infrastructure/db/schema';
 import { Money } from '@/shared/domain/money';
 import { PAYMENT_EXPIRY_GRACE_MS } from '@/shared/domain/payment-expiry-grace';
 import type { Order } from '@/modules/orders/domain/order';
@@ -153,7 +153,7 @@ export class DrizzleOrderRepository
           order.lines.map((line) => ({
             id: randomUUID(),
             orderId: order.id,
-            variantId: line.variantId,
+            productId: line.productId,
             sku: line.sku,
             quantity: line.quantity,
             unitAmountMinor: line.unitPrice.amountMinor,
@@ -219,7 +219,7 @@ export class DrizzleOrderRepository
     const rows = await this.db.query.orderLines.findMany({
       where: eq(orderLines.orderId, orderId),
     });
-    return rows.map((r) => ({ id: r.id, variantId: r.variantId, quantity: r.quantity }));
+    return rows.map((r) => ({ id: r.id, productId: r.productId, quantity: r.quantity }));
   }
 
   async flagFulfillmentIssue(orderLineId: string, reason: string): Promise<void> {
@@ -237,7 +237,7 @@ export class DrizzleOrderRepository
       orderLineId: r.id,
       orderId: r.orderId,
       sku: r.sku,
-      variantId: r.variantId,
+      productId: r.productId,
       reason: r.fulfillmentIssue!,
     }));
   }
@@ -460,16 +460,15 @@ export class DrizzleOrderRepository
       where: eq(orderLines.orderId, row.id),
     });
 
-    const variantIds = lines.map((l) => l.variantId);
+    const productIds = lines.map((l) => l.productId);
     const imageRows =
-      variantIds.length > 0
+      productIds.length > 0
         ? await this.db
-            .select({ variantId: productVariants.id, imageUrl: products.imageUrl })
-            .from(productVariants)
-            .innerJoin(products, eq(products.id, productVariants.productId))
-            .where(inArray(productVariants.id, variantIds))
+            .select({ productId: products.id, imageUrl: products.imageUrl })
+            .from(products)
+            .where(inArray(products.id, productIds))
         : [];
-    const imageUrlByVariantId = new Map(imageRows.map((r) => [r.variantId, r.imageUrl]));
+    const imageUrlByProductId = new Map(imageRows.map((r) => [r.productId, r.imageUrl]));
 
     return {
       ...toOrderListItem(row),
@@ -479,11 +478,11 @@ export class DrizzleOrderRepository
       discountAmountMinor: row.discountAmountMinor,
       couponCode: row.couponCode,
       lines: lines.map((l) => ({
-        variantId: l.variantId,
+        productId: l.productId,
         sku: l.sku,
         quantity: l.quantity,
         unitAmountMinor: l.unitAmountMinor,
-        imageUrl: imageUrlByVariantId.get(l.variantId) ?? null,
+        imageUrl: imageUrlByProductId.get(l.productId) ?? null,
       })),
     };
   }

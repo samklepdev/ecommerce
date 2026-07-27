@@ -11,11 +11,11 @@ import type { AnalyticsEventRepository } from '@/modules/analytics/application/p
 
 export interface AddToCartInput {
   owner: CartOwner;
-  variantId: string;
+  productId: string;
   quantity: number;
 }
 
-export type AddToCartError = { code: 'variant_not_found' };
+export type AddToCartError = { code: 'product_not_found' };
 
 export class AddToCart implements UseCase<AddToCartInput, Result<Cart, AddToCartError>> {
   constructor(
@@ -25,18 +25,18 @@ export class AddToCart implements UseCase<AddToCartInput, Result<Cart, AddToCart
   ) {}
 
   async execute(input: AddToCartInput): Promise<Result<Cart, AddToCartError>> {
-    const variant = await this.products.findVariantById(input.variantId);
-    if (!variant) return err({ code: 'variant_not_found' });
+    const product = await this.products.findById(input.productId);
+    if (!product) return err({ code: 'product_not_found' });
 
     const existing = await this.carts.get(input.owner);
     const cart = existing ?? Cart.create({ id: randomUUID(), owner: input.owner, lines: [] });
 
     const updated = cart.addLine(
       CartLine.create({
-        variantId: variant.id,
-        sku: variant.sku,
+        productId: product.id,
+        sku: product.sku,
         quantity: input.quantity,
-        unitPrice: variant.price,
+        unitPrice: product.price,
       }),
     );
 
@@ -49,7 +49,7 @@ export class AddToCart implements UseCase<AddToCartInput, Result<Cart, AddToCart
           eventType: 'cart_changed',
           sessionId: input.owner.type === 'guest' ? input.owner.sessionId : input.owner.userId,
           userId: input.owner.type === 'user' ? input.owner.userId : null,
-          metadata: { lines: updated.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity })) },
+          metadata: { lines: updated.lines.map((l) => ({ productId: l.productId, quantity: l.quantity })) },
         });
       } catch (e) {
         logger.warn('failed to record cart_changed analytics event', {

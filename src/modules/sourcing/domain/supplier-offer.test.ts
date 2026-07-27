@@ -5,7 +5,7 @@ import { Money } from '@/shared/domain/money';
 function validProps() {
   return {
     id: '1',
-    variantId: 'v1',
+    productId: 'v1',
     supplierId: 's1',
     supplierProductUrl: 'https://supplier.example.com/item',
     cost: Money.of(1000, 'USD'),

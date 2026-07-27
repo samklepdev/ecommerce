@@ -9,11 +9,11 @@ import {
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
-import styles from './VariantPriceEditor.module.css';
+import styles from './ProductPriceEditor.module.css';
 
 const initialState: UpdateSupplierOfferCostActionResult = {};
 
-/** Same render-time re-keying pattern as `VariantPriceEditor`'s
+/** Same render-time re-keying pattern as `ProductPriceEditor`'s
  * `useResultNonce` — restarts the alert's fade-out on a repeat submission. */
 function useResultNonce(result: unknown): number {
   const [[prev, nonce], setState] = useState<[unknown, number]>([result, 0]);
@@ -29,8 +29,8 @@ export interface SupplierOfferCostEditorProps {
   currency: string;
 }
 
-/** Always-editable inline cost field, mirroring `VariantPriceEditor` — cost
- * (what the supplier charges) is deliberately independent of the variant's
+/** Always-editable inline cost field, mirroring `ProductPriceEditor` — cost
+ * (what the supplier charges) is deliberately independent of the product's
  * sell price; editing one never touches the other. */
 export function SupplierOfferCostEditor({ offerId, costAmountMinor, currency }: SupplierOfferCostEditorProps) {
   const [state, formAction, isPending] = useActionState(updateSupplierOfferCostAction, initialState);

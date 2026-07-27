@@ -1,5 +1,4 @@
 import type { Product, ProductStatus } from '@/modules/catalog/domain/product';
-import type { ProductVariant } from '@/modules/catalog/domain/product-variant';
 
 export type ProductSort = 'newest' | 'name_asc' | 'name_desc' | 'price_asc' | 'price_desc';
 
@@ -20,11 +19,10 @@ export interface ProductRepository {
   /** Distinct, non-null categories among active products — the filter
    * dropdown's options. */
   listCategories(): Promise<string[]>;
-  findVariantById(variantId: string): Promise<ProductVariant | null>;
-  /** The parent product of a variant — for display contexts that only have
-   * a variantId (e.g. the cart) and need the product's name/image. Null if
-   * the variant or its product no longer exists. */
-  findProductByVariantId(variantId: string): Promise<Product | null>;
+  /** Null when the product no longer exists. Used both to reprice a cart
+   * line and to render one — the product is the sellable unit, so there's
+   * nothing narrower to look up. */
+  findById(productId: string): Promise<Product | null>;
   /** Active-only; ids that don't resolve (deleted/archived/never existed)
    * are silently omitted, not errored. Returned order is not guaranteed to
    * match `ids`' order — callers that need a specific order must re-sort. */
@@ -32,8 +30,7 @@ export interface ProductRepository {
   /** Admin-only — includes draft/archived products, not just active ones. */
   listAllForAdmin(): Promise<Product[]>;
   createProduct(product: Product): Promise<void>;
-  createVariant(variant: ProductVariant): Promise<void>;
-  updateVariantPrice(variantId: string, amountMinor: number, currency: string): Promise<void>;
+  updatePrice(productId: string, amountMinor: number, currency: string): Promise<void>;
   updateCategory(productId: string, category: string | null): Promise<void>;
   /** Slug is intentionally not editable here — it's permanent once created
    * so existing bookmarked/shared product URLs never break. */
@@ -48,8 +45,8 @@ export interface ProductRepository {
    * product is left with no image. */
   removePrimaryImage(productId: string): Promise<void>;
   updateStatus(productId: string, status: ProductStatus): Promise<void>;
-  /** Cascades to the product's variants and their supplier offers. Fails (DB
-   * FK restrict) if any variant has ever been part of a real order — order
-   * history is never deletable through this path. */
+  /** Cascades to the product's supplier offers. Fails (DB FK restrict) if
+   * the product has ever been part of a real order — order history is never
+   * deletable through this path. */
   deleteProduct(productId: string): Promise<void>;
 }

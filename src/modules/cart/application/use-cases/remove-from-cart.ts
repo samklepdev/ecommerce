@@ -6,7 +6,7 @@ import type { CartRepository } from '@/modules/cart/application/ports/cart-repos
 
 export interface RemoveFromCartInput {
   owner: CartOwner;
-  variantId: string;
+  productId: string;
 }
 
 export class RemoveFromCart implements UseCase<RemoveFromCartInput, Cart> {
@@ -15,7 +15,7 @@ export class RemoveFromCart implements UseCase<RemoveFromCartInput, Cart> {
   async execute(input: RemoveFromCartInput): Promise<Cart> {
     const existing = await this.carts.get(input.owner);
     const cart = existing ?? Cart.create({ id: randomUUID(), owner: input.owner, lines: [] });
-    const updated = cart.removeLine(input.variantId);
+    const updated = cart.removeLine(input.productId);
     await this.carts.save(updated);
     return updated;
   }

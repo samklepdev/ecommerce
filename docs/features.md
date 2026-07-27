@@ -16,13 +16,13 @@ feature" checklist).
   (newest, name A-Z/Z-A, price low-high/high-low), and page-based
   navigation. Each card has a quantity stepper, decimal price, and an
   inline "Add to cart" button (no need to open the product page first).
-  Targets whichever variant has a preferred supplier offer configured.
-- **Product detail** (`/products/[slug]`) — image gallery, all variants
-  with price and availability, add to cart. "Out of stock" means the
+  Unavailable when the product's preferred supplier offer says so.
+- **Product detail** (`/products/[slug]`) — image gallery, price,
+  availability, and add to cart. "Out of stock" means the
   supplier marked it unavailable, not a quantity count — this store holds
   no inventory (dropship/arbitrage model). A breadcrumb links back to the
   product's category filter when it has one. The description supports
-  markdown (bold, lists, links), not just plain text. Below the variants,
+  markdown (bold, lists, links), not just plain text. Below the buy box,
   a "You might also like" row shows other products from the same category
   (falling back to the newest storewide products if the category is thin
   or the product has none), and a "Recently viewed" row shows the last few
@@ -111,20 +111,17 @@ feature" checklist).
   Deactivating drops it out of "source from" pickers (new product, new
   supplier offer) without touching any existing offers or orders that
   already reference it — it stays selectable in admin filters/history.
-- **Products** (`/admin/products`) — create a product + its first variant
-  + a preferred supplier offer in one form; add further variants to an
-  existing product afterward (a new variant starts with no supplier
-  offer, same "No supplier offer" badge state as any other unsourced
-  variant); import a batch of products from a supplier feed (URL, pasted
+- **Products** (`/admin/products`) — create a product and its preferred
+  supplier offer in one form; import a batch of products from a supplier feed (URL, pasted
   JSON, or an uploaded spreadsheet); a "paste a product URL" helper that
   scrapes and prefills the add-product form; bulk publish/unpublish/
   delete/assign-category; upload/manage product images; editable name
   and description after creation (the slug stays permanent so existing
-  product URLs never break); per-variant sell-price editing; per-offer
+  product URLs never break); sell-price editing; per-offer
   supplier-cost editing; add a further supplier offer to an existing
-  variant (e.g. once the original supplier goes out of stock) and switch
-  which offer is preferred; bulk "apply X% markup" across selected
-  products' variants; a "No supplier offer" badge on any variant that
+  product (e.g. once the original supplier goes out of stock) and switch
+  which offer is preferred; bulk "apply X% markup" across the selected
+  products; a "No supplier offer" badge on any product that
   could never actually be fulfilled; an editable category tag (free
   text) used by the storefront's category filter and assignable in bulk;
   filter the list by supplier.
@@ -139,7 +136,7 @@ feature" checklist).
   orders on the same customer order and mark-ordered/mark-shipped/cancel
   them together with one shared reference or tracking number, instead of
   one row at a time. A banner surfaces any paid order line that couldn't
-  be sourced (no supplier offer exists for that variant) so it doesn't
+  be sourced (no supplier offer exists for that product) so it doesn't
   silently vanish. Filter by status.
 - **Orders** (`/admin/orders`) — every order in the store, searchable by
   customer email; (`/admin/orders/[id]`) — full detail (same view
@@ -173,7 +170,7 @@ feature" checklist).
   orders keep the rate they were placed under.
 - **Audit log** (`/admin/audit-log`) — a durable, searchable-by-scrolling
   record of who did what and when, for the sensitive/destructive admin
-  actions: refunds, admin promotions and demotions, variant price
+  actions: refunds, admin promotions and demotions, product price
   changes, bulk markup, supplier-order cancellations and mark-ordered/
   mark-shipped (single and bulk), product deletions, manually failing a
   stuck order, and shipping-rate changes. Routine catalog edits (images,

@@ -28,27 +28,20 @@ interface ProductsPageProps {
   searchParams: Promise<{ q?: string; category?: string; sort?: ProductSort; page?: string }>;
 }
 
-/** Picks which variant the listing card's quick-add row targets: the first
- * variant with a preferred supplier offer configured, falling back to the
- * first variant if none do — same "no offer means nothing to check against,
- * default to available" convention the product detail page already uses. */
-async function resolveQuickAddVariant(
+/** Whether the listing card's quick-add row should offer the product. No
+ * preferred supplier offer means nothing to check against, so it defaults
+ * to available — the same convention the product detail page uses. */
+async function resolveQuickAddAvailability(
   product: Product,
-  getPreferredOfferForVariant: ReturnType<typeof getContainer>['getPreferredOfferForVariant'],
-): Promise<{ variant: Product['variants'][number]; isAvailable: boolean } | null> {
-  if (product.variants.length === 0) return null;
-
-  for (const variant of product.variants) {
-    const offer = await getPreferredOfferForVariant.execute({ variantId: variant.id });
-    if (offer) return { variant, isAvailable: offer.isAvailable };
-  }
-
-  return { variant: product.variants[0]!, isAvailable: true };
+  getPreferredOfferForProduct: ReturnType<typeof getContainer>['getPreferredOfferForProduct'],
+): Promise<boolean> {
+  const offer = await getPreferredOfferForProduct.execute({ productId: product.id });
+  return offer?.isAvailable ?? true;
 }
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const { q, category, sort, page: pageParam } = await searchParams;
-  const { listProducts, listProductCategories, getPreferredOfferForVariant, btcRates } =
+  const { listProducts, listProductCategories, getPreferredOfferForProduct, btcRates } =
     getContainer();
 
   const categories = await listProductCategories.execute();
@@ -102,14 +95,14 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     await Promise.all(
       pagedProducts.map(
         async (product) =>
-          [product.id, await resolveQuickAddVariant(product, getPreferredOfferForVariant)] as const,
+          [product.id, await resolveQuickAddAvailability(product, getPreferredOfferForProduct)] as const,
       ),
     ),
   );
 
   // Cached ~30s inside the provider, and null when the feed is unreachable —
   // the catalog then shows fiat alone rather than failing.
-  const currency = pagedProducts[0]?.cheapestVariantPrice?.currency ?? 'USD';
+  const currency = pagedProducts[0]?.price.currency ?? 'USD';
   const satsPerUnit = await tryGetSatsRate(btcRates, currency);
 
   function buildHref(nextPage: number): string {
@@ -187,8 +180,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         ) : (
           <div className={styles.grid}>
             {pagedProducts.map((product) => {
-              const quickAdd = quickAddByProductId.get(product.id) ?? null;
-              const price = product.cheapestVariantPrice;
+              const isAvailable = quickAddByProductId.get(product.id) ?? true;
+              const price = product.price;
 
               return (
                 <ProductCardMini
@@ -199,11 +192,9 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                       ? formatSats(price.amountMinor, satsPerUnit)
                       : null
                   }
-                  unavailable={quickAdd ? !quickAdd.isAvailable : false}
+                  unavailable={!isAvailable}
                 >
-                  {quickAdd && (
-                    <AddToCartRow variantId={quickAdd.variant.id} disabled={!quickAdd.isAvailable} />
-                  )}
+                  <AddToCartRow productId={product.id} disabled={!isAvailable} />
                 </ProductCardMini>
               );
             })}

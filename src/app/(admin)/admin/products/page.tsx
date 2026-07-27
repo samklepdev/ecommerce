@@ -28,7 +28,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
   await requireAdmin();
   const { supplierId, page: pageParam } = await searchParams;
 
-  const { listAllProductsForAdmin, listSuppliers, listSupplierOffersForVariant } =
+  const { listAllProductsForAdmin, listSuppliers, listSupplierOffersForProduct } =
     getContainer();
   const [allProducts, suppliers] = await Promise.all([
     listAllProductsForAdmin.execute(),
@@ -44,22 +44,18 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
     .filter((s) => s.isActive)
     .map((s) => ({ id: s.id, name: s.name }));
 
-  const offersByVariant = new Map<string, SupplierOffer[]>(
+  const offersByProduct = new Map<string, SupplierOffer[]>(
     await Promise.all(
-      allProducts
-        .flatMap((p) => p.variants)
-        .map(
-          async (v) =>
-            [v.id, await listSupplierOffersForVariant.execute({ variantId: v.id })] as const,
-        ),
+      allProducts.map(
+        async (p) =>
+          [p.id, await listSupplierOffersForProduct.execute({ productId: p.id })] as const,
+      ),
     ),
   );
 
   const products = supplierId
     ? allProducts.filter((p) =>
-        p.variants.some((v) =>
-          (offersByVariant.get(v.id) ?? []).some((offer) => offer.supplierId === supplierId),
-        ),
+        (offersByProduct.get(p.id) ?? []).some((offer) => offer.supplierId === supplierId),
       )
     : allProducts;
 
@@ -78,21 +74,17 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
     category: p.category,
     imageUrl: p.imageUrl,
     additionalImages: p.additionalImages,
-    variants: p.variants.map((v) => ({
-      id: v.id,
-      sku: v.sku,
-      name: v.name,
-      priceAmountMinor: v.price.amountMinor,
-      currency: v.price.currency,
-      hasNoOffers: (offersByVariant.get(v.id) ?? []).length === 0,
-      offers: (offersByVariant.get(v.id) ?? []).map((offer) => ({
-        id: offer.id,
-        supplierId: offer.supplierId,
-        supplierName: supplierNameById.get(offer.supplierId) ?? offer.supplierId,
-        isPreferred: offer.isPreferred,
-        costAmountMinor: offer.cost.amountMinor,
-        currency: offer.cost.currency,
-      })),
+    sku: p.sku,
+    priceAmountMinor: p.price.amountMinor,
+    currency: p.price.currency,
+    hasNoOffers: (offersByProduct.get(p.id) ?? []).length === 0,
+    offers: (offersByProduct.get(p.id) ?? []).map((offer) => ({
+      id: offer.id,
+      supplierId: offer.supplierId,
+      supplierName: supplierNameById.get(offer.supplierId) ?? offer.supplierId,
+      isPreferred: offer.isPreferred,
+      costAmountMinor: offer.cost.amountMinor,
+      currency: offer.cost.currency,
     })),
   }));
 

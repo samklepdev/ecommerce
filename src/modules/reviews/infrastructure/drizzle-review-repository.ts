@@ -1,7 +1,7 @@
 import { and, eq, sql } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
-import { reviews, orders, orderLines, productVariants } from '@/shared/infrastructure/db/schema';
+import { reviews, orders, orderLines } from '@/shared/infrastructure/db/schema';
 import { Review, type ReviewStatus } from '@/modules/reviews/domain/review';
 import type { RatingSummary, ReviewRepository } from '@/modules/reviews/application/ports/review-repository';
 
@@ -87,12 +87,11 @@ export class DrizzleReviewRepository implements ReviewRepository {
       .select({ id: orderLines.id })
       .from(orderLines)
       .innerJoin(orders, eq(orders.id, orderLines.orderId))
-      .innerJoin(productVariants, eq(productVariants.id, orderLines.variantId))
       .where(
         and(
           eq(orders.userId, userId),
           eq(orders.paymentStatus, 'paid'),
-          eq(productVariants.productId, productId),
+          eq(orderLines.productId, productId),
         ),
       )
       .limit(1);

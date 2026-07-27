@@ -2,7 +2,7 @@ export interface UnfulfillableOrderLine {
   orderLineId: string;
   orderId: string;
   sku: string;
-  variantId: string;
+  productId: string;
   reason: string;
 }
 

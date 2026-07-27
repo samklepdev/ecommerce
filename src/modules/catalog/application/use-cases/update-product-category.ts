@@ -6,7 +6,7 @@ export interface UpdateProductCategoryInput {
   category: string | null;
 }
 
-/** Mirrors `UpdateVariantPrice`'s thin validate-and-delegate shape. */
+/** Mirrors `UpdateProductPrice`'s thin validate-and-delegate shape. */
 export class UpdateProductCategory implements UseCase<UpdateProductCategoryInput, void> {
   constructor(private readonly products: ProductRepository) {}
 

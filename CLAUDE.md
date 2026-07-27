@@ -112,11 +112,11 @@ Every mutating money- or inventory-touching operation **must** be idempotent:
 
 ## Inventory
 
-There is **no local stock** — this is a dropship/arbitrage model. `Product`/`ProductVariant`
-carry no quantity field, and `start-checkout.ts` sources items from suppliers only *after*
+There is **no local stock** — this is a dropship/arbitrage model. `Product` carries no
+quantity field, and `start-checkout.ts` sources items from suppliers only *after*
 payment confirms (`CreateSupplierOrdersForPaidOrder`). No reservation, no TTL, nothing to
-oversell. "Out of stock" means the variant no longer exists in the catalog (deleted/archived),
-not a quantity check — see `PlaceOrder`'s `variant_unavailable` error. If a real local-stock
+oversell. "Out of stock" means the product no longer exists in the catalog (deleted/archived),
+not a quantity check — see `PlaceOrder`'s `product_unavailable` error. If a real local-stock
 model is ever introduced, the classic read-then-write race (`SELECT stock; if > 0 then
 UPDATE`) still applies and must be avoided via `SELECT ... FOR UPDATE` or an atomic conditional
 update — but that's not the system as it exists today.
@@ -126,9 +126,9 @@ update — but that's not the system as it exists today.
 - **Re-price at checkout. Never trust a client-submitted price.** The reprice step is the
   authority; client price is display-only.
 - Guest carts live in Redis by session id; merged into the user's cart on login.
-- "Item went out of stock between add and checkout" means the variant was removed from the
+- "Item went out of stock between add and checkout" means the product was removed from the
   catalog, not a quantity check (see Inventory above) — `PlaceOrder` returns
-  `variant_unavailable` for this.
+  `product_unavailable` for this.
 
 ## Order state machine
 

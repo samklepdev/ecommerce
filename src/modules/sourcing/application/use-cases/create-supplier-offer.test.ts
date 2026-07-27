@@ -11,7 +11,7 @@ function makeFakeOffers(existingPreferred: SupplierOffer | null) {
     async create(offer) {
       created.push(offer);
     },
-    async findPreferredByVariantId() {
+    async findPreferredByProductId() {
       return existingPreferred;
     },
   };
@@ -19,11 +19,11 @@ function makeFakeOffers(existingPreferred: SupplierOffer | null) {
 }
 
 describe('CreateSupplierOffer', () => {
-  it('marks the offer preferred when the variant has no existing preferred offer', async () => {
+  it('marks the offer preferred when the product has no existing preferred offer', async () => {
     const { repo, created } = makeFakeOffers(null);
 
     const offer = await new CreateSupplierOffer(repo).execute({
-      variantId: 'v1',
+      productId: 'v1',
       supplierId: 's1',
       supplierProductUrl: 'https://supplier.example.com/item',
       costAmountMinor: 500,
@@ -34,10 +34,10 @@ describe('CreateSupplierOffer', () => {
     expect(created).toEqual([offer]);
   });
 
-  it('does not mark the offer preferred when one already exists for the variant', async () => {
+  it('does not mark the offer preferred when one already exists for the product', async () => {
     const existing = SupplierOffer.create({
       id: 'existing',
-      variantId: 'v1',
+      productId: 'v1',
       supplierId: 's0',
       supplierProductUrl: 'https://supplier.example.com/existing',
       cost: Money.of(400, 'USD'),
@@ -47,7 +47,7 @@ describe('CreateSupplierOffer', () => {
     const { repo } = makeFakeOffers(existing);
 
     const offer = await new CreateSupplierOffer(repo).execute({
-      variantId: 'v1',
+      productId: 'v1',
       supplierId: 's1',
       supplierProductUrl: 'https://supplier.example.com/item',
       costAmountMinor: 500,
@@ -61,7 +61,7 @@ describe('CreateSupplierOffer', () => {
     const { repo } = makeFakeOffers(null);
 
     const offer = await new CreateSupplierOffer(repo).execute({
-      variantId: 'v1',
+      productId: 'v1',
       supplierId: 's1',
       supplierProductUrl: 'https://supplier.example.com/item',
       costAmountMinor: 500,

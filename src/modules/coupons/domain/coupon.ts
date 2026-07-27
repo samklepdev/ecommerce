@@ -79,7 +79,7 @@ export class Coupon extends AggregateRoot<string> {
 
   /** Clamped so the discount can never exceed the subtotal — a percentage
    * coupon already can't (≤100%), a fixed-amount one needs the explicit
-   * clamp. Percentage math mirrors `ApplyMarkupToVariants`'s inline
+   * clamp. Percentage math mirrors `ApplyMarkupToProducts`'s inline
    * `Math.round(amountMinor * pct / 100)` convention. */
   discountAmountFor(subtotal: Money): Money {
     if (this.discountType === 'percentage') {

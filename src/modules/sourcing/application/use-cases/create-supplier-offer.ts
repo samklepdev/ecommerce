@@ -6,7 +6,7 @@ import { SupplierOffer } from '@/modules/sourcing/domain/supplier-offer';
 import type { SupplierOfferRepository } from '@/modules/sourcing/application/ports/supplier-offer-repository';
 
 export interface CreateSupplierOfferInput {
-  variantId: string;
+  productId: string;
   supplierId: string;
   supplierProductUrl: string;
   costAmountMinor: number;
@@ -18,11 +18,11 @@ export class CreateSupplierOffer implements UseCase<CreateSupplierOfferInput, Su
   constructor(private readonly offers: SupplierOfferRepository) {}
 
   async execute(input: CreateSupplierOfferInput): Promise<SupplierOffer> {
-    const existingPreferred = await this.offers.findPreferredByVariantId(input.variantId);
+    const existingPreferred = await this.offers.findPreferredByProductId(input.productId);
 
     const offer = SupplierOffer.create({
       id: randomUUID(),
-      variantId: input.variantId,
+      productId: input.productId,
       supplierId: input.supplierId,
       supplierProductUrl: input.supplierProductUrl,
       cost: Money.of(input.costAmountMinor, input.costCurrency),

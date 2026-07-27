@@ -16,7 +16,7 @@ export interface ReviewRepository {
   listByStatus(status?: ReviewStatus): Promise<Review[]>;
   /** Guarded + idempotent: false if the review doesn't exist. */
   setStatus(id: string, status: 'approved' | 'rejected'): Promise<boolean>;
-  /** True if this user has a `paid` order containing any variant of this
+  /** True if this user has a `paid` order containing this
    * product. */
   hasVerifiedPurchase(userId: string, productId: string): Promise<boolean>;
 }

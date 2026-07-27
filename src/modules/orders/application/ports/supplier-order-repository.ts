@@ -2,7 +2,7 @@ import type { SupplierOrderStatus } from '@/modules/orders/domain/supplier-order
 
 export interface SupplierOrderLineDraft {
   orderLineId: string;
-  variantId: string;
+  productId: string;
   quantity: number;
   unitCostMinor: number;
   costCurrency: string;
@@ -15,7 +15,7 @@ export interface CreateSupplierOrderInput {
 }
 
 export interface SupplierOrderSummaryLine {
-  variantId: string;
+  productId: string;
   sku: string;
   quantity: number;
   unitCostMinor: number;

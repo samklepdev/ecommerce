@@ -8,7 +8,7 @@ import type { AnalyticsEventRepository } from '@/modules/analytics/application/p
 
 export interface UpdateCartLineQuantityInput {
   owner: CartOwner;
-  variantId: string;
+  productId: string;
   quantity: number;
 }
 
@@ -24,7 +24,7 @@ export class UpdateCartLineQuantity implements UseCase<UpdateCartLineQuantityInp
   async execute(input: UpdateCartLineQuantityInput): Promise<Cart> {
     const existing = await this.carts.get(input.owner);
     const cart = existing ?? Cart.create({ id: randomUUID(), owner: input.owner, lines: [] });
-    const updated = cart.setLineQuantity(input.variantId, input.quantity);
+    const updated = cart.setLineQuantity(input.productId, input.quantity);
     await this.carts.save(updated);
 
     if (this.events) {
@@ -34,7 +34,7 @@ export class UpdateCartLineQuantity implements UseCase<UpdateCartLineQuantityInp
           eventType: 'cart_changed',
           sessionId: input.owner.type === 'guest' ? input.owner.sessionId : input.owner.userId,
           userId: input.owner.type === 'user' ? input.owner.userId : null,
-          metadata: { lines: updated.lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity })) },
+          metadata: { lines: updated.lines.map((l) => ({ productId: l.productId, quantity: l.quantity })) },
         });
       } catch (e) {
         logger.warn('failed to record cart_changed analytics event', {

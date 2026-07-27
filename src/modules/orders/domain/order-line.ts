@@ -3,21 +3,21 @@ import { Money } from '@/shared/domain/money';
 
 export interface OrderLineProps {
   id: string;
-  variantId: string;
+  productId: string;
   sku: string;
   quantity: number;
   unitPrice: Money;
 }
 
 export class OrderLine extends Entity<string> {
-  readonly variantId: string;
+  readonly productId: string;
   readonly sku: string;
   readonly quantity: number;
   readonly unitPrice: Money;
 
   private constructor(props: OrderLineProps) {
     super(props.id);
-    this.variantId = props.variantId;
+    this.productId = props.productId;
     this.sku = props.sku;
     this.quantity = props.quantity;
     this.unitPrice = props.unitPrice;

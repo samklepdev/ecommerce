@@ -148,6 +148,13 @@
       "when": 1784977697043,
       "tag": "0020_dashing_masked_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1785600000000,
+      "tag": "0021_remove_product_variants",
+      "breakpoints": true
     }
   ]
 }

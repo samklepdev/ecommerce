@@ -7,7 +7,7 @@ import { MAX_CART_LINE_QUANTITY } from '@/modules/cart/domain/cart-line';
 import styles from './CartLineQuantityStepper.module.css';
 
 interface CartLineQuantityStepperProps {
-  variantId: string;
+  productId: string;
   quantity: number;
 }
 
@@ -16,13 +16,13 @@ interface CartLineQuantityStepperProps {
  * needs to fire on click, not on a form's submit event. `revalidatePath`
  * inside the action refreshes the server-rendered cart totals once the
  * transition settles. */
-export function CartLineQuantityStepper({ variantId, quantity }: CartLineQuantityStepperProps) {
+export function CartLineQuantityStepper({ productId, quantity }: CartLineQuantityStepperProps) {
   const [isPending, startTransition] = useTransition();
 
   function updateTo(nextQuantity: number) {
     if (nextQuantity < 1) return;
     const formData = new FormData();
-    formData.set('variantId', variantId);
+    formData.set('productId', productId);
     formData.set('quantity', String(nextQuantity));
     startTransition(() => {
       updateCartLineQuantityAction(formData);

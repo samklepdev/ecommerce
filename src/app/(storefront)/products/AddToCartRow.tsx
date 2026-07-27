@@ -9,20 +9,20 @@ import { QuantityStepper } from '@/components/ui/QuantityStepper';
 import styles from './AddToCartRow.module.css';
 
 interface AddToCartRowProps {
-  variantId: string;
+  productId: string;
   disabled?: boolean;
 }
 
 const initialState: AddToCartActionResult = {};
 
-export function AddToCartRow({ variantId, disabled = false }: AddToCartRowProps) {
+export function AddToCartRow({ productId, disabled = false }: AddToCartRowProps) {
   const [quantity, setQuantity] = useState(1);
   const [state, formAction, isPending] = useActionState(addToCartAction, initialState);
   useAddToCartFeedback(state);
 
   return (
     <form action={formAction} className={styles.row}>
-      <input type="hidden" name="variantId" value={variantId} />
+      <input type="hidden" name="productId" value={productId} />
       <input type="hidden" name="quantity" value={quantity} />
 
       <QuantityStepper

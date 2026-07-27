@@ -20,7 +20,7 @@ function makeShippingAddress() {
 function makeLine(unitAmountMinor: number, quantity: number) {
   return OrderLine.create({
     id: randomUUID(),
-    variantId: randomUUID(),
+    productId: randomUUID(),
     sku: 'TEST-SKU',
     quantity,
     unitPrice: Money.of(unitAmountMinor, 'USD'),

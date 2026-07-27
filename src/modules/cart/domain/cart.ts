@@ -36,7 +36,7 @@ export class Cart extends AggregateRoot<string> {
    * the summed quantity on a collision, since two individually-valid adds
    * can still combine past the cap. */
   addLine(line: CartLine): Cart {
-    const existingIndex = this._lines.findIndex((l) => l.variantId === line.variantId);
+    const existingIndex = this._lines.findIndex((l) => l.productId === line.productId);
     const lines =
       existingIndex >= 0
         ? this._lines.map((l, i) =>
@@ -50,11 +50,11 @@ export class Cart extends AggregateRoot<string> {
 
   /** Sets a line's quantity directly (not additive, unlike `addLine`) — zero
    * or negative removes the line, matching `CartLine.create`'s own guard
-   * against non-positive quantities. A no-op if the variant isn't in the
+   * against non-positive quantities. A no-op if the product isn't in the
    * cart. Clamped to `MAX_CART_LINE_QUANTITY`. */
-  setLineQuantity(variantId: string, quantity: number): Cart {
-    if (quantity <= 0) return this.removeLine(variantId);
-    const existingIndex = this._lines.findIndex((l) => l.variantId === variantId);
+  setLineQuantity(productId: string, quantity: number): Cart {
+    if (quantity <= 0) return this.removeLine(productId);
+    const existingIndex = this._lines.findIndex((l) => l.productId === productId);
     if (existingIndex < 0) return this;
     const lines = this._lines.map((l, i) =>
       i === existingIndex ? l.withQuantity(Math.min(quantity, MAX_CART_LINE_QUANTITY)) : l,
@@ -62,11 +62,11 @@ export class Cart extends AggregateRoot<string> {
     return Cart.create({ id: this.id, owner: this.owner, lines });
   }
 
-  removeLine(variantId: string): Cart {
+  removeLine(productId: string): Cart {
     return Cart.create({
       id: this.id,
       owner: this.owner,
-      lines: this._lines.filter((l) => l.variantId !== variantId),
+      lines: this._lines.filter((l) => l.productId !== productId),
     });
   }
 

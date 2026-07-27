@@ -13,7 +13,7 @@ import styles from './ProductDetailsEditor.module.css';
 
 const initialState: UpdateProductDetailsActionResult = {};
 
-/** Same nonce pattern as `VariantPriceEditor`'s `useResultNonce`. */
+/** Same nonce pattern as `ProductPriceEditor`'s `useResultNonce`. */
 function useResultNonce(result: unknown): number {
   const [[prev, nonce], setState] = useState<[unknown, number]>([result, 0]);
   if (prev !== result) {

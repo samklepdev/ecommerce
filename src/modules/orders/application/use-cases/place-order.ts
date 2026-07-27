@@ -23,7 +23,7 @@ export interface PlaceOrderInput {
 
 export type PlaceOrderError =
   | { code: 'empty_cart' }
-  | { code: 'variant_unavailable'; variantId: string }
+  | { code: 'product_unavailable'; productId: string }
   | { code: 'invalid_coupon' };
 
 /** Real production path: turns a priced cart into a durable, pending order. */
@@ -43,16 +43,16 @@ export class PlaceOrder implements UseCase<PlaceOrderInput, Result<Order, PlaceO
     const lines: OrderLine[] = [];
     for (const line of cart.lines) {
       // Re-fetch from the catalog — never trust the cart's stored price.
-      const variant = await this.products.findVariantById(line.variantId);
-      if (!variant) return err({ code: 'variant_unavailable', variantId: line.variantId });
+      const product = await this.products.findById(line.productId);
+      if (!product) return err({ code: 'product_unavailable', productId: line.productId });
 
       lines.push(
         OrderLine.create({
           id: randomUUID(),
-          variantId: variant.id,
-          sku: variant.sku,
+          productId: product.id,
+          sku: product.sku,
           quantity: line.quantity,
-          unitPrice: variant.price,
+          unitPrice: product.price,
         }),
       );
     }
