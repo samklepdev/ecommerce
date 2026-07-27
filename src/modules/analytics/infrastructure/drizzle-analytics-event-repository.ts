@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, asc, desc, eq, gte, ilike, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, ilike, isNotNull, lte, sql } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { analyticsEvents } from '@/shared/infrastructure/db/schema';
@@ -7,6 +7,7 @@ import type {
   AnalyticsEventInput,
   AnalyticsEventRepository,
   AnalyticsEventRow,
+  PathDwell,
   AnalyticsEventType,
   DailyCount,
   ValueCount,
@@ -137,6 +138,36 @@ export class DrizzleAnalyticsEventRepository implements AnalyticsEventRepository
     ]);
 
     return { items: rows.map(toRow), total: Number(countRows[0]?.count ?? 0) };
+  }
+
+  async averageDwellByPath(since: Date, until: Date, limit: number): Promise<PathDwell[]> {
+    // durationMs is written as a JSON number; `->>` yields text, so it is
+    // cast explicitly rather than relying on implicit coercion.
+    const rows = await this.db
+      .select({
+        path: analyticsEvents.path,
+        meanMs: sql<number>`avg((${analyticsEvents.metadata} ->> 'durationMs')::numeric)`,
+        samples: sql<number>`count(*)`,
+      })
+      .from(analyticsEvents)
+      .where(
+        and(
+          eq(analyticsEvents.eventType, 'page_exit'),
+          gte(analyticsEvents.createdAt, since),
+          lte(analyticsEvents.createdAt, until),
+          isNotNull(analyticsEvents.path),
+          sql`${analyticsEvents.metadata} ->> 'durationMs' IS NOT NULL`,
+        ),
+      )
+      .groupBy(analyticsEvents.path)
+      .orderBy(desc(sql`count(*)`))
+      .limit(limit);
+
+    return rows.flatMap((r) =>
+      r.path === null
+        ? []
+        : [{ path: r.path, meanMs: Math.round(Number(r.meanMs)), samples: Number(r.samples) }],
+    );
   }
 
   async listBySessionId(sessionId: string, since: Date, until: Date): Promise<AnalyticsEventRow[]> {

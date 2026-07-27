@@ -60,3 +60,20 @@ export function truncateAddress(address: string): string {
   if (address.length <= 20) return address;
   return `${address.slice(0, 8)}…${address.slice(-6)}`;
 }
+
+/**
+ * A dwell time as "8s" / "1m 12s" / "4m".
+ *
+ * Seconds are dropped past ten minutes: at that scale the extra digits
+ * imply a precision the measurement doesn't have, since the timer stops
+ * when the tab is hidden rather than when the reader looks away.
+ */
+export function formatDuration(ms: number): string {
+  const totalSeconds = Math.round(ms / 1000);
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes >= 10 || seconds === 0) return `${minutes}m`;
+  return `${minutes}m ${seconds}s`;
+}

@@ -6,6 +6,7 @@ import { getSessionUser, GUEST_SESSION_COOKIE } from '@/app/lib/session';
 import { getClientIp } from '@/app/lib/rate-limit';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { PageDwellTracker } from './PageDwellTracker';
 
 export default async function StorefrontLayout({ children }: { children: React.ReactNode }) {
   const headerStore = await headers();
@@ -39,6 +40,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
 
   return (
     <>
+      <PageDwellTracker />
       <Header />
       {children}
       <Footer />

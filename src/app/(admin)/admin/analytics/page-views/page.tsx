@@ -10,6 +10,7 @@ import { DrillDownHeader } from '../components/DrillDownHeader';
 import { DailyColumnChart } from '../components/DailyColumnChart';
 import { RankedList } from '../components/RankedList';
 import { PathFilter } from '../components/PathFilter';
+import { DwellList } from '../components/DwellList';
 import { EventLogTable } from '../components/EventLogTable';
 import styles from '../drill-down.module.css';
 
@@ -76,6 +77,7 @@ export default async function PageViewsPage({ searchParams }: PageViewsPageProps
       <div className={styles.split}>
         <RankedList title="Top pages" items={summary.topPaths} unit="views" />
         <RankedList title="Top referrers" items={summary.topReferrers} unit="sessions" />
+        <DwellList items={summary.dwellByPath} />
       </div>
 
       <div className={styles.card}>

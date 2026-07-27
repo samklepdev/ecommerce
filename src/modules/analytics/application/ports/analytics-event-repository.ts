@@ -1,4 +1,8 @@
-export type AnalyticsEventType = 'page_view' | 'search' | 'cart_changed';
+/** `page_exit` carries how long a visitor stayed, in `metadata.durationMs`.
+ * It's a separate event rather than a column on `page_view` because the
+ * duration is only known once the visitor leaves — updating the original
+ * row would race the `after()` insert that wrote it. */
+export type AnalyticsEventType = 'page_view' | 'search' | 'cart_changed' | 'page_exit';
 
 export interface AnalyticsEventInput {
   eventType: AnalyticsEventType;
@@ -19,6 +23,14 @@ export interface DailyCount {
 export interface ValueCount {
   value: string;
   count: number;
+}
+
+export interface PathDwell {
+  path: string;
+  meanMs: number;
+  /** How many exits the mean is drawn from — a 4-minute mean over two
+   * visits is not the same claim as one over two thousand. */
+  samples: number;
 }
 
 /** A raw stored row — backs the per-event-type pages' tables, their CSV
@@ -62,6 +74,9 @@ export interface AnalyticsEventRepository {
     offset: number,
     pathContains?: string,
   ): Promise<{ items: AnalyticsEventRow[]; total: number }>;
+  /** Mean dwell time per path, in milliseconds, from `page_exit` events —
+   * paths with no exit events recorded simply don't appear. */
+  averageDwellByPath(since: Date, until: Date, limit: number): Promise<PathDwell[]>;
   /** All web events (any type) for one `sessionId`, chronological
    * (oldest first) — backs the per-identity timeline. Logged-in users
    * always have `sessionId === userId` at write time, so this same

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { compactMoney, formatCount, shortDay, truncateAddress } from './format';
+import { compactMoney, formatCount, formatDuration, shortDay, truncateAddress } from './format';
 
 describe('compactMoney', () => {
   it('abbreviates thousands for a chart axis', () => {
@@ -45,5 +45,29 @@ describe('shortDay', () => {
 describe('formatCount', () => {
   it('groups thousands', () => {
     expect(formatCount(4128)).toBe('4,128');
+  });
+});
+
+describe('formatDuration', () => {
+  it('shows seconds under a minute', () => {
+    expect(formatDuration(8_400)).toBe('8s');
+  });
+
+  it('shows minutes and seconds in between', () => {
+    expect(formatDuration(72_000)).toBe('1m 12s');
+  });
+
+  it('drops a zero seconds remainder', () => {
+    expect(formatDuration(120_000)).toBe('2m');
+  });
+
+  it('drops seconds entirely past ten minutes', () => {
+    // The timer stops when the tab hides, not when the reader looks away,
+    // so second-level precision at this scale would be overclaiming.
+    expect(formatDuration(11 * 60_000 + 37_000)).toBe('11m');
+  });
+
+  it('handles a sub-second reading', () => {
+    expect(formatDuration(300)).toBe('0s');
   });
 });

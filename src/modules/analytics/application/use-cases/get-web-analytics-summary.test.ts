@@ -40,6 +40,9 @@ describe('GetWebAnalyticsSummary', () => {
       async listByType() {
         throw new Error('not used by this use case');
       },
+      async averageDwellByPath() {
+        return [];
+      },
       async listBySessionId() {
         throw new Error('not used by this use case');
       },
@@ -54,6 +57,7 @@ describe('GetWebAnalyticsSummary', () => {
       topReferrers,
       topSearchTerms,
       cartChangesPerDay,
+      dwellByPath: [],
     });
   });
 });
