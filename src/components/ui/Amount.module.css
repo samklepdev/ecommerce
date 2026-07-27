@@ -1,11 +1,24 @@
 .amount {
   display: inline-flex;
+  min-width: 0;
+}
+
+.stacked {
   flex-direction: column;
   gap: 2px;
   align-items: flex-start;
 }
 
-.end {
+/* Baseline-aligned so the two figures sit on one optical line despite the
+   size difference between them. */
+.inline {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.stacked.end {
   align-items: flex-end;
 }
 

@@ -6,6 +6,7 @@ import { addToCartAction, type AddToCartActionResult } from '@/app/actions/cart'
 import { useAddToCartFeedback } from '@/app/lib/use-add-to-cart-feedback';
 import { MAX_CART_LINE_QUANTITY } from '@/modules/cart/domain/cart-line';
 import { cx } from '@/components/ui/cx';
+import { Amount } from '@/components/ui/Amount';
 import { QuantityStepper } from '@/components/ui/QuantityStepper';
 import styles from './BuyBox.module.css';
 
@@ -64,8 +65,7 @@ export function BuyBox({ variants, btcRateLabel }: BuyBoxProps) {
   return (
     <div className={styles.buyBox}>
       <div className={styles.priceBlock}>
-        <span className={styles.fiat}>{selected.priceDisplay}</span>
-        {selected.satsDisplay && <span className={styles.sats}>{selected.satsDisplay}</span>}
+        <Amount fiat={selected.priceDisplay} sats={selected.satsDisplay} size="lg" />
         <span className={styles.rate}>
           {btcRateLabel ? `${btcRateLabel} · ` : ''}rate locked at checkout
         </span>

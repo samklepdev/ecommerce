@@ -13,6 +13,11 @@ interface AmountProps {
   sats?: string | null;
   size?: AmountSize;
   align?: 'start' | 'end';
+  /** `stacked` puts sats under the fiat figure — the buy box, an order
+   * total. `inline` sets them side by side on a shared baseline, which is
+   * what a dense card row needs. Both call sites are real; the colour rule
+   * stays here either way. */
+  layout?: 'stacked' | 'inline';
 }
 
 /**
@@ -22,9 +27,22 @@ interface AmountProps {
  * primary, sats are amber and secondary.** Amber means "denominated in
  * bitcoin" everywhere — the same reason the star ratings are monochrome.
  */
-export function Amount({ fiat, sats, size = 'md', align = 'start' }: AmountProps) {
+export function Amount({
+  fiat,
+  sats,
+  size = 'md',
+  align = 'start',
+  layout = 'stacked',
+}: AmountProps) {
   return (
-    <span className={cx(styles.amount, styles[size], align === 'end' && styles.end)}>
+    <span
+      className={cx(
+        styles.amount,
+        styles[size],
+        styles[layout],
+        align === 'end' && styles.end,
+      )}
+    >
       <span className={styles.fiat}>{fiat}</span>
       {sats && <span className={styles.sats}>{sats}</span>}
     </span>
