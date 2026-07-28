@@ -27,7 +27,27 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   const { getProductBySlug } = getContainer();
   const product = await getProductBySlug.execute({ slug });
   if (!product) return { title: 'Product not found' };
-  return { title: product.name, description: product.description ?? undefined };
+
+  const description = product.description ?? undefined;
+  // Open Graph and Twitter cards, deliberately kept even though robots.ts
+  // blocks indexing: these drive how a product link unfurls when someone
+  // pastes it into a chat or a support email. That's sharing, not search.
+  return {
+    title: product.name,
+    description,
+    openGraph: {
+      type: 'website',
+      title: product.name,
+      description,
+      images: product.imageUrl ? [{ url: product.imageUrl, alt: product.name }] : undefined,
+    },
+    twitter: {
+      card: product.imageUrl ? 'summary_large_image' : 'summary',
+      title: product.name,
+      description,
+      images: product.imageUrl ? [product.imageUrl] : undefined,
+    },
+  };
 }
 
 const RELATED_LIMIT = 4;
