@@ -169,29 +169,10 @@ export class DrizzleOrderRepository
   }
 
   /**
-   * DEV ENTRY ONLY — creates a bare order with no lines, for /api/checkout's
-   * amount-only harness. Real orders come from `create()` via cart checkout.
-   */
-  async createDraft(input: {
-    id: string;
-    amountMinor: number;
-    currency: string;
-    customerEmail: string;
-  }): Promise<void> {
-    await this.db.insert(orders).values({
-      id: input.id,
-      amountMinor: input.amountMinor,
-      shippingAmountMinor: 0,
-      currency: input.currency,
-      customerEmail: input.customerEmail,
-      paymentStatus: 'pending',
-    });
-  }
-
-  /**
    * Re-price server-side from persisted order_lines (populated from the catalog
    * at place-order time, never from client input). Falls back to the persisted
-   * total for the dev harness path, which has no lines.
+   * total for an order with no lines — nothing creates one now that the dev
+   * checkout harness is gone, but an old row could still exist.
    */
   async repriceAndGetTotal(orderId: string): Promise<Money> {
     const row = await this.db.query.orders.findFirst({ where: eq(orders.id, orderId) });
