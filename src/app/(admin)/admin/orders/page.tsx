@@ -4,7 +4,6 @@ import { getContainer } from '@/composition/container';
 import { requireAdmin } from '@/app/lib/session';
 import { paymentStatusTone, fulfillmentStatusTone } from '@/app/lib/status-tone';
 import { Money } from '@/shared/domain/money';
-import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
@@ -37,7 +36,7 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
   const { items: pagedOrders, page, totalPages } = paginate(orders, parsePage(pageParam), DEFAULT_PAGE_SIZE);
 
   return (
-    <PageContainer>
+    <div className={styles.page}>
       <Stack gap={5}>
         <h1>Orders</h1>
 
@@ -121,6 +120,6 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
 
         <Pagination page={page} totalPages={totalPages} buildHref={(p) => buildHref(email, p)} />
       </Stack>
-    </PageContainer>
+    </div>
   );
 }
