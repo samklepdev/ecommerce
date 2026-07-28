@@ -2,10 +2,13 @@
   color: var(--color-muted);
 }
 
+/* On its own white surface, like every other admin grid. Without a
+   background it inherited the console's grey canvas and read as a hole in
+   the page rather than a panel on it. */
 .tableWrap {
   overflow-x: auto;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--line);
 }
 
 .table {

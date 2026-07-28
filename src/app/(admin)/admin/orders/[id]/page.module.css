@@ -1,0 +1,21 @@
+/* One column for the whole page, at the width the other admin pages use.
+   The order card used to bring the storefront's 960px PageContainer with it
+   while the panels below it — notes, timeline, the status actions — had no
+   max width at all, so the card read as a narrow inset stripe over
+   full-width content. Everything shares this container now. */
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* The status actions are three one-button forms; sitting them on a row
+   keeps them from stacking into a column of lonely buttons. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
