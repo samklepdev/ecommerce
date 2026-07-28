@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { getContainer } from '@/composition/container';
+import { isErr } from '@/shared/domain/result';
 import { requireAdmin } from '@/app/lib/session';
 import { httpUrlSchema } from '@/app/lib/url-schema';
 
@@ -77,4 +78,57 @@ export async function setSupplierActiveAction(
   revalidatePath('/admin/suppliers');
   revalidatePath('/admin/products');
   return { message: isActive ? 'Supplier reactivated.' : 'Supplier deactivated.' };
+}
+
+const DeleteSupplierSchema = z.object({
+  id: z.string().min(1),
+});
+
+export interface DeleteSupplierActionResult {
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Removes a supplier for good. Refused while any catalog offer or supplier
+ * order still points at it — deactivating is the reversible option, and
+ * purchase history is never deletable.
+ */
+export async function deleteSupplierAction(
+  _prevState: DeleteSupplierActionResult | undefined,
+  formData: FormData,
+): Promise<DeleteSupplierActionResult> {
+  const admin = await requireAdmin();
+  const parsed = DeleteSupplierSchema.safeParse({ id: formData.get('id') });
+  if (!parsed.success) return { error: 'Missing supplier.' };
+
+  const { deleteSupplier, recordAuditLogEntry } = getContainer();
+  const result = await deleteSupplier.execute({ id: parsed.data.id });
+
+  if (isErr(result)) {
+    if (result.error.code === 'not_found') return { error: 'That supplier no longer exists.' };
+    const { offerCount, supplierOrderCount } = result.error;
+    const holding = [
+      offerCount > 0 && `${offerCount} product offer${offerCount === 1 ? '' : 's'}`,
+      supplierOrderCount > 0 &&
+        `${supplierOrderCount} supplier order${supplierOrderCount === 1 ? '' : 's'}`,
+    ]
+      .filter((part): part is string => typeof part === 'string')
+      .join(' and ');
+    return {
+      error: `Can't delete this supplier — ${holding} still reference it. Deactivate it instead.`,
+    };
+  }
+
+  await recordAuditLogEntry.execute({
+    actorUserId: admin.id,
+    actorEmail: admin.email,
+    action: 'supplier.deleted',
+    targetType: 'supplier',
+    targetId: parsed.data.id,
+  });
+
+  revalidatePath('/admin/suppliers');
+  revalidatePath('/admin/products');
+  return { message: 'Supplier deleted.' };
 }

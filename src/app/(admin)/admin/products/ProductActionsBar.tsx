@@ -1,6 +1,6 @@
 'use client';
 
-import { AddSupplierForm } from './AddSupplierForm';
+import { AddSupplierForm } from '../suppliers/AddSupplierForm';
 import { AddProductForm } from './AddProductForm';
 import { ImportFeedForm } from './ImportFeedForm';
 import { Button } from '@/components/ui/Button';

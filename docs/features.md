@@ -119,11 +119,19 @@ feature" checklist).
   supplier orders needing action, orders awaiting confirmation, recovered
   orders needing review), each linking to the relevant page, plus quick
   links to every admin section.
-- **Suppliers** (`/admin/suppliers`) — edit a supplier's name/URL/notes, and
-  deactivate one that's gone out of business or had a URL go stale.
+- **Suppliers** (`/admin/suppliers`) — full management, in the same table
+  shape as the products page: one row per supplier (name, URL, status,
+  notes, and what references it), with an "Edit" toggle opening a panel
+  holding everything editable. Add a supplier from the toolbar; edit
+  name/URL/notes; deactivate one that's gone out of business or had a URL go
+  stale; delete one outright.
   Deactivating drops it out of "source from" pickers (new product, new
   supplier offer) without touching any existing offers or orders that
   already reference it — it stays selectable in admin filters/history.
+  Deleting is offered only while nothing points at the supplier: any product
+  offer or supplier order holding it makes the row say so (and how many)
+  where the Delete button would be, since supplier orders are purchase
+  history and are never deletable. Deactivating is the reversible option.
 - **Products** (`/admin/products`) — create a product and its preferred
   supplier offer in one form; import a batch of products from a supplier feed (URL, pasted
   JSON, or an uploaded spreadsheet); a "paste a product URL" helper that
