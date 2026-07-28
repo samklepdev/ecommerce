@@ -20,9 +20,36 @@ export interface CreatePaymentOutput {
 
 export type CreatePaymentError = { code: 'gateway_error'; message: string };
 
+export interface RepricePaymentInput {
+  orderId: string;
+  amount: Money;
+}
+
+export interface RepricePaymentOutput {
+  /** Null when the order has no payment yet — nothing needed repricing. */
+  expiresAt: Date | null;
+  expectedSats: number | null;
+}
+
+export type RepricePaymentError =
+  /** The payment is past the point where the amount owed can move: money has
+   * been seen, or it already settled, expired or failed. */
+  | { code: 'payment_not_repriceable' }
+  | { code: 'gateway_error'; message: string };
+
 export interface PaymentGateway {
   readonly method: PaymentMethod;
   createPayment(
     input: CreatePaymentInput,
   ): Promise<Result<CreatePaymentOutput, CreatePaymentError>>;
+  /**
+   * Restates what an existing, unpaid payment is for, after the order it
+   * belongs to changed. Same payment, new amount — for the on-chain gateway
+   * that means the same receive address with a fresh quote, deliberately:
+   * issuing a new address would orphan anything the customer had already
+   * sent to the old one, and burn an address index for nothing.
+   */
+  repricePayment(
+    input: RepricePaymentInput,
+  ): Promise<Result<RepricePaymentOutput, RepricePaymentError>>;
 }

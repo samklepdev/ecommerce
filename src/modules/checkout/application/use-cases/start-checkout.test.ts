@@ -28,6 +28,9 @@ function makeFakeGateway(
 ): PaymentGateway {
   return {
     method: 'crypto',
+    async repricePayment() {
+      return ok({ expiresAt: null, expectedSats: null });
+    },
     async createPayment() {
       return result;
     },

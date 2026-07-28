@@ -19,3 +19,111 @@
   align-items: center;
   gap: 10px;
 }
+
+/* editor panels ---------------------------------------------------- */
+/* Same hairline-panel language as the rest of the console: a bordered
+   surface, a mono eyebrow title, and no radius. */
+.editorPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 20px;
+}
+
+.editorTitle {
+  margin: 0;
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* Carries the consequence of the edit — worth reading, not decoration. */
+.editorNote {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  max-width: 68ch;
+}
+
+.editorList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.editorRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.editorList > .editorRow:first-child {
+  border-top: 0;
+}
+
+.editorSku {
+  font-family: var(--ui-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.editorInline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.editorQuantity {
+  width: 5.5rem;
+}
+
+.editorHint {
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.editorForm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.editorForm label {
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.editorGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px 18px;
+}
+
+.editorGrid > * {
+  margin-bottom: 0;
+}
+
+.editorActions {
+  display: flex;
+  justify-content: flex-start;
+}

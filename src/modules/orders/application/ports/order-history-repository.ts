@@ -24,6 +24,8 @@ export interface OrderListItem {
 }
 
 export interface OrderDetailLine {
+  /** The order_lines row id — what an admin edit targets. */
+  id: string;
   productId: string;
   sku: string;
   quantity: number;

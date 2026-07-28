@@ -18,6 +18,8 @@ import { MarkOrderDelivered } from '@/modules/orders/application/use-cases/mark-
 import { CancelOrder } from '@/modules/orders/application/use-cases/cancel-order';
 import { MarkAwaitingConfirmation } from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
 import { UpdateOrderNotes } from '@/modules/orders/application/use-cases/update-order-notes';
+import { EditOrderLines } from '@/modules/orders/application/use-cases/edit-order-lines';
+import { UpdateOrderContact } from '@/modules/orders/application/use-cases/update-order-contact';
 import { ListOrderEvents } from '@/modules/orders/application/use-cases/list-order-events';
 import { GetRevenueSummary } from '@/modules/orders/application/use-cases/get-revenue-summary';
 import { FailStuckAwaitingConfirmationOrders } from '@/modules/orders/application/use-cases/fail-stuck-awaiting-confirmation-orders';
@@ -282,6 +284,8 @@ export interface Container {
   cancelOrder: CancelOrder;
   markAwaitingConfirmation: MarkAwaitingConfirmation;
   updateOrderNotes: UpdateOrderNotes;
+  editOrderLines: EditOrderLines;
+  updateOrderContact: UpdateOrderContact;
   listOrderEvents: ListOrderEvents;
   failStuckAwaitingConfirmationOrders: FailStuckAwaitingConfirmationOrders;
   failOrder: FailOrder;
@@ -550,6 +554,10 @@ function build(): Container {
   const cancelOrder = new CancelOrder(orders, paymentStore);
   const markAwaitingConfirmation = new MarkAwaitingConfirmation(orders);
   const updateOrderNotes = new UpdateOrderNotes(orders);
+  // The BTC gateway directly rather than the registry: repricing restates an
+  // existing payment, and an order already has exactly one.
+  const editOrderLines = new EditOrderLines(orders, products, btcGateway);
+  const updateOrderContact = new UpdateOrderContact(orders);
   const listOrderEvents = new ListOrderEvents(orders);
   const failStuckAwaitingConfirmationOrders = new FailStuckAwaitingConfirmationOrders(orders);
   const failOrder = new FailOrder(orders);
@@ -667,6 +675,8 @@ function build(): Container {
     cancelOrder,
     markAwaitingConfirmation,
     updateOrderNotes,
+    editOrderLines,
+    updateOrderContact,
     listOrderEvents,
     failStuckAwaitingConfirmationOrders,
     failOrder,

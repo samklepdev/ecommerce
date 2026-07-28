@@ -33,6 +33,13 @@ export interface BitcoinPaymentStore {
   highestAddressIndex(): Promise<number | null>;
   markConfirmed(orderId: string): Promise<void>;
   markExpired(orderId: string): Promise<void>;
+  /** New amount and quote on the SAME address. Used when an admin edits an
+   * unpaid order's lines: a new address would orphan anything already sent
+   * to the old one and burn an index for nothing. */
+  reprice(
+    orderId: string,
+    quote: { expectedSats: number; satsPerFiatUnit: number; expiresAt: Date },
+  ): Promise<void>;
   markCancelled(orderId: string): Promise<void>;
   /** Auxiliary telemetry for the customer-facing status widget — not a
    * status-enum transition, so it's a distinct method rather than folded

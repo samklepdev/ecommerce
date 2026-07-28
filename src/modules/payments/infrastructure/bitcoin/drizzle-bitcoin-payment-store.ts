@@ -96,6 +96,28 @@ export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore, OnChainA
       .where(eq(bitcoinPaymentIntents.orderId, orderId));
   }
 
+  async reprice(
+    orderId: string,
+    quote: { expectedSats: number; satsPerFiatUnit: number; expiresAt: Date },
+  ): Promise<void> {
+    // Address and addressIndex are deliberately untouched: this is the same
+    // payment for a different amount, not a new one. Guarded to `awaiting`
+    // so a race with the watcher can't restate a payment that just settled.
+    await this.db
+      .update(bitcoinPaymentIntents)
+      .set({
+        expectedSats: quote.expectedSats,
+        satsPerFiatUnit: quote.satsPerFiatUnit,
+        expiresAt: quote.expiresAt,
+      })
+      .where(
+        and(
+          eq(bitcoinPaymentIntents.orderId, orderId),
+          eq(bitcoinPaymentIntents.status, 'awaiting'),
+        ),
+      );
+  }
+
   async markCancelled(orderId: string): Promise<void> {
     await this.db
       .update(bitcoinPaymentIntents)

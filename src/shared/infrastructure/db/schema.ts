@@ -19,7 +19,7 @@ import {
 
 /** Plain shape for the orders.shipping_address jsonb column (kept local to
  * avoid infra importing the domain VO just for a column type). */
-interface ShippingAddressJson {
+export interface ShippingAddressJson {
   name: string;
   line1: string;
   line2?: string;
