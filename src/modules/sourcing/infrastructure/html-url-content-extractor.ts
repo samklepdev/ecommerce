@@ -8,7 +8,7 @@ import type {
   ExtractUrlContentError,
   UrlContentExtractor,
 } from '@/modules/sourcing/application/ports/url-content-extractor';
-import { safeFetch } from './safe-fetch';
+import { safeFetch } from '@/shared/infrastructure/safe-fetch';
 
 const MAX_TEXT_LENGTH = 8000;
 

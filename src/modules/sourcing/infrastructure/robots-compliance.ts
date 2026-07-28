@@ -1,5 +1,5 @@
 import robotsParser from 'robots-parser';
-import { safeFetch } from './safe-fetch';
+import { safeFetch } from '@/shared/infrastructure/safe-fetch';
 
 // Honest, identifying UA — no browser impersonation. Adjust the contact URL
 // to something real before this ever talks to a live third-party site.

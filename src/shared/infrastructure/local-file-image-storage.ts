@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { logger } from '@/shared/infrastructure/logger';
 import type { ImageStorage } from '@/shared/application/ports/image-storage';
+import { safeFetch } from './safe-fetch';
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const USER_AGENT = 'MystoreImageFetcher/1.0 (+https://example.com/bot)';
@@ -32,7 +33,11 @@ export class LocalFileImageStorage implements ImageStorage {
       // Referer set to the image's own origin — satisfies the common anti-hotlinking
       // check ("don't embed my images on other sites") without misrepresenting who's
       // asking; the UA stays honest.
-      const res = await fetch(sourceUrl, {
+      // Guarded like the feed and page fetchers. This URL is the least
+      // trusted of the lot — it isn't typed by an admin, it's a field out of
+      // a remote supplier feed, so the target is chosen by whoever wrote
+      // that feed.
+      const res = await safeFetch(sourceUrl, {
         headers: {
           'User-Agent': USER_AGENT,
           Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',

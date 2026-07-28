@@ -1,4 +1,5 @@
 import type { BtcRateProvider } from '@/modules/payments/application/ports/bitcoin-ports';
+import { parseBtcPrice } from './rate-response';
 
 const SATS_PER_BTC = 100_000_000;
 
@@ -25,12 +26,9 @@ export class MempoolRateProvider implements BtcRateProvider {
 
     const res = await fetch(`${this.baseUrl}/v1/prices`);
     if (!res.ok) throw new Error(`rate feed HTTP ${res.status}`);
-    const prices = (await res.json()) as Record<string, number>;
-
-    const btcPrice = prices[cur];
-    if (!btcPrice || btcPrice <= 0) {
-      throw new Error(`no BTC price for currency ${cur}`);
-    }
+    // Parsed, not cast: this number decides how many satoshis the customer
+    // is asked to send.
+    const btcPrice = parseBtcPrice(await res.json(), cur);
 
     // e.g. BTC = $60,000 -> 100_000_000 / 60000 ≈ 1666.67 sats per USD
     const satsPerUnit = SATS_PER_BTC / btcPrice;

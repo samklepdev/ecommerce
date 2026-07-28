@@ -8,7 +8,7 @@ import { isAllowedByRobots, USER_AGENT } from '@/modules/sourcing/infrastructure
 import { decodeHtml } from '@/modules/sourcing/infrastructure/decode-html';
 import { parseSpreadsheetRows } from '@/modules/sourcing/infrastructure/spreadsheet-rows';
 import { toListingFromRow } from '@/modules/sourcing/infrastructure/feed-row-mapper';
-import { safeFetch } from './safe-fetch';
+import { safeFetch } from '@/shared/infrastructure/safe-fetch';
 
 interface FeedImage {
   src?: string;
