@@ -14,9 +14,10 @@ import type { MetadataRoute } from 'next';
  * /admin and /account already are), because a crawler that ignores this
  * file can still fetch every public URL.
  *
- * If the store ever does want organic traffic, this is the one file to
- * change — the product pages already carry titles, descriptions and Open
- * Graph tags.
+ * Product pages carry a title and description and nothing else — no Open
+ * Graph, no Twitter cards, no structured data. If the store ever does want
+ * to be found or to unfurl nicely when shared, those come back alongside a
+ * change here; none of it is load-bearing today.
  */
 export default function robots(): MetadataRoute.Robots {
   return {

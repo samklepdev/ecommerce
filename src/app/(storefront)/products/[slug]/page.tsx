@@ -28,26 +28,11 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   const product = await getProductBySlug.execute({ slug });
   if (!product) return { title: 'Product not found' };
 
-  const description = product.description ?? undefined;
-  // Open Graph and Twitter cards, deliberately kept even though robots.ts
-  // blocks indexing: these drive how a product link unfurls when someone
-  // pastes it into a chat or a support email. That's sharing, not search.
-  return {
-    title: product.name,
-    description,
-    openGraph: {
-      type: 'website',
-      title: product.name,
-      description,
-      images: product.imageUrl ? [{ url: product.imageUrl, alt: product.name }] : undefined,
-    },
-    twitter: {
-      card: product.imageUrl ? 'summary_large_image' : 'summary',
-      title: product.name,
-      description,
-      images: product.imageUrl ? [product.imageUrl] : undefined,
-    },
-  };
+  // Title and description only — no Open Graph, no Twitter cards. Those tags
+  // exist to make a link render richly somewhere else (a chat, a social
+  // post, a link preview crawler), and this store isn't publishing itself
+  // anywhere. The title is still here because it names the browser tab.
+  return { title: product.name, description: product.description ?? undefined };
 }
 
 const RELATED_LIMIT = 4;
