@@ -44,7 +44,12 @@ feature" checklist).
   URL. Shows a subtotal/shipping/total summary before the customer
   submits; redirects back to the cart if it's empty. A logged-in customer
   can pick a saved address to autofill the form, or check a box to save
-  the address they just entered.
+  the address they just entered. The address is checked before the order
+  is created: the country has to be one the store ships to, a US address
+  needs a real state, and the postal code has to match the country's
+  format where that format is well known (US, CA, GB, AU, DE, FR) —
+  elsewhere it just has to be present and a sane length, since inventing
+  a pattern for an unchecked country would reject real addresses.
 - **Coupons** — admin-managed percentage or fixed-amount discount codes,
   entered at checkout and validated/applied server-side (never trusted
   from the client) before the BTC quote is locked; a fixed amount is
@@ -92,7 +97,12 @@ feature" checklist).
   cancellation is no longer offered anywhere.
 - **Auth** (`/signup`, `/login`, `/forgot-password`, `/reset-password/[token]`,
   `/verify-email/[token]`) — email/password accounts, rate-limited login
-  and signup, password reset via emailed one-time token (doesn't reveal
+  and signup. New passwords need at least 12 characters including a
+  number and a symbol, or 24+ characters if you'd rather use a passphrase,
+  in which case neither is required; the rule is shown on the form rather
+  than only after a rejected submit. It applies wherever a password is
+  set (signup, reset, change) but not at login, so accounts created under
+  the old rule can still sign in. Password reset via emailed one-time token (doesn't reveal
   whether an email is registered), email verification via a similar
   emailed link (soft — unverified accounts can still log in and shop;
   it's just a reminder banner, not a login gate).
@@ -115,14 +125,18 @@ feature" checklist).
   supplier offer in one form; import a batch of products from a supplier feed (URL, pasted
   JSON, or an uploaded spreadsheet); a "paste a product URL" helper that
   scrapes and prefills the add-product form; bulk publish/unpublish/
-  delete/assign-category; upload/manage product images; editable name
-  and description after creation (the slug stays permanent so existing
-  product URLs never break); sell-price editing; per-offer
-  supplier-cost editing; add a further supplier offer to an existing
-  product (e.g. once the original supplier goes out of stock) and switch
-  which offer is preferred; bulk "apply X% markup" across the selected
-  products; a "No supplier offer" badge on any product that
-  could never actually be fulfilled; an editable category tag (free
+  delete/assign-category. The table lists one row per product — image,
+  name, status, SKU, price and where it's sourced from — with an "Edit"
+  toggle that opens a panel for that row (one at a time). The panel saves
+  name, price, category and description together under a single "Save
+  changes"; the slug is shown but never editable, so existing product
+  URLs never break. Images and supplier offers sit alongside it with
+  their own controls, since they're separate records: upload/manage
+  product images, per-offer supplier-cost editing, add a further supplier
+  offer to an existing product (e.g. once the original supplier goes out
+  of stock) and switch which offer is preferred. Also bulk "apply X%
+  markup" across the selected products; a "No supplier offer" badge on
+  any product that could never actually be fulfilled; an editable category tag (free
   text) used by the storefront's category filter and assignable in bulk;
   filter the list by supplier.
 - **Fulfillment** (`/admin/fulfillment`) — the ops queue of supplier

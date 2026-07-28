@@ -161,6 +161,13 @@ Payment and fulfillment are **separate** machines that reference each other.
 
 - Files: `kebab-case.ts`. Classes/types: `PascalCase`. Use cases: verb-first.
 - Validate all external input (route handlers, actions) with **Zod**.
+- **Parse third-party responses, don't cast them.** `as SomeType` on a
+  `res.json()` is a claim, not a check. Chain data and the BTC rate feed both
+  decide money, and both are parsed (`esplora-response.ts`, `rate-response.ts`).
+- **Fetch user- or feed-supplied URLs with `safeFetch`** (`shared/infrastructure`),
+  never bare `fetch`. It refuses private/loopback/link-local targets and re-checks
+  every redirect hop. Bare `fetch` is fine only for operator-configured URLs from
+  `env.ts`.
 - Wire dependencies in `src/composition/container.ts` — the single DI root. Don't `new` an
   adapter inside a use case.
 - Environment access only through `src/config/env.ts` (Zod-validated). Never read
@@ -208,20 +215,29 @@ npm install -D drizzle-kit
 
 Domain and use-case tests must run **without** a database or network.
 
-## Current state / not yet built
+## Current state
 
-Built and type-checked: shared primitives (`Result`, `Money`), the `PaymentGateway` port +
-`PaymentGatewayRegistry`, the on-chain BTC adapter + `HdAddressDeriver` +
-`EsploraChainDataProvider` + `WatchBitcoinPayments`, `StartCheckout`, `ConfirmPayment`, the
-order payment state machine, `BitcoinCheckout.tsx`, and env config.
+The storefront and admin console are both built and running against a real
+database: catalog, cart, checkout, the on-chain BTC payment path (derivation,
+watcher, confirmation, order state machine), fulfillment/supplier ordering,
+reviews, coupons, accounts, and the analytics dashboard.
 
-**Not yet built (next up):**
-- `src/composition/container.ts` — the DI root (the watcher imports `getContainer()`).
-- Concrete `BitcoinPaymentStore` + `RedisAddressIndexAllocator` (Redis) and Drizzle repos.
-- The order **status endpoint** the checkout page polls (`statusUrl` → `{ status }`).
-- Drizzle schema + migrations for `orders`, `order_lines`, `processed_events`,
-  `bitcoin_payment_intents`.
-- A `BtcRateProvider` implementation (fiat→sats), with a locked-quote source.
+Everything the previous version of this section listed as "not yet built" —
+the DI root, the Redis/Drizzle adapters, the order status endpoint, the
+schema and migrations, and a rate provider — exists. Check the tree before
+trusting a list like that; it dates faster than anything else in this file.
+
+Worth knowing rather than rediscovering:
+
+- **Migrations are in `drizzle/`** (22 so far). `db:generate` prompts
+  interactively when it can't tell a rename from a drop, so a migration that
+  needs data moved between steps is hand-written with a matching snapshot —
+  see `0021_remove_product_variants.sql`.
+- **There are no product variants.** The product is the sellable unit and
+  carries its own sku and price. Anything still saying otherwise is stale.
+- **Admin pages are themed on `.shell`**, the storefront on `.storefront`.
+  Both are marked `data-theme-scope`, and anything portaled (see `Modal`)
+  must land inside one or it resolves the bare `:root` palette instead.
 
 ## Do not
 
@@ -232,6 +248,11 @@ order payment state machine, `BitcoinCheckout.tsx`, and env config.
 - Do not reuse a BTC address or hand out an address index non-atomically.
 - Do not add a webhook for on-chain BTC — it's poll-based by design.
 - Do not use floats for money (fiat or BTC), or trust client-submitted prices.
+- Do not `fetch` a URL that came from a form or a supplier feed without
+  `safeFetch` — that's how you get the server reading cloud metadata or its own
+  Redis.
+- Do not trust an uploaded file's declared content type; the bytes decide
+  (`shared/infrastructure/image-type.ts`).
 - Do not read-then-write inventory.
 
 ## Agent skills
