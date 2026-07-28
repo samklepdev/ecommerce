@@ -90,8 +90,8 @@ feature" checklist).
   confirmation required; past orders are kept but unlinked from the
   account); a banner + resend button while the email is unverified; a
   saved-address book (add, edit in place, delete, set default — used to autofill
-  checkout); (`/account/orders`) — order history list and detail (same
-  view as the guest order page, plus the login wall). Orders that are
+  checkout); (`/account/orders`, `/account/orders/[id]`) — order history
+  list and detail (same view as the guest order page, plus the login wall). Orders that are
   still pre-payment (`pending`/`awaiting_payment`) can be cancelled right
   from the list, not just the detail page — once BTC is in flight,
   cancellation is no longer offered anywhere.
@@ -193,12 +193,26 @@ feature" checklist).
   who/when record, not a complete activity feed.
 - **Analytics** (`/admin/analytics`) — best-effort, in-house event
   tracking (no third-party analytics tool, no data leaves the server).
-  Web: page views per day, top pages, top referrers, top search terms,
-  over the last 30 days. On-chain: total BTC received and distinct
-  addresses used, with a per-order table flagging any underpaid/overpaid
-  orders — totals use each order's expected amount as a stand-in for
-  actually-received sats (accurate in the common exact-payment case; no
-  change to the live payment-confirmation path to get an exact figure).
+  The dashboard covers revenue, traffic, top pages, referrers, searches
+  and cart activity, over a window you choose: 7/30/90-day presets or a
+  custom from/to range, with every panel and drill-down honouring the
+  same window. On-chain: total BTC received and distinct addresses used,
+  with a per-order table flagging any underpaid/overpaid orders — totals
+  use each order's expected amount as a stand-in for actually-received
+  sats (accurate in the common exact-payment case; no change to the live
+  payment-confirmation path to get an exact figure).
+- **Analytics drill-downs** — each headline links to a fuller page:
+  `/admin/analytics/page-views` (per-page views, plus median time on page,
+  measured by a beacon sent when the visitor leaves rather than by
+  polling), `/admin/analytics/searches` (what people typed, and how often
+  it returned nothing), `/admin/analytics/cart` (cart changes over time),
+  and `/admin/analytics/on-chain` (settlement detail). Each exports the
+  current range as CSV.
+- **Where visitors are** (on the page-views drill-down) — a world map
+  shaded by volume, with US states and cities when known, zoomable, plus
+  country and city lists beside it. Locations are resolved from the
+  visitor's IP against a database on the server (DB-IP Lite); no request
+  leaves the machine and no third party is involved.
   Page views, searches, and cart changes are captured server-side
   (IP address and user-agent included) — this data is admin-only, never
   exposed to customers or third parties; worth a retention policy before
