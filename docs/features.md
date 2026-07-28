@@ -64,9 +64,12 @@ feature" checklist).
 - **Order status / confirmation** (`/orders/[id]`) — works for guests too
   (the order ID itself is the access key, same as the polling API). Shows
   payment/fulfillment status, line items, shipping address, tracking
-  numbers, and — while payment is pending — a live-updating BTC payment
-  widget: QR code, BIP21 URI, countdown to quote expiry, confirmation
-  count, and clear messaging for underpaid or overpaid amounts. A
+  numbers, and a live-updating BTC payment panel: QR code, BIP21 URI,
+  countdown to quote expiry, confirmation count, and clear messaging for
+  underpaid or overpaid amounts. The panel stays put once payment settles
+  or the window expires — it's where "Payment confirmed" and "this window
+  expired, start again" are said, so it has to still be on screen at the
+  moment either becomes true. A
   customer can cancel the order themselves any time before the chain has
   seen a payment (`pending`/`awaiting_payment`) — once BTC is in flight,
   cancellation is no longer offered. A "Reorder" button re-adds the
@@ -151,7 +154,11 @@ feature" checklist).
   them together with one shared reference or tracking number, instead of
   one row at a time. A banner surfaces any paid order line that couldn't
   be sourced (no supplier offer exists for that product) so it doesn't
-  silently vanish. Filter by status.
+  silently vanish, with a **"Retry sourcing"** action next to it: add the
+  missing supplier offer, press it, and the order joins the fulfillment
+  queue. Safe to press more than once — lines a supplier order already
+  covers are never ordered again, and an order that is no longer paid is
+  refused. Filter by status.
 - **Orders** (`/admin/orders`) — every order in the store, searchable by
   customer email; (`/admin/orders/[id]`) — full detail (same view
   customers see) plus a "Mark refunded" action for orders that have

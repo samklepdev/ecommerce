@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { shouldRefreshOnStatusChange } from './bitcoin-checkout-status';
+import { shouldRefreshOnStatusChange, toWidgetStatus } from './bitcoin-checkout-status';
 
 describe('shouldRefreshOnStatusChange', () => {
   it('does not refresh on the widget\'s first poll response', () => {
@@ -26,5 +26,23 @@ describe('shouldRefreshOnStatusChange', () => {
     expect(shouldRefreshOnStatusChange('awaiting', 'cancelled')).toBe(true);
     expect(shouldRefreshOnStatusChange('confirming', 'failed')).toBe(true);
     expect(shouldRefreshOnStatusChange('paid', 'refunded')).toBe(true);
+  });
+});
+
+describe('toWidgetStatus', () => {
+  it('maps the pre-settlement states', () => {
+    expect(toWidgetStatus('pending')).toBe('awaiting');
+    expect(toWidgetStatus('awaiting_payment')).toBe('awaiting');
+    expect(toWidgetStatus('awaiting_confirmation')).toBe('confirming');
+  });
+
+  // Each terminal state keeps its own identity: telling a refunded customer
+  // their payment window merely expired would be a lie about their money.
+  it('keeps every terminal state distinct', () => {
+    expect(toWidgetStatus('paid')).toBe('paid');
+    expect(toWidgetStatus('failed')).toBe('failed');
+    expect(toWidgetStatus('expired')).toBe('expired');
+    expect(toWidgetStatus('cancelled')).toBe('cancelled');
+    expect(toWidgetStatus('refunded')).toBe('refunded');
   });
 });

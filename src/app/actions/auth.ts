@@ -178,7 +178,16 @@ export async function requestPasswordResetAction(
   if (!limit.allowed) return { error: tooManyAttemptsMessage(limit.retryAfterSeconds) };
 
   const { requestPasswordReset } = getContainer();
-  await requestPasswordReset.execute({ email: parsed.data.email });
+  try {
+    await requestPasswordReset.execute({ email: parsed.data.email });
+  } catch (e) {
+    // A real provider can reject a send; an error page here would leak that
+    // the address exists, which is the one thing this flow must never do.
+    // Same message either way, and the failure goes to the logs.
+    logger.warn('password reset: email failed', {
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
 
   return { message: 'If that email is registered, a reset link has been sent.' };
 }

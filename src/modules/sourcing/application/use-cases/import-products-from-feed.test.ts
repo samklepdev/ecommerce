@@ -29,7 +29,7 @@ function makeFakeProducts(existingSlugs: Set<string> = new Set()) {
   const createdProducts: Product[] = [];
   const updatedImages: { productId: string; imageUrl: string }[] = [];
   const repo: Partial<ProductRepository> = {
-    async findBySlug(slug) {
+    async findAnyBySlug(slug) {
       return existingSlugs.has(slug) ? ({ id: `existing-${slug}` } as Product) : null;
     },
     async createProduct(product) {

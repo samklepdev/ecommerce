@@ -32,15 +32,19 @@ function makeOffer(productId: string, supplierId: string, costMinor: number) {
 
 function makeFakeOrderLines(lines: PaidOrderLine[]) {
   const flagged: { orderLineId: string; reason: string }[] = [];
+  const cleared: string[] = [];
   const repo: PaidOrderLinesRepository = {
-    async getOrderLines() {
+    async getUnsourcedOrderLines() {
       return lines;
     },
     async flagFulfillmentIssue(orderLineId, reason) {
       flagged.push({ orderLineId, reason });
     },
+    async clearFulfillmentIssue(orderLineId) {
+      cleared.push(orderLineId);
+    },
   };
-  return { repo, flagged };
+  return { repo, flagged, cleared };
 }
 
 function makeFakeSupplierOffers(offersByProductId: Map<string, SupplierOffer>) {
@@ -181,6 +185,49 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
 
     expect(created).toHaveLength(0);
     expect(getFulfillment()).toBe('unfulfilled');
+  });
+
+  // A paid order whose lines couldn't be sourced used to be terminal: this
+  // ran exactly once, from ConfirmPayment, and adding the missing supplier
+  // offer afterwards did nothing. It has to be safe to run again.
+  describe('re-run after the missing supplier offer is added', () => {
+    it('sources the previously-unsourceable line and clears its issue flag', async () => {
+      const productA = randomUUID();
+      // Only the still-unsourced line comes back on the second pass; the
+      // repository excludes anything a supplier order already covers.
+      const { repo: orders, cleared } = makeFakeOrderLines([
+        { id: 'line-b', productId: productA, quantity: 3 },
+      ]);
+      const offers = makeFakeSupplierOffers(new Map([[productA, makeOffer(productA, 'supplier-9', 750)]]));
+      const { repo: supplierOrders, created } = makeFakeSupplierOrders();
+      const { repo: fulfillment } = makeFakeOrderFulfillment('paid', 'processing');
+
+      await new CreateSupplierOrdersForPaidOrder(orders, offers, supplierOrders, fulfillment).execute({
+        orderId: 'order-1',
+      });
+
+      expect(created).toHaveLength(1);
+      expect(created[0]?.lines).toEqual([
+        expect.objectContaining({ orderLineId: 'line-b', quantity: 3 }),
+      ]);
+      // Otherwise it sits in the admin "needs a supplier offer" queue forever.
+      expect(cleared).toEqual(['line-b']);
+    });
+
+    it('refuses to source an order that is not paid', async () => {
+      const productA = randomUUID();
+      const { repo: orders } = makeFakeOrderLines([{ id: 'line-a', productId: productA, quantity: 1 }]);
+      const offers = makeFakeSupplierOffers(new Map([[productA, makeOffer(productA, 'supplier-1', 1000)]]));
+      const { repo: supplierOrders, created } = makeFakeSupplierOrders();
+      // e.g. an admin hitting retry on an order that was refunded meanwhile.
+      const { repo: fulfillment } = makeFakeOrderFulfillment('refunded', 'processing');
+
+      await new CreateSupplierOrdersForPaidOrder(orders, offers, supplierOrders, fulfillment).execute({
+        orderId: 'order-1',
+      });
+
+      expect(created).toHaveLength(0);
+    });
   });
 
   it('does not re-advance an order that already moved past unfulfilled', async () => {

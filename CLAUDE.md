@@ -254,6 +254,12 @@ Worth knowing rather than rediscovering:
 - Do not trust an uploaded file's declared content type; the bytes decide
   (`shared/infrastructure/image-type.ts`).
 - Do not read-then-write inventory.
+- Do not log a rendered email body. Reset and verification links are bearer tokens; one
+  log line is an account takeover.
+- Do not build a guest cart key from a possibly-empty session id — every visitor without
+  one then shares a single cart.
+- Do not use `findById`/`findBySlug` (active-only) for admin lookups, or the `findAny*`
+  variants for anything a customer can reach.
 
 ## Agent skills
 

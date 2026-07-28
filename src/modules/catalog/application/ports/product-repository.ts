@@ -11,7 +11,14 @@ export interface ListProductsParams {
 }
 
 export interface ProductRepository {
+  /** Active-only. A draft or archived product reads as gone here, exactly
+   * like one that never existed — this is what the public product page
+   * resolves through, so an unpublished product is not viewable. Callers
+   * that must see every status use `findAnyBySlug`. */
   findBySlug(slug: string): Promise<Product | null>;
+  /** Any status, including draft and archived. Admin and internal callers
+   * only — never reachable from a storefront page. */
+  findAnyBySlug(slug: string): Promise<Product | null>;
   list(params?: ListProductsParams): Promise<Product[]>;
   /** Total matching `search`/`category` (ignores `limit`/`offset`) — for
    * pagination. */
@@ -19,10 +26,15 @@ export interface ProductRepository {
   /** Distinct, non-null categories among active products — the filter
    * dropdown's options. */
   listCategories(): Promise<string[]>;
-  /** Null when the product no longer exists. Used both to reprice a cart
-   * line and to render one — the product is the sellable unit, so there's
-   * nothing narrower to look up. */
+  /** Active-only, same contract as `findBySlug`: null when the product no
+   * longer exists *or* is not published. Used to reprice a cart line, to
+   * render one, and by `PlaceOrder` — so a product pulled from the catalog
+   * mid-session becomes `product_unavailable` rather than something a
+   * customer can still buy. Admin callers use `findAnyById`. */
   findById(productId: string): Promise<Product | null>;
+  /** Any status, including draft and archived. Admin and internal callers
+   * only — never reachable from a storefront page. */
+  findAnyById(productId: string): Promise<Product | null>;
   /** Active-only; ids that don't resolve (deleted/archived/never existed)
    * are silently omitted, not errored. Returned order is not guaranteed to
    * match `ids`' order — callers that need a specific order must re-sort. */

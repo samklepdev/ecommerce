@@ -1,3 +1,5 @@
+import type { PaymentStatus } from '@/modules/orders/domain/order-status';
+
 export type WidgetStatus =
   | 'awaiting'
   | 'confirming'
@@ -6,6 +8,28 @@ export type WidgetStatus =
   | 'expired'
   | 'cancelled'
   | 'refunded';
+
+/** Domain payment status -> the states `BitcoinCheckout` renders. `failed`
+ * and `refunded` each keep their own state — collapsing them into `expired`
+ * would tell a refunded customer their payment window merely expired.
+ *
+ * Shared by the status route (what the widget polls) and the order pages
+ * (what the widget first paints), so a confirmed order never renders as
+ * "Awaiting payment" for the moment before the first poll lands. */
+const WIDGET_STATUS: Record<PaymentStatus, WidgetStatus> = {
+  pending: 'awaiting',
+  awaiting_payment: 'awaiting',
+  awaiting_confirmation: 'confirming',
+  paid: 'paid',
+  failed: 'failed',
+  expired: 'expired',
+  cancelled: 'cancelled',
+  refunded: 'refunded',
+};
+
+export function toWidgetStatus(status: PaymentStatus): WidgetStatus {
+  return WIDGET_STATUS[status];
+}
 
 /**
  * Whether `BitcoinCheckout`'s poller should force a refresh of the

@@ -28,21 +28,30 @@ export function proxy(request: NextRequest): NextResponse {
   // usePathname equivalent), and page-view analytics needs it. Pure
   // in-memory header set, no DB/Redis I/O, so it doesn't add a round trip
   // here.
+  // Mint the guest session id onto the REQUEST, not just the response.
+  // Server Components and Server Actions read cookies off the incoming
+  // request, so a response-only cookie leaves this first request with no id
+  // at all — and an empty id used to build the cart key `cart:guest:`, one
+  // key shared by every visitor who hadn't been here before.
+  const isNewGuestSession = !request.cookies.get(GUEST_SESSION_COOKIE);
+  const guestSessionId = request.cookies.get(GUEST_SESSION_COOKIE)?.value ?? randomUUID();
+  if (isNewGuestSession) {
+    request.cookies.set(GUEST_SESSION_COOKIE, guestSessionId);
+  }
+
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-pathname', request.nextUrl.pathname);
 
-  if (request.cookies.get(GUEST_SESSION_COOKIE)) {
-    return NextResponse.next({ request: { headers: requestHeaders } });
-  }
-
   const response = NextResponse.next({ request: { headers: requestHeaders } });
-  response.cookies.set(GUEST_SESSION_COOKIE, randomUUID(), {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: GUEST_SESSION_TTL_SECONDS,
-  });
+  if (isNewGuestSession) {
+    response.cookies.set(GUEST_SESSION_COOKIE, guestSessionId, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: GUEST_SESSION_TTL_SECONDS,
+    });
+  }
   return response;
 }
 

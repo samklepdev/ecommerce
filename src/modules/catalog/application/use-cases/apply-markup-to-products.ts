@@ -27,7 +27,10 @@ export class ApplyMarkupToProducts
 
     for (const productId of input.productIds) {
       try {
-        const product = await this.products.findById(productId);
+        // findAnyById, not findById: this is an admin bulk action over a
+        // selection made in the admin table, which lists drafts and archived
+        // products too. Repricing one must not silently skip them.
+        const product = await this.products.findAnyById(productId);
         if (!product) {
           failed += 1;
           logger.warn('apply markup: product not found', { productId });

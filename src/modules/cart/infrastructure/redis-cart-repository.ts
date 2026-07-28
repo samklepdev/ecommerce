@@ -21,7 +21,14 @@ interface StoredCart {
 const GUEST_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
 function keyFor(owner: CartOwner): string {
-  return owner.type === 'guest' ? `cart:guest:${owner.sessionId}` : `cart:user:${owner.userId}`;
+  if (owner.type === 'user') return `cart:user:${owner.userId}`;
+  // An empty session id would build `cart:guest:` — a single key every
+  // visitor without a guest cookie shares, letting strangers read and edit
+  // each other's carts. `proxy.ts` gives every request an id, so reaching
+  // here without one means that broke; fail loudly instead of quietly
+  // handing back somebody else's cart.
+  if (!owner.sessionId) throw new Error('guest cart owner has no session id');
+  return `cart:guest:${owner.sessionId}`;
 }
 
 export class RedisCartRepository implements CartRepository {

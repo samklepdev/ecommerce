@@ -22,7 +22,7 @@ function makeProduct(id: string, unitAmountMinor: number, currency = 'USD') {
 function makeFakeProducts(productsById: Map<string, Product>) {
   const updated: { productId: string; amountMinor: number; currency: string }[] = [];
   const repo: Partial<ProductRepository> = {
-    async findById(productId) {
+    async findAnyById(productId) {
       return productsById.get(productId) ?? null;
     },
     async updatePrice(productId, amountMinor, currency) {
