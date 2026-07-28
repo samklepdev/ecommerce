@@ -3,6 +3,8 @@ import {
   assertFulfillmentTransition,
   assertPaymentTransition,
   isOrderCancellable,
+  areOrderLinesEditable,
+  isOrderContactEditable,
   IllegalStatusTransitionError,
   type FulfillmentStatus,
   type PaymentStatus,
@@ -114,5 +116,62 @@ describe('isOrderCancellable', () => {
     expect(isOrderCancellable('expired')).toBe(false);
     expect(isOrderCancellable('cancelled')).toBe(false);
     expect(isOrderCancellable('refunded')).toBe(false);
+  });
+});
+
+describe('areOrderLinesEditable', () => {
+  it('is true only while nothing has been seen on chain', () => {
+    expect(areOrderLinesEditable('pending')).toBe(true);
+    expect(areOrderLinesEditable('awaiting_payment')).toBe(true);
+  });
+
+  // Editing what is owed after money arrived against the old total doesn't
+  // reconcile anything — it just makes the two numbers disagree silently.
+  it('is false from awaiting_confirmation onward', () => {
+    expect(areOrderLinesEditable('awaiting_confirmation')).toBe(false);
+    expect(areOrderLinesEditable('paid')).toBe(false);
+    expect(areOrderLinesEditable('failed')).toBe(false);
+    expect(areOrderLinesEditable('expired')).toBe(false);
+    expect(areOrderLinesEditable('cancelled')).toBe(false);
+    expect(areOrderLinesEditable('refunded')).toBe(false);
+  });
+
+  it('matches the cancellation window exactly', () => {
+    const statuses: PaymentStatus[] = [
+      'pending',
+      'awaiting_payment',
+      'awaiting_confirmation',
+      'paid',
+      'failed',
+      'expired',
+      'cancelled',
+      'refunded',
+    ];
+    for (const status of statuses) {
+      expect(areOrderLinesEditable(status)).toBe(isOrderCancellable(status));
+    }
+  });
+});
+
+describe('isOrderContactEditable', () => {
+  // A typo'd shipping address is worth fixing right up until the parcel
+  // moves, and fixing it never changes what is owed.
+  it('allows a correction on a paid order that has not shipped', () => {
+    expect(isOrderContactEditable('paid', 'unfulfilled')).toBe(true);
+    expect(isOrderContactEditable('paid', 'processing')).toBe(true);
+  });
+
+  it('allows a correction before payment too', () => {
+    expect(isOrderContactEditable('awaiting_payment', 'unfulfilled')).toBe(true);
+  });
+
+  it('stops once the parcel is moving', () => {
+    expect(isOrderContactEditable('paid', 'shipped')).toBe(false);
+    expect(isOrderContactEditable('paid', 'delivered')).toBe(false);
+    expect(isOrderContactEditable('paid', 'cancelled')).toBe(false);
+  });
+
+  it('stops on a refunded order — that record is closed', () => {
+    expect(isOrderContactEditable('refunded', 'unfulfilled')).toBe(false);
   });
 });

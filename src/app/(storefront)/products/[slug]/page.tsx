@@ -27,6 +27,11 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   const { getProductBySlug } = getContainer();
   const product = await getProductBySlug.execute({ slug });
   if (!product) return { title: 'Product not found' };
+
+  // Title and description only — no Open Graph, no Twitter cards. Those tags
+  // exist to make a link render richly somewhere else (a chat, a social
+  // post, a link preview crawler), and this store isn't publishing itself
+  // anywhere. The title is still here because it names the browser tab.
   return { title: product.name, description: product.description ?? undefined };
 }
 

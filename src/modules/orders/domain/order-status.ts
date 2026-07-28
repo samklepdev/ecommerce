@@ -65,6 +65,38 @@ export function isOrderCancellable(status: PaymentStatus): boolean {
   return status === 'pending' || status === 'awaiting_payment';
 }
 
+/**
+ * Whether an admin may still change what the order *is*: its lines, and so
+ * the amount owed.
+ *
+ * Deliberately the same window as cancellation, and for the same reason.
+ * Past `awaiting_payment` the chain has seen money, and money that arrived
+ * against one total can't be reconciled against another by editing a row —
+ * that needs a refund or a balance due, which is a decision someone has to
+ * make, not a side effect of a form.
+ *
+ * Contact details (email, shipping address) are governed separately by
+ * `isOrderContactEditable`: correcting a typo'd address never changes what
+ * is owed.
+ */
+export function areOrderLinesEditable(status: PaymentStatus): boolean {
+  return status === 'pending' || status === 'awaiting_payment';
+}
+
+/**
+ * Whether the customer's contact details can still be corrected. Allowed
+ * for any order that hasn't shipped and hasn't been refunded — a typo'd
+ * shipping address is worth fixing right up until the parcel moves, and
+ * fixing it costs nothing because it doesn't touch the total.
+ */
+export function isOrderContactEditable(
+  paymentStatus: PaymentStatus,
+  fulfillmentStatus: FulfillmentStatus,
+): boolean {
+  if (paymentStatus === 'refunded') return false;
+  return fulfillmentStatus === 'unfulfilled' || fulfillmentStatus === 'processing';
+}
+
 export function assertPaymentTransition(from: PaymentStatus, to: PaymentStatus): void {
   if (!PAYMENT_TRANSITIONS[from].includes(to)) {
     throw new IllegalStatusTransitionError('payment', from, to);

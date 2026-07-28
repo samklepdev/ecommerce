@@ -4,6 +4,9 @@ import type {
   CreatePaymentInput,
   CreatePaymentOutput,
   PaymentGateway,
+  RepricePaymentError,
+  RepricePaymentInput,
+  RepricePaymentOutput,
 } from '@/modules/payments/application/ports/payment-gateway';
 import type {
   AddressIndexAllocator,
@@ -111,6 +114,46 @@ export class OnChainBitcoinPaymentGateway implements PaymentGateway {
         expiresAt: persisted.expiresAt,
         expectedSats: persisted.expectedSats,
       });
+    } catch (e) {
+      return err({ code: 'gateway_error', message: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  async repricePayment(
+    input: RepricePaymentInput,
+  ): Promise<Result<RepricePaymentOutput, RepricePaymentError>> {
+    const existing = await this.paymentStore.getByOrderId(input.orderId);
+    // No intent yet (the order never reached checkout) — nothing to restate,
+    // and the amount will be quoted correctly whenever checkout does run.
+    if (!existing) return ok({ expiresAt: null, expectedSats: null });
+
+    if (existing.status !== 'awaiting') return err({ code: 'payment_not_repriceable' });
+
+    try {
+      const satsPerFiatUnit = await this.rates.satsPerFiatUnit(input.amount.currency);
+      // Same 2-decimal assumption as createPayment.
+      const expectedSats = Math.round((input.amount.amountMinor / 100) * satsPerFiatUnit);
+      const expiresAt = new Date(Date.now() + this.quoteTtlSeconds * 1000);
+
+      // Same address, new amount. The rate lock restarts because the quote
+      // is new — the customer is being asked for a different number than the
+      // one they were shown, so they get a full window to act on it.
+      await this.paymentStore.reprice(input.orderId, {
+        expectedSats,
+        satsPerFiatUnit,
+        expiresAt,
+      });
+
+      // Read back for the same reason createPayment does: the store's write
+      // is guarded on status, so a watcher pass that settled this payment
+      // mid-flight leaves the row untouched and this would otherwise report
+      // a change that never happened.
+      const persisted = await this.paymentStore.getByOrderId(input.orderId);
+      if (!persisted || persisted.expectedSats !== expectedSats) {
+        return err({ code: 'payment_not_repriceable' });
+      }
+
+      return ok({ expiresAt: persisted.expiresAt, expectedSats: persisted.expectedSats });
     } catch (e) {
       return err({ code: 'gateway_error', message: e instanceof Error ? e.message : String(e) });
     }

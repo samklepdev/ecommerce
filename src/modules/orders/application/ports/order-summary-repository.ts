@@ -16,4 +16,7 @@ export interface OrderSummary {
 
 export interface OrderSummaryRepository {
   getSummary(orderId: string): Promise<OrderSummary | null>;
+  /** Summaries for a set of orders in one query. The fulfillment queue needs
+   * one per order on screen; asking individually was a round trip per row. */
+  getSummaries(orderIds: string[]): Promise<OrderSummary[]>;
 }

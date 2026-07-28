@@ -64,6 +64,7 @@ function makeFakePaymentStore(intent: BitcoinPaymentIntent) {
       confirmedCalled = true;
     },
     async markExpired() {},
+    async reprice() {},
     async markCancelled() {},
     async recordProgress(orderId, progress) {
       progressByOrderId.set(orderId, progress);

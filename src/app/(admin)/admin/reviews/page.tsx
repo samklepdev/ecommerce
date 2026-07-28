@@ -37,11 +37,13 @@ export default async function AdminReviewsPage({ searchParams }: AdminReviewsPag
   // an explicit "all" (or any non-matching value) shows every status.
   const status = statusParam === undefined ? 'pending' : parseStatus(statusParam);
 
-  const { listReviewsForModeration, listAllProductsForAdmin } = getContainer();
-  const [reviews, products] = await Promise.all([
-    listReviewsForModeration.execute({ status }),
-    listAllProductsForAdmin.execute(),
-  ]);
+  const { listReviewsForModeration, getAnyProductsByIds } = getContainer();
+  const reviews = await listReviewsForModeration.execute({ status });
+  // Only the products these reviews are about, rather than the whole
+  // catalog to build a lookup map.
+  const products = await getAnyProductsByIds.execute({
+    productIds: [...new Set(reviews.map((r) => r.productId))],
+  });
   const productById = new Map(products.map((p) => [p.id, p] as const));
 
   return (

@@ -24,6 +24,8 @@ export interface OrderListItem {
 }
 
 export interface OrderDetailLine {
+  /** The order_lines row id — what an admin edit targets. */
+  id: string;
   productId: string;
   sku: string;
   quantity: number;
@@ -45,11 +47,31 @@ export interface OrderDetail extends OrderListItem {
   couponCode: string | null;
 }
 
+/** Narrows an admin order list. Shared by the list and its count so the two
+ * can never drift apart and report different totals. */
+export interface AdminOrderFilter {
+  email?: string;
+}
+
+/** The three all-orders numbers the admin dashboard shows. Counted in one
+ * query rather than by scanning every order in the process — which is what
+ * the dashboard used to do for each of them. */
+export interface AdminOrderCounts {
+  awaitingConfirmation: number;
+  recovered: number;
+  placedInWindow: number;
+}
+
 export interface OrderHistoryRepository {
-  listByCustomer(userId: string): Promise<OrderListItem[]>;
+  /** One page, newest first. Paged in SQL — a customer with years of orders
+   * shouldn't pull all of them into memory to show ten. */
+  listByCustomer(userId: string, limit: number, offset: number): Promise<OrderListItem[]>;
+  countByCustomer(userId: string): Promise<number>;
   /** Admin-only — every order regardless of customer, optionally narrowed
-   * by an exact-or-partial customer email match. */
-  listAllForAdmin(params?: { email?: string }): Promise<OrderListItem[]>;
+   * by an exact-or-partial customer email match. One page, newest first. */
+  listAllForAdmin(filter: AdminOrderFilter, limit: number, offset: number): Promise<OrderListItem[]>;
+  countAllForAdmin(filter: AdminOrderFilter): Promise<number>;
+  getAdminOrderCounts(window: { since: Date; until: Date }): Promise<AdminOrderCounts>;
   /** Scoped by userId in the query itself, not fetch-then-check — a
    * mismatched userId returns null, never another customer's order. */
   findDetailById(orderId: string, userId: string): Promise<OrderDetail | null>;

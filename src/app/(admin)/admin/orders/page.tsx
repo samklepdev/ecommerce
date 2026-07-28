@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Pagination } from '@/components/ui/Pagination';
-import { paginate, parsePage, DEFAULT_PAGE_SIZE } from '@/components/ui/paginate';
+import { parsePage, DEFAULT_PAGE_SIZE } from '@/components/ui/paginate';
 import styles from './page.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -31,9 +31,11 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
   const { email, page: pageParam } = await searchParams;
 
   const { listAllOrdersForAdmin } = getContainer();
-  const orders = await listAllOrdersForAdmin.execute({ email });
-
-  const { items: pagedOrders, page, totalPages } = paginate(orders, parsePage(pageParam), DEFAULT_PAGE_SIZE);
+  const { items: pagedOrders, page, totalPages, totalItems } = await listAllOrdersForAdmin.execute({
+    email,
+    page: parsePage(pageParam),
+    pageSize: DEFAULT_PAGE_SIZE,
+  });
 
   return (
     <div className={styles.page}>
@@ -54,7 +56,7 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
           )}
         </form>
 
-        {orders.length === 0 ? (
+        {totalItems === 0 ? (
           <p className={styles.empty}>{email ? 'No orders from that email.' : 'No orders yet.'}</p>
         ) : (
           <div className={styles.tableWrap}>

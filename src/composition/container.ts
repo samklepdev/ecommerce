@@ -18,6 +18,8 @@ import { MarkOrderDelivered } from '@/modules/orders/application/use-cases/mark-
 import { CancelOrder } from '@/modules/orders/application/use-cases/cancel-order';
 import { MarkAwaitingConfirmation } from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
 import { UpdateOrderNotes } from '@/modules/orders/application/use-cases/update-order-notes';
+import { EditOrderLines } from '@/modules/orders/application/use-cases/edit-order-lines';
+import { UpdateOrderContact } from '@/modules/orders/application/use-cases/update-order-contact';
 import { ListOrderEvents } from '@/modules/orders/application/use-cases/list-order-events';
 import { GetRevenueSummary } from '@/modules/orders/application/use-cases/get-revenue-summary';
 import { FailStuckAwaitingConfirmationOrders } from '@/modules/orders/application/use-cases/fail-stuck-awaiting-confirmation-orders';
@@ -40,8 +42,11 @@ import { ListSupplierOrdersByStatus } from '@/modules/orders/application/use-cas
 import { ListSupplierOrdersNeedingAction } from '@/modules/orders/application/use-cases/list-supplier-orders-needing-action';
 import { ListUnfulfillableOrderLines } from '@/modules/orders/application/use-cases/list-unfulfillable-order-lines';
 import { GetOrderSummary } from '@/modules/orders/application/use-cases/get-order-summary';
+import { GetOrderSummaries } from '@/modules/orders/application/use-cases/get-order-summaries';
+import { GetShipmentsForOrders } from '@/modules/orders/application/use-cases/get-shipments-for-orders';
 import { ListOrdersForCustomer } from '@/modules/orders/application/use-cases/list-orders-for-customer';
 import { ListAllOrdersForAdmin } from '@/modules/orders/application/use-cases/list-all-orders-for-admin';
+import { GetAdminOrderCounts } from '@/modules/orders/application/use-cases/get-admin-order-counts';
 import { GetOrderDetailForCustomer } from '@/modules/orders/application/use-cases/get-order-detail-for-customer';
 import { GetOrderDetail } from '@/modules/orders/application/use-cases/get-order-detail';
 import { GetShipmentsForOrder } from '@/modules/orders/application/use-cases/get-shipments-for-order';
@@ -85,6 +90,9 @@ import { GetWebAnalyticsSummary } from '@/modules/analytics/application/use-case
 import { ListAnalyticsEvents } from '@/modules/analytics/application/use-cases/list-analytics-events';
 import { GetEventsForIdentity } from '@/modules/analytics/application/use-cases/get-events-for-identity';
 import { ListAllProductsForAdmin } from '@/modules/catalog/application/use-cases/list-all-products-for-admin';
+import { GetAdminCatalogCounts } from '@/modules/catalog/application/use-cases/get-admin-catalog-counts';
+import { GetAnyProductsByIds } from '@/modules/catalog/application/use-cases/get-any-products-by-ids';
+import { ListSupplierOffersForProducts } from '@/modules/sourcing/application/use-cases/list-supplier-offers-for-products';
 import { DeleteProducts } from '@/modules/catalog/application/use-cases/delete-products';
 import { PublishProducts } from '@/modules/catalog/application/use-cases/publish-products';
 import { UnpublishProducts } from '@/modules/catalog/application/use-cases/unpublish-products';
@@ -196,6 +204,9 @@ export interface Container {
   getEventsForIdentity: GetEventsForIdentity;
   listAuditLogEntries: ListAuditLogEntries;
   listAllProductsForAdmin: ListAllProductsForAdmin;
+  getAdminCatalogCounts: GetAdminCatalogCounts;
+  getAnyProductsByIds: GetAnyProductsByIds;
+  listSupplierOffersForProducts: ListSupplierOffersForProducts;
   deleteProducts: DeleteProducts;
   publishProducts: PublishProducts;
   unpublishProducts: UnpublishProducts;
@@ -273,6 +284,8 @@ export interface Container {
   cancelOrder: CancelOrder;
   markAwaitingConfirmation: MarkAwaitingConfirmation;
   updateOrderNotes: UpdateOrderNotes;
+  editOrderLines: EditOrderLines;
+  updateOrderContact: UpdateOrderContact;
   listOrderEvents: ListOrderEvents;
   failStuckAwaitingConfirmationOrders: FailStuckAwaitingConfirmationOrders;
   failOrder: FailOrder;
@@ -292,8 +305,11 @@ export interface Container {
   listSupplierOrdersNeedingAction: ListSupplierOrdersNeedingAction;
   listUnfulfillableOrderLines: ListUnfulfillableOrderLines;
   getOrderSummary: GetOrderSummary;
+  getOrderSummaries: GetOrderSummaries;
+  getShipmentsForOrders: GetShipmentsForOrders;
   listOrdersForCustomer: ListOrdersForCustomer;
   listAllOrdersForAdmin: ListAllOrdersForAdmin;
+  getAdminOrderCounts: GetAdminOrderCounts;
   getOrderDetailForCustomer: GetOrderDetailForCustomer;
   getOrderDetail: GetOrderDetail;
   getShipmentsForOrder: GetShipmentsForOrder;
@@ -363,6 +379,8 @@ function build(): Container {
   const getEventsForIdentity = new GetEventsForIdentity(analyticsEventRepository);
   const listAuditLogEntries = new ListAuditLogEntries(auditLogRepository);
   const listAllProductsForAdmin = new ListAllProductsForAdmin(products);
+  const getAdminCatalogCounts = new GetAdminCatalogCounts(products);
+  const getAnyProductsByIds = new GetAnyProductsByIds(products);
   const deleteProducts = new DeleteProducts(products);
   const publishProducts = new PublishProducts(products);
   const unpublishProducts = new UnpublishProducts(products);
@@ -455,6 +473,7 @@ function build(): Container {
   const setPreferredSupplierOffer = new SetPreferredSupplierOffer(supplierOffers);
   const getPreferredOfferForProduct = new GetPreferredOfferForProduct(supplierOffers);
   const listSupplierOffersForProduct = new ListSupplierOffersForProduct(supplierOffers);
+  const listSupplierOffersForProducts = new ListSupplierOffersForProducts(supplierOffers);
   const imageStorage = new LocalFileImageStorage();
   const addProductImages = new AddProductImages(products, imageStorage);
   const removeProductImage = new RemoveProductImage(products);
@@ -519,11 +538,14 @@ function build(): Container {
   const listSupplierOrdersNeedingAction = new ListSupplierOrdersNeedingAction(supplierOrders);
   const listUnfulfillableOrderLines = new ListUnfulfillableOrderLines(orders);
   const getOrderSummary = new GetOrderSummary(orders);
+  const getOrderSummaries = new GetOrderSummaries(orders);
   const listOrdersForCustomer = new ListOrdersForCustomer(orders);
   const listAllOrdersForAdmin = new ListAllOrdersForAdmin(orders);
+  const getAdminOrderCounts = new GetAdminOrderCounts(orders);
   const getOrderDetailForCustomer = new GetOrderDetailForCustomer(orders);
   const getOrderDetail = new GetOrderDetail(orders);
   const getShipmentsForOrder = new GetShipmentsForOrder(supplierOrders);
+  const getShipmentsForOrders = new GetShipmentsForOrders(supplierOrders);
   const getPaymentSessionForOrder = new GetPaymentSessionForOrder(paymentStore);
 
   const confirmPayment = new ConfirmPayment(orders, processed, fulfillment, paymentConfirmationNotifier);
@@ -532,6 +554,10 @@ function build(): Container {
   const cancelOrder = new CancelOrder(orders, paymentStore);
   const markAwaitingConfirmation = new MarkAwaitingConfirmation(orders);
   const updateOrderNotes = new UpdateOrderNotes(orders);
+  // The BTC gateway directly rather than the registry: repricing restates an
+  // existing payment, and an order already has exactly one.
+  const editOrderLines = new EditOrderLines(orders, products, btcGateway);
+  const updateOrderContact = new UpdateOrderContact(orders);
   const listOrderEvents = new ListOrderEvents(orders);
   const failStuckAwaitingConfirmationOrders = new FailStuckAwaitingConfirmationOrders(orders);
   const failOrder = new FailOrder(orders);
@@ -575,6 +601,9 @@ function build(): Container {
     getEventsForIdentity,
     listAuditLogEntries,
     listAllProductsForAdmin,
+    getAdminCatalogCounts,
+    getAnyProductsByIds,
+    listSupplierOffersForProducts,
     deleteProducts,
     publishProducts,
     unpublishProducts,
@@ -646,6 +675,8 @@ function build(): Container {
     cancelOrder,
     markAwaitingConfirmation,
     updateOrderNotes,
+    editOrderLines,
+    updateOrderContact,
     listOrderEvents,
     failStuckAwaitingConfirmationOrders,
     failOrder,
@@ -664,8 +695,11 @@ function build(): Container {
     listSupplierOrdersNeedingAction,
     listUnfulfillableOrderLines,
     getOrderSummary,
+    getOrderSummaries,
+    getShipmentsForOrders,
     listOrdersForCustomer,
     listAllOrdersForAdmin,
+    getAdminOrderCounts,
     getOrderDetailForCustomer,
     getOrderDetail,
     getShipmentsForOrder,

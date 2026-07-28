@@ -91,7 +91,7 @@ describe('ReorderItems', () => {
   it('adds every reorderable line to a fresh cart, re-priced from the catalog', async () => {
     const productId = randomUUID();
     const order = makeOrderDetail({
-      lines: [{ productId, sku: 'OLD-SKU', quantity: 2, unitAmountMinor: 1, imageUrl: null }], // stale price on purpose
+      lines: [{ id: 'order-line-1', productId, sku: 'OLD-SKU', quantity: 2, unitAmountMinor: 1, imageUrl: null }], // stale price on purpose
     });
     const { repo: orders } = makeFakeOrderHistory(order);
     const { repo: carts, saved } = makeFakeCarts(null);
@@ -117,7 +117,7 @@ describe('ReorderItems', () => {
     const productId = randomUUID();
     const existingProductId = randomUUID();
     const order = makeOrderDetail({
-      lines: [{ productId, sku: 'SKU-A', quantity: 1, unitAmountMinor: 500, imageUrl: null }],
+      lines: [{ id: 'order-line-1', productId, sku: 'SKU-A', quantity: 1, unitAmountMinor: 500, imageUrl: null }],
     });
     const { repo: orders } = makeFakeOrderHistory(order);
     const existingCart = Cart.create({
@@ -143,7 +143,7 @@ describe('ReorderItems', () => {
   it('skips lines whose product no longer exists, reporting them rather than failing', async () => {
     const goneProductId = randomUUID();
     const order = makeOrderDetail({
-      lines: [{ productId: goneProductId, sku: 'GONE-SKU', quantity: 1, unitAmountMinor: 100, imageUrl: null }],
+      lines: [{ id: 'order-line-1', productId: goneProductId, sku: 'GONE-SKU', quantity: 1, unitAmountMinor: 100, imageUrl: null }],
     });
     const { repo: orders } = makeFakeOrderHistory(order);
     const { repo: carts, saved } = makeFakeCarts(null);

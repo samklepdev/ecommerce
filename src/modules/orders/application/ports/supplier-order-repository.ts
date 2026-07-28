@@ -41,6 +41,8 @@ export interface SupplierOrderRepository {
   createForPaidOrder(inputs: CreateSupplierOrderInput[]): Promise<void>;
   listNeedingAction(): Promise<SupplierOrderSummary[]>;
   listByOrderId(orderId: string): Promise<SupplierOrderSummary[]>;
+  /** Every supplier order for a set of customer orders, in one query. */
+  listByOrderIds(orderIds: string[]): Promise<SupplierOrderSummary[]>;
   /** `undefined` returns all four statuses. */
   listByStatus(status?: SupplierOrderStatus): Promise<SupplierOrderSummary[]>;
   /** Guarded + idempotent: false if not currently `needs_ordering`. */

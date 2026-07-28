@@ -1,5 +1,18 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, gte, ilike, inArray, isNotNull, lt, lte, notExists, sql } from 'drizzle-orm';
+import {
+  and,
+  count as countRows,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  isNotNull,
+  lt,
+  lte,
+  notExists,
+  notInArray,
+  sql,
+} from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import {
@@ -8,6 +21,7 @@ import {
   orders,
   products,
   supplierOrderLines,
+  type ShippingAddressJson,
 } from '@/shared/infrastructure/db/schema';
 import { Money } from '@/shared/domain/money';
 import { PAYMENT_EXPIRY_GRACE_MS } from '@/shared/domain/payment-expiry-grace';
@@ -40,6 +54,8 @@ import type {
   OrderSummaryRepository,
 } from '@/modules/orders/application/ports/order-summary-repository';
 import type {
+  AdminOrderCounts,
+  AdminOrderFilter,
   OrderDetail,
   OrderHistoryRepository,
   OrderListItem,
@@ -49,6 +65,18 @@ import type {
   UnfulfillableOrderLinesRepository,
 } from '@/modules/orders/application/ports/unfulfillable-order-lines-repository';
 import type { CancelOrderRepository } from '@/modules/orders/application/ports/cancel-order-repository';
+import type {
+  EditableOrder,
+  EditableOrderLine,
+  OrderContactChange,
+  OrderEditRepository,
+} from '@/modules/orders/application/ports/order-edit-repository';
+
+/** Shared by listAllForAdmin and countAllForAdmin — a filter that lived in
+ * two places would eventually mean a total that disagrees with the rows. */
+function adminOrderFilter(filter: AdminOrderFilter) {
+  return filter.email ? ilike(orders.customerEmail, `%${filter.email}%`) : undefined;
+}
 
 /**
  * One repository satisfies the place-order, checkout-side, confirm-side,
@@ -71,6 +99,7 @@ export class DrizzleOrderRepository
     OrderHistoryRepository,
     UnfulfillableOrderLinesRepository,
     CancelOrderRepository,
+    OrderEditRepository,
     RevenueSummaryRepository
 {
   constructor(private readonly db: DB) {}
@@ -421,20 +450,79 @@ export class DrizzleOrderRepository
     return { id: row.id, customerEmail: row.customerEmail, shippingAddress: row.shippingAddress };
   }
 
-  async listByCustomer(userId: string): Promise<OrderListItem[]> {
+  async getSummaries(orderIds: string[]): Promise<OrderSummary[]> {
+    if (orderIds.length === 0) return [];
+    const rows = await this.db.query.orders.findMany({
+      where: inArray(orders.id, orderIds),
+      columns: { id: true, customerEmail: true, shippingAddress: true },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      customerEmail: row.customerEmail,
+      shippingAddress: row.shippingAddress,
+    }));
+  }
+
+  async listByCustomer(userId: string, limit: number, offset: number): Promise<OrderListItem[]> {
     const rows = await this.db.query.orders.findMany({
       where: eq(orders.userId, userId),
       orderBy: (o, { desc }) => [desc(o.createdAt)],
+      limit,
+      offset,
     });
     return rows.map(toOrderListItem);
   }
 
-  async listAllForAdmin(params?: { email?: string }): Promise<OrderListItem[]> {
+  async countByCustomer(userId: string): Promise<number> {
+    const [row] = await this.db
+      .select({ value: countRows() })
+      .from(orders)
+      .where(eq(orders.userId, userId));
+    return row?.value ?? 0;
+  }
+
+  async listAllForAdmin(
+    filter: AdminOrderFilter,
+    limit: number,
+    offset: number,
+  ): Promise<OrderListItem[]> {
     const rows = await this.db.query.orders.findMany({
-      where: params?.email ? ilike(orders.customerEmail, `%${params.email}%`) : undefined,
+      where: adminOrderFilter(filter),
       orderBy: (o, { desc }) => [desc(o.createdAt)],
+      limit,
+      offset,
     });
     return rows.map(toOrderListItem);
+  }
+
+  async getAdminOrderCounts(window: { since: Date; until: Date }): Promise<AdminOrderCounts> {
+    // Filtered aggregates: one pass over the table for all three numbers,
+    // rather than three round trips or one full read into the process.
+    const [row] = await this.db
+      .select({
+        awaitingConfirmation: sql<number>`count(*) filter (where ${orders.paymentStatus} = 'awaiting_confirmation')`,
+        recovered: sql<number>`count(*) filter (where ${orders.paymentRecoveredFrom} is not null)`,
+        // The bounds go through drizzle's own comparators rather than being
+        // interpolated raw: a bare Date in a sql template carries no column
+        // type, and postgres.js rejects it at bind time. Typecheck and build
+        // both pass either way — only running it finds this.
+        placedInWindow: sql<number>`count(*) filter (where ${and(gte(orders.createdAt, window.since), lte(orders.createdAt, window.until))})`,
+      })
+      .from(orders);
+
+    return {
+      awaitingConfirmation: Number(row?.awaitingConfirmation ?? 0),
+      recovered: Number(row?.recovered ?? 0),
+      placedInWindow: Number(row?.placedInWindow ?? 0),
+    };
+  }
+
+  async countAllForAdmin(filter: AdminOrderFilter): Promise<number> {
+    const [row] = await this.db
+      .select({ value: countRows() })
+      .from(orders)
+      .where(adminOrderFilter(filter));
+    return row?.value ?? 0;
   }
 
   async findDetailById(orderId: string, userId: string): Promise<OrderDetail | null> {
@@ -451,6 +539,118 @@ export class DrizzleOrderRepository
     });
     if (!row) return null;
     return this.hydrateOrderDetail(row);
+  }
+
+  async getEditable(orderId: string): Promise<EditableOrder | null> {
+    const row = await this.db.query.orders.findFirst({ where: eq(orders.id, orderId) });
+    if (!row) return null;
+
+    const lines = await this.db.query.orderLines.findMany({
+      where: eq(orderLines.orderId, orderId),
+    });
+
+    return {
+      id: row.id,
+      currency: row.currency,
+      paymentStatus: row.paymentStatus as PaymentStatus,
+      fulfillmentStatus: row.fulfillmentStatus as FulfillmentStatus,
+      shippingAmountMinor: row.shippingAmountMinor,
+      discountAmountMinor: row.discountAmountMinor,
+      lines: lines.map((l) => ({
+        id: l.id,
+        productId: l.productId,
+        sku: l.sku,
+        quantity: l.quantity,
+        unitAmountMinor: l.unitAmountMinor,
+      })),
+    };
+  }
+
+  async updateContact(orderId: string, change: OrderContactChange): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(orders)
+        .set({
+          ...(change.customerEmail ? { customerEmail: change.customerEmail } : {}),
+          ...(change.shippingAddress
+            ? { shippingAddress: change.shippingAddress as ShippingAddressJson }
+            : {}),
+          updatedAt: new Date(),
+        })
+        .where(eq(orders.id, orderId));
+
+      // On the timeline next to the status changes: a shipping address that
+      // changed after the fact should never be a silent difference between
+      // what the customer confirmed and what the parcel was sent to.
+      const [row] = await tx
+        .select({ paymentStatus: orders.paymentStatus })
+        .from(orders)
+        .where(eq(orders.id, orderId));
+      await this.recordOrderEvent(tx, orderId, 'order_contact_updated', row?.paymentStatus ?? 'unknown', {
+        emailChanged: Boolean(change.customerEmail),
+        addressChanged: Boolean(change.shippingAddress),
+      });
+    });
+  }
+
+  async replaceLines(
+    orderId: string,
+    lines: EditableOrderLine[],
+    amountMinor: number,
+  ): Promise<void> {
+    // One transaction: an order whose amount_minor disagrees with its lines
+    // charges the wrong amount, and a partial write here is how that happens.
+    await this.db.transaction(async (tx) => {
+      const keptIds = lines.map((l) => l.id).filter((id): id is string => id !== null);
+
+      if (keptIds.length === 0) {
+        await tx.delete(orderLines).where(eq(orderLines.orderId, orderId));
+      } else {
+        await tx
+          .delete(orderLines)
+          .where(and(eq(orderLines.orderId, orderId), notInArray(orderLines.id, keptIds)));
+      }
+
+      for (const line of lines) {
+        if (line.id === null) {
+          await tx.insert(orderLines).values({
+            id: randomUUID(),
+            orderId,
+            productId: line.productId,
+            sku: line.sku,
+            quantity: line.quantity,
+            unitAmountMinor: line.unitAmountMinor,
+          });
+        } else {
+          await tx
+            .update(orderLines)
+            .set({ quantity: line.quantity })
+            .where(eq(orderLines.id, line.id));
+        }
+      }
+
+      await tx
+        .update(orders)
+        .set({ amountMinor, updatedAt: new Date() })
+        .where(eq(orders.id, orderId));
+
+      const [row] = await tx
+        .select({ paymentStatus: orders.paymentStatus })
+        .from(orders)
+        .where(eq(orders.id, orderId));
+      await this.recordOrderEvent(tx, orderId, 'order_lines_edited', row?.paymentStatus ?? 'unknown', {
+        amountMinor,
+        lineCount: lines.length,
+        quantity: lines.reduce((sum, l) => sum + l.quantity, 0),
+      });
+    });
+  }
+
+  async setPaymentWindow(orderId: string, expiresAt: Date): Promise<void> {
+    await this.db
+      .update(orders)
+      .set({ paymentWindowExpiresAt: expiresAt, updatedAt: new Date() })
+      .where(eq(orders.id, orderId));
   }
 
   async setNotes(orderId: string, notes: string | null): Promise<void> {
@@ -488,6 +688,7 @@ export class DrizzleOrderRepository
       discountAmountMinor: row.discountAmountMinor,
       couponCode: row.couponCode,
       lines: lines.map((l) => ({
+        id: l.id,
         productId: l.productId,
         sku: l.sku,
         quantity: l.quantity,

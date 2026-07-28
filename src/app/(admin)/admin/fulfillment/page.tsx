@@ -62,8 +62,8 @@ export default async function AdminFulfillmentPage({ searchParams }: AdminFulfil
     listSupplierOrdersNeedingAction,
     listSupplierOrdersByStatus,
     listSuppliers,
-    getOrderSummary,
-    getShipmentsForOrder,
+    getOrderSummaries,
+    getShipmentsForOrders,
     listUnfulfillableOrderLines,
   } = getContainer();
 
@@ -79,13 +79,11 @@ export default async function AdminFulfillmentPage({ searchParams }: AdminFulfil
 
   const distinctOrderIds = [...new Set(supplierOrderList.map((so) => so.orderId))];
 
-  const orderSummaries = new Map(
-    await Promise.all(
-      distinctOrderIds.map(
-        async (orderId) => [orderId, await getOrderSummary.execute({ orderId })] as const,
-      ),
-    ),
-  );
+  // Two queries for the whole page, not two per order group.
+  const [orderSummaries, shipmentsByOrderId] = await Promise.all([
+    getOrderSummaries.execute({ orderIds: distinctOrderIds }),
+    getShipmentsForOrders.execute({ orderIds: distinctOrderIds }),
+  ]);
 
   // Checked across ALL of an order's supplier orders, not just the ones
   // that happen to be in the current status-filtered list — the default
@@ -93,11 +91,9 @@ export default async function AdminFulfillmentPage({ searchParams }: AdminFulfil
   // shipped status would otherwise be invisible right where Cancel is used
   // most.
   const hasShippedSiblingByOrderId = new Map(
-    await Promise.all(
-      distinctOrderIds.map(async (orderId) => {
-        const allForOrder = await getShipmentsForOrder.execute({ orderId });
-        return [orderId, allForOrder.some((so) => so.status === 'shipped')] as const;
-      }),
+    distinctOrderIds.map(
+      (orderId) =>
+        [orderId, (shipmentsByOrderId.get(orderId) ?? []).some((so) => so.status === 'shipped')] as const,
     ),
   );
 

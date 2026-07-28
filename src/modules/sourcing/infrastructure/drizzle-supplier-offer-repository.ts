@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { supplierOffers } from '@/shared/infrastructure/db/schema';
@@ -76,6 +76,14 @@ export class DrizzleSupplierOfferRepository implements SupplierOfferRepository {
   async listByProductId(productId: string): Promise<SupplierOffer[]> {
     const rows = await this.db.query.supplierOffers.findMany({
       where: eq(supplierOffers.productId, productId),
+    });
+    return rows.map(toOffer);
+  }
+
+  async listByProductIds(productIds: string[]): Promise<SupplierOffer[]> {
+    if (productIds.length === 0) return [];
+    const rows = await this.db.query.supplierOffers.findMany({
+      where: inArray(supplierOffers.productId, productIds),
     });
     return rows.map(toOffer);
   }

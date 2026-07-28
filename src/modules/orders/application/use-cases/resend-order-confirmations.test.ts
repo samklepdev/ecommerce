@@ -19,7 +19,7 @@ function makeOrder(overrides: Partial<OrderDetail> = {}): OrderDetail {
     couponCode: null,
     shippingAddress: null,
     shippingAmountMinor: 0,
-    lines: [{ productId: 'v1', sku: 'SKU-1', quantity: 2, unitAmountMinor: 2100, imageUrl: null }],
+    lines: [{ id: 'order-line-1', productId: 'v1', sku: 'SKU-1', quantity: 2, unitAmountMinor: 2100, imageUrl: null }],
     ...overrides,
   };
 }
@@ -47,7 +47,7 @@ function makeFakeSender() {
 describe('ResendOrderConfirmations', () => {
   it('resends a confirmation email for every order under that email', async () => {
     const order1 = makeOrder({ id: 'order-1' });
-    const order2 = makeOrder({ id: 'order-2', lines: [{ productId: 'v2', sku: 'SKU-2', quantity: 1, unitAmountMinor: 500, imageUrl: null }] });
+    const order2 = makeOrder({ id: 'order-2', lines: [{ id: 'order-line-1', productId: 'v2', sku: 'SKU-2', quantity: 1, unitAmountMinor: 500, imageUrl: null }] });
     const orders = makeFakeOrders(
       { 'buyer@example.com': ['order-1', 'order-2'] },
       { 'order-1': order1, 'order-2': order2 },
