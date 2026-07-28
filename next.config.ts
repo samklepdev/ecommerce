@@ -46,6 +46,21 @@ const nextConfig: NextConfig = {
         source: '/(.*)',
         headers: [
           { key: 'Content-Security-Policy', value: CSP },
+          // HTTPS-only, for two years, subdomains included. Production only:
+          // sending this over plain http in dev would pin localhost to https
+          // in the browser and it is genuinely annoying to undo.
+          //
+          // `preload` is left off deliberately. It's a one-way door — getting
+          // a domain off the preload list takes months — and it should be a
+          // decision made once the domain is settled, not a default.
+          ...(process.env.NODE_ENV === 'production'
+            ? [
+                {
+                  key: 'Strict-Transport-Security',
+                  value: 'max-age=63072000; includeSubDomains',
+                },
+              ]
+            : []),
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },

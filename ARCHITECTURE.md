@@ -21,7 +21,7 @@ Three ideas explain the whole layout:
    presentation, thin, calls use cases only. An import from infrastructure into domain is a
    bug, not a style choice.
 
-2. **Bounded contexts** live under `src/modules/*` (`catalog`, `cart`, `inventory`, `checkout`,
+2. **Bounded contexts** live under `src/modules/*` (`catalog`, `cart`, `checkout`,
    `orders`, `payments`, `identity`), each with its own `domain` / `application` /
    `infrastructure`. Shared kernel is `src/shared`.
 
@@ -33,8 +33,8 @@ Three ideas explain the whole layout:
 ## The one flow that matters (BTC checkout)
 
 ```
-POST /api/checkout
-  → StartCheckout: reprice (server-side) → reserve inventory → gateway.createPayment
+checkout server action (cart → order)
+  → StartCheckout: reprice (server-side) → gateway.createPayment
       → allocate atomic address index (Redis INCR)
       → derive unique bc1q… address from xpub
       → lock fiat→BTC quote, persist a watchable intent (Postgres)
@@ -77,11 +77,7 @@ src/
 │   │   └── infrastructure/
 │   │       ├── drizzle-order-repository.ts        [built] checkout + confirm order ports
 │   │       ├── redis-processed-event-store.ts     [built] idempotent event de-dup
-│   │       └── logging-fulfillment-queue.ts       [STUB] logs; replace with BullMQ
-│   │
-│   ├── inventory/infrastructure/
-│   │   └── redis-inventory-reservation.ts [PARTIAL] reservation lifecycle only;
-│   │                                                NOT enforcing stock yet (no catalog table)
+│   │       └── supplier-order-fulfillment-queue.ts [built] creates supplier orders on paid
 │   │
 │   ├── payments/
 │   │   ├── application/
@@ -100,7 +96,8 @@ src/
 │   │           ├── esplora-chain-data-provider.ts [built] mempool.space / self-host electrs
 │   │           └── mempool-rate-provider.ts       [built] fiat→sats, short cache
 │   │
-│   ├── catalog/  identity/  cart/         [NOT BUILT] scaffolded in PROJECT_STRUCTURE only
+│   ├── catalog/ cart/ identity/ addresses/ analytics/ audit/ checkout/ coupons/
+│   ├── notifications/ reviews/ shipping/ sourcing/   [built]
 │
 ├── app/
 │   ├── (storefront)/checkout/
@@ -118,28 +115,25 @@ src/
 → render QR → watcher → confirm → status. Verified with `tsc --noEmit` against real deps.
 
 **Stubbed / partial (intentionally, marked in-code):**
-- `redis-inventory-reservation.ts` — manages reservation lifecycle but does **not** enforce
-  stock (no catalog/inventory table yet). Can't oversell today because it tracks nothing; the
-  atomic check-and-decrement lands here when the inventory module does.
-- `logging-fulfillment-queue.ts` — logs the "order paid" trigger; swap for a BullMQ producer.
 - `workers/btc-watcher.ts` — plain interval loop; BullMQ repeat is the production upgrade.
-- `/api/checkout` — DEV convenience that mints an order from a raw amount; real orders come
-  from cart checkout.
-- `drizzle-order-repository.repriceAndGetTotal` — returns the persisted total; real repricing
-  recomputes from order_lines × catalog once catalog exists.
 
-**Not built:** catalog, cart, identity modules; BullMQ setup; tests; the storefront pages
-beyond the checkout component.
+There is **no inventory module and never will be** — this is a dropship model, so a product
+either exists in the catalog or it doesn't. See the Inventory section of CLAUDE.md before
+adding a reservation of any kind.
+
+`/api/checkout` used to be listed here as a dev convenience that minted an order from a raw
+posted amount. It was removed: unauthenticated, unrated, and every call burned a BTC address
+index off the monotonic counter, which is exactly the thing that can outrun a watch-only
+wallet's BIP32 gap limit. Real orders come from the cart checkout action.
 
 ## Run it
 
 ```bash
 npm install
 cp .env.example .env        # set BTC_ACCOUNT_XPUB (xpub only!), DATABASE_URL, REDIS_URL
-npm run db:push             # create tables
+npm run db:migrate          # apply migrations (not db:push — migrations are checked in)
 npm run dev                 # web app
-npm run worker              # chain-watcher (separate terminal / container)
-# exercise: POST /api/checkout { "amountMinor": 4999, "currency": "USD", "customerEmail": "..." }
+npm run queue:dev           # chain-watcher (separate terminal / container)
 ```
 
 ## Hard rules (full list in CLAUDE.md — the ones most likely to trip you)
@@ -149,12 +143,13 @@ npm run worker              # chain-watcher (separate terminal / container)
 - **`paid` is set only in `ConfirmPayment`**, driven by the watcher. No other path.
 - **No webhook for on-chain BTC** — it's poll-based by design; don't add one.
 - **Never floats for money** (fiat or BTC); **never trust a client-submitted price**.
-- **Never read-then-write inventory** — atomic decrement when that lands.
+- **No local stock at all** — dropship; "out of stock" means the product is gone from the
+  catalog. Don't add a reservation without reading CLAUDE.md's Inventory section first.
 
 ## Suggested next steps
 
-1. Docker: multi-stage Dockerfile (arm64/amd64-safe for `tiny-secp256k1`), 5-service compose
-   (web, worker, postgres, redis, Caddy), Caddyfile.
-2. Real inventory: catalog + stock tables, atomic reserve in `redis-inventory-reservation`.
-3. BullMQ: replace the interval worker + logging fulfillment queue.
-4. Tests: the domain + use cases are designed to run without infra — start there.
+1. BullMQ: replace the plain interval loop in `workers/btc-watcher.ts` with a repeat job.
+2. Error monitoring — there is none, so a production exception is only ever a log line.
+
+Docker, the catalog/cart/identity modules, the storefront and admin pages, and the test suite
+(700+ specs, no infra needed) were all on this list and are done.
