@@ -41,6 +41,7 @@ export async function createSupplierAction(
   const { createSupplier } = getContainer();
   const supplier = await createSupplier.execute(parsed.data);
   revalidatePath('/admin/products');
+  revalidatePath('/admin/suppliers');
   return { message: `Added supplier "${supplier.name}".` };
 }
 

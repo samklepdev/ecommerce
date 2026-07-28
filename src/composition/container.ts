@@ -148,6 +148,8 @@ import { ListSuppliers } from '@/modules/sourcing/application/use-cases/list-sup
 import { CreateSupplier } from '@/modules/sourcing/application/use-cases/create-supplier';
 import { UpdateSupplier } from '@/modules/sourcing/application/use-cases/update-supplier';
 import { SetSupplierActive } from '@/modules/sourcing/application/use-cases/set-supplier-active';
+import { DeleteSupplier } from '@/modules/sourcing/application/use-cases/delete-supplier';
+import { ListSuppliersWithUsage } from '@/modules/sourcing/application/use-cases/list-suppliers-with-usage';
 import { CreateSupplierOffer } from '@/modules/sourcing/application/use-cases/create-supplier-offer';
 import { UpdateSupplierOfferCost } from '@/modules/sourcing/application/use-cases/update-supplier-offer-cost';
 import { SetPreferredSupplierOffer } from '@/modules/sourcing/application/use-cases/set-preferred-supplier-offer';
@@ -237,9 +239,11 @@ export interface Container {
   rejectReview: RejectReview;
 
   listSuppliers: ListSuppliers;
+  listSuppliersWithUsage: ListSuppliersWithUsage;
   createSupplier: CreateSupplier;
   updateSupplier: UpdateSupplier;
   setSupplierActive: SetSupplierActive;
+  deleteSupplier: DeleteSupplier;
   createSupplierOffer: CreateSupplierOffer;
   updateSupplierOfferCost: UpdateSupplierOfferCost;
   setPreferredSupplierOffer: SetPreferredSupplierOffer;
@@ -423,9 +427,11 @@ function build(): Container {
   const suppliers = new DrizzleSupplierRepository(db);
   const supplierOffers = new DrizzleSupplierOfferRepository(db);
   const listSuppliers = new ListSuppliers(suppliers);
+  const listSuppliersWithUsage = new ListSuppliersWithUsage(suppliers);
   const createSupplier = new CreateSupplier(suppliers);
   const updateSupplier = new UpdateSupplier(suppliers);
   const setSupplierActive = new SetSupplierActive(suppliers);
+  const deleteSupplier = new DeleteSupplier(suppliers);
   const createSupplierOffer = new CreateSupplierOffer(supplierOffers);
   const updateSupplierOfferCost = new UpdateSupplierOfferCost(supplierOffers);
   const setPreferredSupplierOffer = new SetPreferredSupplierOffer(supplierOffers);
@@ -594,9 +600,11 @@ function build(): Container {
     approveReview,
     rejectReview,
     listSuppliers,
+    listSuppliersWithUsage,
     createSupplier,
     updateSupplier,
     setSupplierActive,
+    deleteSupplier,
     createSupplierOffer,
     updateSupplierOfferCost,
     setPreferredSupplierOffer,
