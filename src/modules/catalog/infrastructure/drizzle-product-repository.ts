@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
-import { and, asc, count as countRows, desc, eq, ilike, inArray, isNotNull } from 'drizzle-orm';
+import { and, asc, count as countRows, desc, eq, exists, ilike, inArray, isNotNull, sql } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
-import { products, productImages } from '@/shared/infrastructure/db/schema';
+import { products, productImages, supplierOffers } from '@/shared/infrastructure/db/schema';
 import { Money } from '@/shared/domain/money';
 import {
   Product,
@@ -13,6 +13,8 @@ import {
 } from '@/modules/catalog/domain/product';
 import { Slug } from '@/modules/catalog/domain/slug';
 import type {
+  AdminCatalogCounts,
+  AdminProductFilter,
   ListProductsParams,
   ProductRepository,
   ProductSort,
@@ -46,6 +48,24 @@ function buildListFilter(params?: Pick<ListProductsParams, 'search' | 'category'
     eq(products.status, 'active'),
     params?.search ? ilike(products.name, `%${params.search}%`) : undefined,
     params?.category ? eq(products.category, params.category) : undefined,
+  );
+}
+
+/** The supplier filter used to run in the page, over every product in the
+ * catalog with one offers query per product behind it. As a WHERE EXISTS it
+ * narrows before LIMIT, so the count and the page agree. */
+function adminProductFilter(db: DB, filter: AdminProductFilter) {
+  if (!filter.supplierId) return undefined;
+  return exists(
+    db
+      .select({ one: sql`1` })
+      .from(supplierOffers)
+      .where(
+        and(
+          eq(supplierOffers.productId, products.id),
+          eq(supplierOffers.supplierId, filter.supplierId),
+        ),
+      ),
   );
 }
 
@@ -133,6 +153,17 @@ export class DrizzleProductRepository implements ProductRepository {
     return toProduct(row, images.get(row.id) ?? []);
   }
 
+  async findAnyByIds(productIds: string[]): Promise<Product[]> {
+    if (productIds.length === 0) return [];
+    const rows = await this.db.query.products.findMany({
+      where: inArray(products.id, productIds),
+    });
+    if (rows.length === 0) return [];
+
+    const imagesByProduct = await this.imagesFor(rows.map((r) => r.id));
+    return rows.map((row) => toProduct(row, imagesByProduct.get(row.id) ?? []));
+  }
+
   async findByIds(ids: string[]): Promise<Product[]> {
     if (ids.length === 0) return [];
     const rows = await this.db.query.products.findMany({
@@ -144,12 +175,40 @@ export class DrizzleProductRepository implements ProductRepository {
     return rows.map((row) => toProduct(row, imagesByProduct.get(row.id) ?? []));
   }
 
-  async listAllForAdmin(): Promise<Product[]> {
-    const rows = await this.db.query.products.findMany({
-      orderBy: (p, { desc }) => [desc(p.createdAt)],
-    });
+  async listAllForAdmin(
+    filter: AdminProductFilter,
+    limit: number,
+    offset: number,
+  ): Promise<Product[]> {
+    const rows = await this.db
+      .select()
+      .from(products)
+      .where(adminProductFilter(this.db, filter))
+      .orderBy(desc(products.createdAt))
+      .limit(limit)
+      .offset(offset);
+    if (rows.length === 0) return [];
+
     const imagesByProduct = await this.imagesFor(rows.map((r) => r.id));
     return rows.map((row) => toProduct(row, imagesByProduct.get(row.id) ?? []));
+  }
+
+  async getAdminCatalogCounts(): Promise<AdminCatalogCounts> {
+    const [row] = await this.db
+      .select({
+        total: countRows(),
+        active: sql<number>`count(*) filter (where ${products.status} = 'active')`,
+      })
+      .from(products);
+    return { total: Number(row?.total ?? 0), active: Number(row?.active ?? 0) };
+  }
+
+  async countAllForAdmin(filter: AdminProductFilter): Promise<number> {
+    const [row] = await this.db
+      .select({ value: countRows() })
+      .from(products)
+      .where(adminProductFilter(this.db, filter));
+    return row?.value ?? 0;
   }
 
   async createProduct(product: Product): Promise<void> {

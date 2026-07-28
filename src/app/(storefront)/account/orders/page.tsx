@@ -10,7 +10,7 @@ import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
 import { Badge } from '@/components/ui/Badge';
 import { Pagination } from '@/components/ui/Pagination';
-import { paginate, parsePage, DEFAULT_PAGE_SIZE } from '@/components/ui/paginate';
+import { parsePage, DEFAULT_PAGE_SIZE } from '@/components/ui/paginate';
 import { cancelOwnOrderAction } from '@/app/actions/orders';
 import { CancelOrderButton } from '../../orders/CancelOrderButton';
 import styles from './page.module.css';
@@ -31,20 +31,18 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
 
   const { page: pageParam } = await searchParams;
   const { listOrdersForCustomer } = getContainer();
-  const allOrders = await listOrdersForCustomer.execute({ userId: user.id });
-
-  const { items: pagedOrders, page, totalPages } = paginate(
-    allOrders,
-    parsePage(pageParam),
-    DEFAULT_PAGE_SIZE,
-  );
+  const { items: pagedOrders, page, totalPages, totalItems } = await listOrdersForCustomer.execute({
+    userId: user.id,
+    page: parsePage(pageParam),
+    pageSize: DEFAULT_PAGE_SIZE,
+  });
 
   return (
     <PageContainer>
       <Stack gap={5}>
         <h1>Order history</h1>
 
-        {allOrders.length === 0 ? (
+        {totalItems === 0 ? (
           <p className={styles.empty}>You haven&apos;t placed any orders yet.</p>
         ) : (
           <>

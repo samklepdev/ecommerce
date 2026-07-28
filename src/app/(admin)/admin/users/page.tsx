@@ -23,6 +23,10 @@ interface AdminUsersPageProps {
 /** Exact-email lookup + promote — not a full customer list/search. Browsing
  * or searching all customers would need a new paginated repository method;
  * out of scope here. */
+/** How many of a customer's orders the profile card shows before deferring
+ * to the full list. */
+const RECENT_ORDER_COUNT = 10;
+
 export default async function AdminUsersPage({ searchParams }: AdminUsersPageProps) {
   const viewer = await requireAdmin();
   const { email } = await searchParams;
@@ -30,7 +34,12 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
   const { findUserByEmailForAdmin, listOrdersForCustomer } = getContainer();
 
   const profile = email ? await findUserByEmailForAdmin.execute({ email }) : null;
-  const orders = profile ? await listOrdersForCustomer.execute({ userId: profile.id }) : [];
+  // Bounded on purpose: this is a summary on a profile card, not the order
+  // list. The full, searchable one is /admin/orders — linked below when
+  // there's more than fits here.
+  const orders = profile
+    ? await listOrdersForCustomer.execute({ userId: profile.id, page: 1, pageSize: RECENT_ORDER_COUNT })
+    : { items: [], totalItems: 0, page: 1, totalPages: 1 };
 
   return (
     <PageContainer>
@@ -59,12 +68,12 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
               )}
             </div>
 
-            <h2 className={styles.sectionTitle}>Orders ({orders.length})</h2>
-            {orders.length === 0 ? (
+            <h2 className={styles.sectionTitle}>Orders ({orders.totalItems})</h2>
+            {orders.totalItems === 0 ? (
               <p className={styles.empty}>No orders yet.</p>
             ) : (
               <ul className={styles.orderList}>
-                {orders.map((order) => (
+                {orders.items.map((order) => (
                   <li key={order.id}>
                     <Link href={`/admin/orders/${order.id}`} className={styles.orderRow}>
                       <span>{order.id.slice(0, 8)}</span>
@@ -78,6 +87,14 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
                   </li>
                 ))}
               </ul>
+            )}
+            {orders.totalItems > orders.items.length && (
+              <p className={styles.empty}>
+                Showing the {orders.items.length} most recent.{' '}
+                <Link href={`/admin/orders?email=${encodeURIComponent(profile.email)}`}>
+                  See all {orders.totalItems} orders →
+                </Link>
+              </p>
             )}
           </Card>
         )}

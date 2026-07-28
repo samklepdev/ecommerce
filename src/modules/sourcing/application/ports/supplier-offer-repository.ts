@@ -9,4 +9,7 @@ export interface SupplierOfferRepository {
   updateCost(offerId: string, amountMinor: number, currency: string): Promise<void>;
   findPreferredByProductId(productId: string): Promise<SupplierOffer | null>;
   listByProductId(productId: string): Promise<SupplierOffer[]>;
+  /** Offers for many products in one query — what the admin catalog table
+   * needs. Asking per product was a round trip per row. */
+  listByProductIds(productIds: string[]): Promise<SupplierOffer[]>;
 }
