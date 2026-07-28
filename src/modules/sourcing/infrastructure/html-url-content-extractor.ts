@@ -8,6 +8,7 @@ import type {
   ExtractUrlContentError,
   UrlContentExtractor,
 } from '@/modules/sourcing/application/ports/url-content-extractor';
+import { safeFetch } from './safe-fetch';
 
 const MAX_TEXT_LENGTH = 8000;
 
@@ -59,7 +60,7 @@ export class HtmlUrlContentExtractor implements UrlContentExtractor {
 
     let res: Response;
     try {
-      res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+      res = await safeFetch(url, { headers: { 'User-Agent': USER_AGENT } });
     } catch (e) {
       return err({ code: 'network_error', message: e instanceof Error ? e.message : String(e) });
     }

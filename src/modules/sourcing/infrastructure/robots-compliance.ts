@@ -1,4 +1,5 @@
 import robotsParser from 'robots-parser';
+import { safeFetch } from './safe-fetch';
 
 // Honest, identifying UA — no browser impersonation. Adjust the contact URL
 // to something real before this ever talks to a live third-party site.
@@ -26,7 +27,9 @@ export async function isAllowedByRobots(url: string): Promise<boolean> {
 
   const robotsUrl = `${origin}/robots.txt`;
   try {
-    const res = await fetch(robotsUrl, { headers: { 'User-Agent': USER_AGENT } });
+    // Guarded too: this runs before the caller's own fetch, so without it
+    // robots.txt would be the way in to `http://127.0.0.1:6379/robots.txt`.
+    const res = await safeFetch(robotsUrl, { headers: { 'User-Agent': USER_AGENT } });
     const body = res.ok ? await res.text() : '';
     const robots = robotsParser(robotsUrl, body);
     robotsCache.set(origin, { robots, fetchedAt: Date.now() });
