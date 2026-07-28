@@ -4,6 +4,10 @@ import { env } from '@/config/env';
 import { db, type DB } from '@/shared/infrastructure/db/client';
 import { redis } from '@/shared/infrastructure/redis/client';
 import { RedisRateLimiter } from '@/shared/infrastructure/redis/redis-rate-limiter';
+import { RedisHeartbeatStore } from '@/shared/infrastructure/redis/redis-heartbeat-store';
+import { DrizzleDatabaseProbe } from '@/shared/infrastructure/db/drizzle-database-probe';
+import { CheckSystemHealth } from '@/shared/application/use-cases/check-system-health';
+import type { HeartbeatStore } from '@/shared/application/ports/health-ports';
 import type { RateLimiter } from '@/shared/application/ports/rate-limiter';
 
 import { StartCheckout } from '@/modules/checkout/application/use-cases/start-checkout';
@@ -170,6 +174,8 @@ import { SetShippingRate } from '@/modules/shipping/application/use-cases/set-sh
 export interface Container {
   db: DB;
   rateLimiter: RateLimiter;
+  heartbeats: HeartbeatStore;
+  checkSystemHealth: CheckSystemHealth;
   /** fiat -> sats, for dual-denominated display prices. Presentation only —
    * an order's binding quote is locked by the gateway at checkout. */
   btcRates: BtcRateProvider;
@@ -301,6 +307,18 @@ export interface Container {
 
 function build(): Container {
   const rateLimiter = new RedisRateLimiter(redis);
+
+  // Health. The watcher may miss a pass and still be alive — a slow Esplora
+  // response pushes the next one out — so the stale window is three
+  // intervals, floored at two minutes so a very short interval can't make
+  // the check flap.
+  const heartbeats = new RedisHeartbeatStore(redis);
+  const checkSystemHealth = new CheckSystemHealth(
+    new DrizzleDatabaseProbe(db),
+    heartbeats,
+    heartbeats,
+    Math.max(3 * env.BTC_WATCH_INTERVAL_MS, 120_000),
+  );
 
   const network = env.BTC_NETWORK === 'testnet' ? networks.testnet : networks.bitcoin;
 
@@ -536,6 +554,8 @@ function build(): Container {
   return {
     db,
     rateLimiter,
+    heartbeats,
+    checkSystemHealth,
     /** fiat -> sats, for dual-denominated display prices. Presentation only
      * — an order's actual quote is locked by the gateway at checkout. */
     btcRates: rates,

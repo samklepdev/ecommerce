@@ -62,3 +62,6 @@ next-env.d.ts
 src/modules/analytics/infrastructure/geo/*.mmdb
 src/modules/analytics/infrastructure/geo/*.mmdb.gz
 geo/
+
+# Database dumps from scripts/backup-db.sh — never in git.
+/backups/
