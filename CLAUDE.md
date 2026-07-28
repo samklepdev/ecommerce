@@ -17,7 +17,9 @@ chain-watcher poller. No third-party processor, no custody of funds, no card rai
 - **Next.js** (App Router) + **TypeScript** (strict mode, no implicit `any`)
 - **PostgreSQL** + **Drizzle** ORM
 - **Redis** (carts, idempotency keys, BTC address-index counter, rate limiting)
-- **BullMQ** for async work (post-payment side effects, email, fulfillment, the BTC watcher)
+- **No queue yet.** BullMQ is the intended destination for async work and is *not installed*;
+  the BTC watcher is a standalone interval process (`src/workers/btc-watcher.ts`) and email
+  and fulfillment run inline in the request path
 - **bitcoinjs-lib + bip32 + tiny-secp256k1** for HD address derivation; **qrcode.react** for
   the checkout QR
 - **Zod** for validation at every boundary
@@ -155,9 +157,16 @@ Payment and fulfillment are **separate** machines that reference each other.
 
 ## Async / side effects
 
-- Email, fulfillment triggers, analytics, and the **BTC chain-watcher** run on **BullMQ**,
-  never inline in the request path. Workers must be idempotent.
+- **What the code actually does today** — BullMQ is not installed. The BTC chain-watcher is a
+  standalone process (`src/workers/btc-watcher.ts`) running a plain interval loop; email and
+  supplier-order creation run **inline in the request path**. Treat the queue as the target
+  state, not the current one, and keep every worker idempotent so moving to it is a
+  transport change and nothing more.
 - The watcher runs on a repeat schedule (~30–60s): `WatchBitcoinPayments.runOnce()`.
+- **Run exactly one watcher.** No lock, no leader election — a second replica only doubles
+  load on the Esplora provider.
+- It records a heartbeat after every successful chain pass; `/api/health` fails when that
+  goes stale. This process dying is otherwise silent: orders just stop settling.
 
 ## Conventions
 
@@ -186,7 +195,7 @@ npm test                 # unit tests (domain + use cases run without infra)
 npm run db:generate      # drizzle-kit generate (migrations)
 npm run db:migrate       # apply migrations
 npm run db:studio        # drizzle studio
-npm run queue:dev        # run BullMQ workers (incl. BTC watcher) locally
+npm run queue:dev        # run the BTC watcher locally (tsx watch; no queue involved)
 npm run admin:promote -- <email>  # promote an existing account to admin
 ```
 

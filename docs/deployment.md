@@ -22,6 +22,15 @@
   `/cart` all return 200.
 - Session cookies (`session_id`, `guest_session_id`) now set `secure: true`
   in production (env-gated so local HTTP dev still works).
+- `/api/health` checks Postgres, Redis, and the BTC watcher's heartbeat, and
+  answers 503 if any of them is down. Verified against a live stack: with no
+  watcher running it returns 503 `never_reported`; with one running it
+  returns 200 and the heartbeat age.
+- `web` and `worker` carry `restart: unless-stopped`, and `web` has a
+  container healthcheck pointed at `/api/health`.
+- `scripts/backup-db.sh` + `docs/backups.md` — pg_dump with verification and
+  retention, and a restore runbook. Both were exercised against the local
+  database, including a restore into a scratch database.
 
 ## What's still undecided before going live with real money
 
@@ -52,6 +61,30 @@ lost:
    setting `bitcoin` + a real watch-only mainnet xpub (`BTC_ACCOUNT_XPUB`) —
    never a seed, mnemonic, or private key on the server, enforced by a Zod
    check in `src/config/env.ts`.
+
+## Monitoring, at minimum
+
+Point an uptime monitor at `/api/health` and page on a non-200. It is the
+only thing that reports a dead BTC watcher — that process is what notices a
+customer paid, it runs as a single instance, and when it stops the failure
+is completely silent: orders simply never settle and the first report comes
+from a customer. The endpoint fails once the watcher has been quiet for
+three poll intervals (floored at two minutes).
+
+This is not error monitoring. A 500 in a request handler is still only a log
+line on the box; that gap is unfixed and needs a service (Sentry or similar).
+
+**Run exactly one worker.** There is no lock or leader election — a second
+replica double-polls the Esplora provider and can trip its rate limits. The
+work itself is idempotent, so this is a load concern, not a correctness one.
+
+## Backups
+
+`scripts/backup-db.sh` takes a verified, pruned pg_dump; `docs/backups.md`
+has the schedule, the restore runbook, and the chain-reconciliation steps
+that have to follow any restore. Postgres is the only record that an order
+exists and what was owed — read that file before you launch, and do the
+restore drill it describes.
 
 ## Deploying
 

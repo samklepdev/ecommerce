@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ecommerce
       POSTGRES_PASSWORD: ecommerce
@@ -17,6 +18,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports:
       - '6379:6379'
     volumes:
@@ -35,6 +37,17 @@ services:
   # two only when you want a production-shaped smoke test.
   web:
     build: .
+    # Without this a crash is permanent until someone notices. Applies to
+    # `docker compose` only — on a managed host, set the equivalent there.
+    restart: unless-stopped
+    healthcheck:
+      # Hits /api/health, which checks Postgres, Redis and the watcher's
+      # heartbeat, and answers 503 when any of them is down.
+      test: ['CMD-SHELL', 'node -e "fetch(\'http://localhost:3000/api/health\').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     ports:
       - '3000:3000'
     env_file: .env
@@ -56,6 +69,10 @@ services:
   worker:
     build: .
     command: ['npm', 'run', 'worker']
+    # The only process that notices a customer paid. A crash here is silent —
+    # orders simply stop settling — so it restarts, and /api/health reports
+    # the heartbeat going stale if restarting isn't enough.
+    restart: unless-stopped
     env_file: .env
     environment:
       DATABASE_URL: postgres://ecommerce:ecommerce@postgres:5432/ecommerce
