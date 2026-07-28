@@ -39,7 +39,10 @@ lost:
 3. **Esplora/electrs provider.** `BTC_ESPLORA_URL` defaults to the public
    `mempool.space` API — fine for dev, but it sees every address this app
    ever queries. Production should run a self-hosted `electrs`/Esplora or
-   `bitcoind`.
+   `bitcoind`. Move only that variable: the fiat rate feed is
+   `BTC_RATE_URL`, and `/v1/prices` is a mempool.space extension no Esplora
+   node serves. Pointing both at your own node 404s the rate lookup and
+   blocks every checkout.
 4. **Email provider.** `RESEND_API_KEY` + `EMAIL_FROM` switch on real
    delivery. Without them nothing is sent — a customer who loses their order
    link has no confirmation email to find it in, and password reset is dead
@@ -93,7 +96,8 @@ than surfacing later as a confusing runtime error.
 
 | Variable | Default | Notes |
 | --- | --- | --- |
-| `BTC_ESPLORA_URL` | `https://mempool.space/api` | The public API sees every address queried. Self-host `electrs`/Esplora in production — see the privacy note in CLAUDE.md |
+| `BTC_ESPLORA_URL` | `https://mempool.space/api` | Chain data only. The public API sees every address queried. Self-host `electrs`/Esplora in production — see the privacy note in CLAUDE.md |
+| `BTC_RATE_URL` | `https://mempool.space/api` | The fiat→BTC price feed (`/v1/prices`), a mempool.space extension rather than an Esplora endpoint. Separate from `BTC_ESPLORA_URL` so self-hosting a node doesn't 404 the rate lookup and stop checkout |
 | `BTC_REQUIRED_CONFIRMATIONS` | `2` | Confirmations before an order is `paid` |
 | `BTC_SETTLEMENT_BUFFER_CONFIRMATIONS` | `1` | Extra depth before settlement is treated as final |
 | `BTC_WATCH_INTERVAL_MS` | `45000` | How often the watcher polls |
