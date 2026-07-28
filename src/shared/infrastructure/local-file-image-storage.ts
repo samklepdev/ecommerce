@@ -5,21 +5,17 @@ import path from 'node:path';
 import { logger } from '@/shared/infrastructure/logger';
 import type { ImageStorage } from '@/shared/application/ports/image-storage';
 import { safeFetch } from './safe-fetch';
+import { detectImageType, type DetectedImageType } from './image-type';
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const USER_AGENT = 'MystoreImageFetcher/1.0 (+https://example.com/bot)';
 
-const EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
+const EXTENSION_BY_IMAGE_TYPE: Record<DetectedImageType, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
   'image/webp': 'webp',
   'image/gif': 'gif',
 };
-
-function extensionFor(contentType: string): string | null {
-  const type = contentType.split(';')[0]?.trim().toLowerCase() ?? '';
-  return EXTENSION_BY_CONTENT_TYPE[type] ?? null;
-}
 
 export class LocalFileImageStorage implements ImageStorage {
   private readonly dir: string;
@@ -75,7 +71,12 @@ export class LocalFileImageStorage implements ImageStorage {
       }
 
       const stored = await this.persist(Buffer.concat(chunks), contentType);
-      if (!stored) logger.warn('image storage: unrecognized content type', { sourceUrl, contentType });
+      if (!stored) {
+        logger.warn('image storage: fetched bytes are not a supported image', {
+          sourceUrl,
+          declaredType: contentType,
+        });
+      }
       return stored;
     } catch (e) {
       logger.warn('image storage: unexpected error during persistence', {
@@ -94,7 +95,11 @@ export class LocalFileImageStorage implements ImageStorage {
       }
 
       const stored = await this.persist(buffer, contentType);
-      if (!stored) logger.warn('image storage: unrecognized uploaded content type', { contentType });
+      if (!stored) {
+        logger.warn('image storage: uploaded bytes are not a supported image', {
+          declaredType: contentType,
+        });
+      }
       return stored;
     } catch (e) {
       logger.warn('image storage: unexpected error persisting uploaded file', {
@@ -104,10 +109,28 @@ export class LocalFileImageStorage implements ImageStorage {
     }
   }
 
-  private async persist(buffer: Buffer, contentType: string): Promise<string | null> {
-    const ext = extensionFor(contentType);
-    if (!ext) return null;
+  /**
+   * Writes the buffer under an extension decided by its *bytes*.
+   *
+   * `declaredType` is only used to report a mismatch. It comes from a
+   * browser's `File.type` or a remote `Content-Type` header — a claim by
+   * whoever supplied the bytes — and letting it choose the extension meant
+   * arbitrary content could be written as `.png` and served from a public
+   * directory.
+   */
+  private async persist(buffer: Buffer, declaredType: string): Promise<string | null> {
+    const detected = detectImageType(buffer);
+    if (!detected) return null;
 
+    const declared = declaredType.split(';')[0]?.trim().toLowerCase() ?? '';
+    if (declared !== '' && declared !== detected) {
+      logger.warn('image storage: declared type did not match the file contents', {
+        declared,
+        detected,
+      });
+    }
+
+    const ext = EXTENSION_BY_IMAGE_TYPE[detected];
     const filename = `${randomUUID()}.${ext}`;
     await mkdir(this.dir, { recursive: true });
     await writeFile(path.join(this.dir, filename), buffer);
