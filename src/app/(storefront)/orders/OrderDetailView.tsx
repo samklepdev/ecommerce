@@ -29,6 +29,14 @@ interface OrderDetailViewProps {
   cancelAction?: CancelOrderButtonProps['action'];
   /** Same split as cancelAction — omitted on the admin order-detail page. */
   reorderAction?: ReorderButtonProps['action'];
+  /**
+   * Whether to wrap in the storefront's `PageContainer` (960px, centred).
+   *
+   * Admin passes `false` and supplies its own, wider container — otherwise
+   * the order card sits visibly narrower than the notes editor and event
+   * timeline rendered underneath it, which have no max width at all.
+   */
+  contained?: boolean;
 }
 
 export function OrderDetailView({
@@ -39,6 +47,7 @@ export function OrderDetailView({
   backLabel,
   cancelAction,
   reorderAction,
+  contained = true,
 }: OrderDetailViewProps) {
   const subtotal = order.lines.reduce(
     (sum, line) => sum.add(Money.of(line.unitAmountMinor, order.currency).multiply(line.quantity)),
@@ -53,8 +62,8 @@ export function OrderDetailView({
   const total = Money.of(order.amountMinor, order.currency);
   const trackedShipments = shipments.filter((s) => s.trackingNumber);
 
-  return (
-    <PageContainer>
+  const body = (
+    <>
       <Stack gap={5}>
         <div>
           <Link href={backHref}>← {backLabel}</Link>
@@ -179,6 +188,8 @@ export function OrderDetailView({
           </Card>
         )}
       </Stack>
-    </PageContainer>
+    </>
   );
+
+  return contained ? <PageContainer>{body}</PageContainer> : body;
 }

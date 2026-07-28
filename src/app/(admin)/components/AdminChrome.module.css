@@ -25,6 +25,13 @@
   --slate: #5a6880;
   --amber: #b87503;
   --rose: #a3231b;
+  /* Green and violet join navy/amber/rose as *status* colours only — they
+     never appear as chrome. Settled money and returned money are the two
+     facts an admin scans an order list for, and neither survived being
+     rendered in the same navy as everything else. Both are desaturated to
+     sit with the rest of the console rather than glowing out of it. */
+  --green: #1a6b46;
+  --violet: #5b46a8;
   --surface-hi: #f6f8fa;
   --accent-ink: #ffffff;
   --accent-wash: rgba(34, 70, 127, 0.07);
@@ -54,9 +61,16 @@
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-accent-foreground: #ffffff;
-  --color-success: var(--accent);
+  /* Was var(--accent): "paid" rendered in the same navy as every other
+     chip, so the one status worth spotting in a column of orders was the
+     hardest to find. */
+  --color-success: var(--green);
   --color-warning: var(--amber);
   --color-danger: var(--rose);
+  --color-info: var(--accent-bright);
+  --color-violet: var(--violet);
+  --color-slate: var(--slate);
+  --color-danger-wash: var(--rose-wash);
   /* The *-foreground half has to be pinned too, not just the fills. The
      console commits to one light treatment (see color-scheme below), but
      globals.css still flips these to near-black inside its
@@ -66,6 +80,9 @@
   --color-success-foreground: #ffffff;
   --color-warning-foreground: #ffffff;
   --color-danger-foreground: #ffffff;
+  --color-info-foreground: #ffffff;
+  --color-violet-foreground: #ffffff;
+  --color-slate-foreground: #ffffff;
   --color-row-stripe: rgba(16, 28, 51, 0.022);
   --color-row-hover: rgba(34, 70, 127, 0.05);
 

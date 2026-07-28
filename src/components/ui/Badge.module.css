@@ -36,6 +36,30 @@
   color: var(--color-danger-foreground);
 }
 
+.info {
+  background: var(--color-info);
+  color: var(--color-info-foreground);
+}
+
+.violet {
+  background: var(--color-violet);
+  color: var(--color-violet-foreground);
+}
+
+.slate {
+  background: var(--color-slate);
+  color: var(--color-slate-foreground);
+}
+
+/* Outlined rather than filled, in the danger hue: a state that ended
+   without completing, but that nobody needs to act on — distinct at a
+   glance from the solid red of an actual failure. */
+.dangerSoft {
+  background: var(--color-danger-wash);
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+}
+
 .sats {
   color: var(--amber, var(--color-warning));
   background: var(--amber-wash);

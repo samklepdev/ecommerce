@@ -9,6 +9,7 @@ import { FailOrderButton } from './FailOrderButton';
 import { MarkDeliveredButton } from './MarkDeliveredButton';
 import { OrderNotesEditor } from './OrderNotesEditor';
 import { OrderEventsTimeline } from './OrderEventsTimeline';
+import styles from './page.module.css';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,22 +32,28 @@ export default async function AdminOrderDetailPage({ params }: AdminOrderDetailP
   ]);
 
   return (
-    <>
+    <div className={styles.page}>
+      {/* `contained={false}`: this page supplies the container, so the card
+          lines up with the panels below instead of sitting 960px wide
+          inside them. */}
       <OrderDetailView
         order={order}
         shipments={shipments}
         paymentSession={null}
         backHref="/admin/orders"
         backLabel="Back to orders"
+        contained={false}
       />
-      {order.paymentRecoveredFrom && (
-        <Badge tone="warning">Recovered from {order.paymentRecoveredFrom}</Badge>
-      )}
-      <RefundOrderButton orderId={order.id} paymentStatus={order.paymentStatus} />
-      <FailOrderButton orderId={order.id} paymentStatus={order.paymentStatus} />
-      <MarkDeliveredButton orderId={order.id} fulfillmentStatus={order.fulfillmentStatus} />
+      <div className={styles.actions}>
+        {order.paymentRecoveredFrom && (
+          <Badge tone="warning">Recovered from {order.paymentRecoveredFrom}</Badge>
+        )}
+        <RefundOrderButton orderId={order.id} paymentStatus={order.paymentStatus} />
+        <FailOrderButton orderId={order.id} paymentStatus={order.paymentStatus} />
+        <MarkDeliveredButton orderId={order.id} fulfillmentStatus={order.fulfillmentStatus} />
+      </div>
       <OrderNotesEditor orderId={order.id} notes={order.notes} />
       <OrderEventsTimeline events={events} />
-    </>
+    </div>
   );
 }
