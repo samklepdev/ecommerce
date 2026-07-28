@@ -11,6 +11,7 @@ import {
 import { SupplierOrderReferenceEditor } from './SupplierOrderReferenceEditor';
 import { SupplierOrderTrackingEditor } from './SupplierOrderTrackingEditor';
 import { FulfillmentBulkActions } from './FulfillmentBulkActions';
+import { RetrySourcingButton } from './RetrySourcingButton';
 import { KNOWN_CARRIERS, carrierLabel } from '@/shared/domain/carrier-tracking';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
@@ -133,7 +134,12 @@ export default async function AdminFulfillmentPage({ searchParams }: AdminFulfil
                   <span>
                     Order {line.orderId.slice(0, 8)} — {line.sku}
                   </span>
-                  <Link href="/admin/products">Add supplier offer →</Link>
+                  <span className={styles.lineActions}>
+                    <Link href="/admin/products">Add supplier offer →</Link>
+                    {/* Adding the offer alone changes nothing — sourcing ran
+                        once when payment confirmed. This is what re-runs it. */}
+                    <RetrySourcingButton orderId={line.orderId} />
+                  </span>
                 </li>
               ))}
             </ul>

@@ -21,10 +21,12 @@ export class EmailPaymentConfirmationNotifier implements PaymentConfirmationNoti
     const order = await this.orderHistory.findById(orderId);
     if (!order) return;
 
-    const total = order.lines.reduce(
-      (sum, line) => sum.add(Money.of(line.unitAmountMinor, order.currency).multiply(line.quantity)),
-      Money.zero(order.currency),
-    );
+    // `amountMinor` is the total PlaceOrder persisted — line items plus
+    // shipping, less any coupon — and it's what the BTC quote was struck
+    // from. Re-summing the lines here (as this did) silently dropped both
+    // adjustments, so the email disagreed with the order page and with the
+    // amount the customer actually sent.
+    const total = Money.of(order.amountMinor, order.currency);
 
     const html = renderPaymentConfirmedEmailHtml({
       orderId: order.id,

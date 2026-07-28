@@ -123,6 +123,8 @@ import { DrizzleEmailVerificationRepository } from '@/modules/identity/infrastru
 
 import { DrizzleWelcomeEmailRepository } from '@/modules/notifications/infrastructure/drizzle-welcome-email-repository';
 import { ConsoleEmailSender } from '@/modules/notifications/infrastructure/console-email-sender';
+import { ResendEmailSender } from '@/modules/notifications/infrastructure/resend-email-sender';
+import type { EmailSender } from '@/modules/notifications/application/ports/email-sender';
 import { DrizzlePasswordResetRepository } from '@/modules/identity/infrastructure/drizzle-password-reset-repository';
 import { RequestPasswordReset } from '@/modules/identity/application/use-cases/request-password-reset';
 import { ResetPassword } from '@/modules/identity/application/use-cases/reset-password';
@@ -377,9 +379,14 @@ function build(): Container {
 
   // --- notifications ---
   const welcomeEmails = new DrizzleWelcomeEmailRepository(db);
-  const consoleEmailSender = new ConsoleEmailSender();
-  const sendWelcomeEmail = new SendWelcomeEmail(welcomeEmails, consoleEmailSender, env.APP_URL);
-  const sendOrderConfirmationEmail = new SendOrderConfirmationEmail(consoleEmailSender);
+  // Real delivery when a provider is configured, the logging stub otherwise.
+  // env.ts guarantees EMAIL_FROM is present whenever the key is.
+  const emailSender: EmailSender =
+    env.RESEND_API_KEY && env.EMAIL_FROM
+      ? new ResendEmailSender(env.RESEND_API_KEY, env.EMAIL_FROM)
+      : new ConsoleEmailSender();
+  const sendWelcomeEmail = new SendWelcomeEmail(welcomeEmails, emailSender, env.APP_URL);
+  const sendOrderConfirmationEmail = new SendOrderConfirmationEmail(emailSender);
   const markWelcomeEmailOpened = new MarkWelcomeEmailOpened(welcomeEmails);
   const getWelcomeEmailStatus = new GetWelcomeEmailStatus(welcomeEmails);
 
@@ -388,7 +395,7 @@ function build(): Container {
   const requestPasswordReset = new RequestPasswordReset(
     users,
     passwordResetRepository,
-    consoleEmailSender,
+    emailSender,
     env.APP_URL,
     env.PASSWORD_RESET_TTL_SECONDS,
   );
@@ -397,7 +404,7 @@ function build(): Container {
   const emailVerificationRepository = new DrizzleEmailVerificationRepository(db);
   const requestEmailVerification = new RequestEmailVerification(
     emailVerificationRepository,
-    consoleEmailSender,
+    emailSender,
     env.APP_URL,
     env.EMAIL_VERIFICATION_TTL_SECONDS,
   );
@@ -473,7 +480,7 @@ function build(): Container {
   const fulfillment = new SupplierOrderFulfillmentQueue(createSupplierOrdersForPaidOrder);
   const paymentConfirmationNotifier = new EmailPaymentConfirmationNotifier(
     orders,
-    consoleEmailSender,
+    emailSender,
     env.APP_URL,
   );
   const markSupplierOrderOrdered = new MarkSupplierOrderOrdered(supplierOrders);

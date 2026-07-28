@@ -5,6 +5,8 @@ import { z } from 'zod';
  * from here.
  */
 
+const emptyAsUndefined = (v: unknown) => (v === '' ? undefined : v);
+
 const PUBLIC_KEY_PREFIXES = ['xpub', 'ypub', 'zpub', 'tpub', 'upub', 'vpub'];
 const PRIVATE_KEY_PREFIXES = ['xprv', 'yprv', 'zprv', 'tprv', 'uprv', 'vprv'];
 
@@ -61,6 +63,18 @@ const envSchema = z.object({
   // via env, no code change needed.
   SUPPORT_EMAIL: z.string().email().default('support@storefront.example'),
 
+  // Outbound email. Unset, the app falls back to ConsoleEmailSender, which
+  // logs instead of sending — fine for local dev, but it means password
+  // resets and order confirmations never reach a customer, so production
+  // needs both of these. The pair is validated together below.
+  // Blank reads as absent, not as a validation failure: `KEY=` with nothing
+  // after it is how a .env file normally says "not configured yet", and
+  // failing the whole boot over it would be obnoxious.
+  RESEND_API_KEY: z.preprocess(emptyAsUndefined, z.string().min(1).optional()),
+  /** The verified sender address on the Resend account (e.g.
+   * `orders@yourshop.com`). Resend rejects anything unverified. */
+  EMAIL_FROM: z.preprocess(emptyAsUndefined, z.string().email().optional()),
+
   // Where the DB-IP database lives. Defaults to the copy in the repo, but
   // on a server it's better kept outside the working tree — the archive is
   // 59 MB and a monthly refresh would otherwise add that to git history
@@ -74,7 +88,14 @@ const envSchema = z.object({
   // to any public address to see them populate. Forced to undefined outside
   // development below, so it can never launder a fake IP into real data.
   ANALYTICS_DEV_IP: z.string().min(1).optional(),
-});
+})
+  // A key with no verified sender is a boot-time misconfiguration that would
+  // otherwise surface as every email failing at Resend, one silent 422 at a
+  // time. Fail here instead.
+  .refine((v) => !v.RESEND_API_KEY || v.EMAIL_FROM, {
+    path: ['EMAIL_FROM'],
+    message: 'EMAIL_FROM is required when RESEND_API_KEY is set — Resend rejects unverified senders.',
+  });
 
 const parsed = envSchema.parse(process.env);
 

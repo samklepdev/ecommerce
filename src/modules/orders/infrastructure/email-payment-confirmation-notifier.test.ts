@@ -58,6 +58,29 @@ describe('EmailPaymentConfirmationNotifier', () => {
     expect(sent[0]?.html).toContain('https://shop.example.com/orders/order-1');
   });
 
+  // The email used to sum line items only. On any order with shipping or a
+  // coupon that disagreed with both the order page and the amount of BTC the
+  // customer actually sent — the one number they check against their wallet.
+  it('emails the charged total, not the line-item subtotal', async () => {
+    const orderHistory = makeFakeOrderHistory(
+      makeOrder({
+        // 2 × 2100 = 4200 subtotal, + 500 shipping, − 700 discount.
+        amountMinor: 4000,
+        shippingAmountMinor: 500,
+        discountAmountMinor: 700,
+        couponCode: 'SAVE7',
+      }),
+    );
+    const { sender, sent } = makeFakeEmailSender();
+
+    await new EmailPaymentConfirmationNotifier(orderHistory, sender, 'https://shop.example.com').notifyPaymentConfirmed(
+      'order-1',
+    );
+
+    expect(sent[0]?.html).toContain('4000 USD');
+    expect(sent[0]?.html).not.toContain('4200 USD');
+  });
+
   it('is a no-op when the order no longer exists', async () => {
     const orderHistory = makeFakeOrderHistory(null);
     const { sender, sent } = makeFakeEmailSender();

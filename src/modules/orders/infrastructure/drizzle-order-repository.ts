@@ -1,8 +1,14 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, gte, ilike, inArray, isNotNull, lt, lte, sql } from 'drizzle-orm';
+import { and, eq, gte, ilike, inArray, isNotNull, lt, lte, notExists, sql } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
-import { orderLines, orderEvents, orders, products } from '@/shared/infrastructure/db/schema';
+import {
+  orderLines,
+  orderEvents,
+  orders,
+  products,
+  supplierOrderLines,
+} from '@/shared/infrastructure/db/schema';
 import { Money } from '@/shared/domain/money';
 import { PAYMENT_EXPIRY_GRACE_MS } from '@/shared/domain/payment-expiry-grace';
 import type { Order } from '@/modules/orders/domain/order';
@@ -196,10 +202,26 @@ export class DrizzleOrderRepository
       : withShipping;
   }
 
-  async getOrderLines(orderId: string): Promise<PaidOrderLine[]> {
-    const rows = await this.db.query.orderLines.findMany({
-      where: eq(orderLines.orderId, orderId),
-    });
+  async getUnsourcedOrderLines(orderId: string): Promise<PaidOrderLine[]> {
+    // Excludes any line a supplier order already covers, which is what makes
+    // re-sourcing an order safe to run more than once. Note it keys off the
+    // existence of a supplier_order_line, not that supplier order's status —
+    // a cancelled supplier order still counts as sourced, because reviving
+    // it is an ops decision, not something a retry should infer.
+    const rows = await this.db
+      .select({ id: orderLines.id, productId: orderLines.productId, quantity: orderLines.quantity })
+      .from(orderLines)
+      .where(
+        and(
+          eq(orderLines.orderId, orderId),
+          notExists(
+            this.db
+              .select({ one: sql`1` })
+              .from(supplierOrderLines)
+              .where(eq(supplierOrderLines.orderLineId, orderLines.id)),
+          ),
+        ),
+      );
     return rows.map((r) => ({ id: r.id, productId: r.productId, quantity: r.quantity }));
   }
 
@@ -207,6 +229,13 @@ export class DrizzleOrderRepository
     await this.db
       .update(orderLines)
       .set({ fulfillmentIssue: reason })
+      .where(eq(orderLines.id, orderLineId));
+  }
+
+  async clearFulfillmentIssue(orderLineId: string): Promise<void> {
+    await this.db
+      .update(orderLines)
+      .set({ fulfillmentIssue: null })
       .where(eq(orderLines.id, orderLineId));
   }
 

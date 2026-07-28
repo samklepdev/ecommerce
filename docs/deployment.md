@@ -40,7 +40,12 @@ lost:
    `mempool.space` API — fine for dev, but it sees every address this app
    ever queries. Production should run a self-hosted `electrs`/Esplora or
    `bitcoind`.
-4. **Mainnet cutover.** `BTC_NETWORK` defaults to `testnet`. Going live means
+4. **Email provider.** `RESEND_API_KEY` + `EMAIL_FROM` switch on real
+   delivery. Without them nothing is sent — a customer who loses their order
+   link has no confirmation email to find it in, and password reset is dead
+   in the water. Sending is still inline in the request path rather than on a
+   queue; every caller that can't tolerate a failed send already catches.
+5. **Mainnet cutover.** `BTC_NETWORK` defaults to `testnet`. Going live means
    setting `bitcoin` + a real watch-only mainnet xpub (`BTC_ACCOUNT_XPUB`) —
    never a seed, mnemonic, or private key on the server, enforced by a Zod
    check in `src/config/env.ts`.
@@ -81,6 +86,8 @@ than surfacing later as a confusing runtime error.
 | `BTC_NETWORK` | `testnet` | Must be `bitcoin` for real money |
 | `APP_URL` | `http://localhost:3000` | Used to build links in outbound email. Left unset, password-reset and verification emails point customers at localhost |
 | `SUPPORT_EMAIL` | `support@storefront.example` | Shown in the storefront footer as the contact address — a real one, or customers write to nobody |
+| `RESEND_API_KEY` | *(unset)* | Unset, `ConsoleEmailSender` logs email instead of sending it: password resets, email verification and order confirmations never reach anyone. Set it in production, and check the startup log — the stub says so on boot |
+| `EMAIL_FROM` | *(unset)* | The sender address, verified on the Resend account. Required whenever `RESEND_API_KEY` is set (boot fails otherwise, rather than letting every send 422 one at a time) |
 
 **Defaulted, tune if you need to:**
 

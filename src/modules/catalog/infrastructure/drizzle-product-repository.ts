@@ -69,6 +69,15 @@ export class DrizzleProductRepository implements ProductRepository {
   constructor(private readonly db: DB) {}
 
   async findBySlug(slug: string): Promise<Product | null> {
+    const row = await this.db.query.products.findFirst({
+      where: and(eq(products.slug, slug), eq(products.status, 'active')),
+    });
+    if (!row) return null;
+    const images = await this.imagesFor([row.id]);
+    return toProduct(row, images.get(row.id) ?? []);
+  }
+
+  async findAnyBySlug(slug: string): Promise<Product | null> {
     const row = await this.db.query.products.findFirst({ where: eq(products.slug, slug) });
     if (!row) return null;
     const images = await this.imagesFor([row.id]);
@@ -109,6 +118,15 @@ export class DrizzleProductRepository implements ProductRepository {
   }
 
   async findById(productId: string): Promise<Product | null> {
+    const row = await this.db.query.products.findFirst({
+      where: and(eq(products.id, productId), eq(products.status, 'active')),
+    });
+    if (!row) return null;
+    const images = await this.imagesFor([row.id]);
+    return toProduct(row, images.get(row.id) ?? []);
+  }
+
+  async findAnyById(productId: string): Promise<Product | null> {
     const row = await this.db.query.products.findFirst({ where: eq(products.id, productId) });
     if (!row) return null;
     const images = await this.imagesFor([row.id]);

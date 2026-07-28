@@ -89,7 +89,15 @@
 .lineItem {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
   font-size: 0.875rem;
+}
+
+.lineActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
 }
 
 .total {

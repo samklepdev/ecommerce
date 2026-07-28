@@ -26,6 +26,11 @@ interface BitcoinCheckoutProps {
   expiresAt: string | null;
   amountBtc: string;
   amountFiat: string;
+  /** The order's payment status as the server knows it at render time. The
+   * widget polls for changes, but without this it would paint "Awaiting
+   * payment" for the first ~5s of every visit — including a visit to an
+   * order that settled days ago. */
+  initialStatus: WidgetStatus;
 }
 
 const STATUS_LABEL: Record<WidgetStatus, string> = {
@@ -70,14 +75,6 @@ function useCountdown(expiresAt: string | null): string | null {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-const initialProgress: StatusResponse = {
-  status: 'awaiting',
-  confirmations: 0,
-  requiredConfirmations: 0,
-  underpaid: false,
-  overpaid: false,
-};
-
 export function BitcoinCheckout({
   orderId,
   address,
@@ -85,8 +82,15 @@ export function BitcoinCheckout({
   expiresAt,
   amountBtc,
   amountFiat,
+  initialStatus,
 }: BitcoinCheckoutProps) {
-  const [progress, setProgress] = useState<StatusResponse>(initialProgress);
+  const [progress, setProgress] = useState<StatusResponse>({
+    status: initialStatus,
+    confirmations: 0,
+    requiredConfirmations: 0,
+    underpaid: false,
+    overpaid: false,
+  });
   const [copied, setCopied] = useState(false);
   const { status } = progress;
   const countdown = useCountdown(status === 'awaiting' ? expiresAt : null);

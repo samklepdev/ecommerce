@@ -287,3 +287,57 @@ export async function bulkCancelSupplierOrdersAction(
   }
   return { message: `Cancelled ${result.updated} supplier order${result.updated === 1 ? '' : 's'}.` };
 }
+
+const RetrySourcingSchema = z.object({
+  orderId: z.string().min(1),
+});
+
+export interface RetrySourcingActionResult {
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Re-runs supplier sourcing for a paid order whose lines couldn't be sourced
+ * the first time (no preferred supplier offer existed yet). Without this, an
+ * order in that state was terminal: `CreateSupplierOrdersForPaidOrder` ran
+ * once from `ConfirmPayment`, adding the missing offer afterwards changed
+ * nothing, and the customer's money had already settled irreversibly.
+ *
+ * Safe to press twice — the use case only ever sees lines no supplier order
+ * covers yet, and refuses outright if the order is no longer paid.
+ */
+export async function retrySourcingAction(
+  _prevState: RetrySourcingActionResult | undefined,
+  formData: FormData,
+): Promise<RetrySourcingActionResult> {
+  const admin = await requireAdmin();
+  const parsed = RetrySourcingSchema.safeParse({ orderId: formData.get('orderId') });
+  if (!parsed.success) return { error: 'Missing order id.' };
+
+  const { createSupplierOrdersForPaidOrder, listUnfulfillableOrderLines, recordAuditLogEntry } =
+    getContainer();
+
+  const before = (await listUnfulfillableOrderLines.execute()).filter(
+    (l) => l.orderId === parsed.data.orderId,
+  ).length;
+  await createSupplierOrdersForPaidOrder.execute({ orderId: parsed.data.orderId });
+  const after = (await listUnfulfillableOrderLines.execute()).filter(
+    (l) => l.orderId === parsed.data.orderId,
+  ).length;
+
+  await recordAuditLogEntry.execute({
+    actorUserId: admin.id,
+    actorEmail: admin.email,
+    action: 'order.sourcing_retried',
+    targetType: 'order',
+    targetId: parsed.data.orderId,
+    metadata: { unfulfillableBefore: before, unfulfillableAfter: after },
+  });
+
+  revalidatePath('/admin/fulfillment');
+
+  if (after === 0) return { message: 'Sourced. The order is now in the fulfillment queue.' };
+  if (after < before) return { message: `Sourced ${before - after} of ${before} lines.` };
+  return { error: 'Still no preferred supplier offer for this order — add one, then retry.' };
+}

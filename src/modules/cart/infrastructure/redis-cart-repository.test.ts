@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type Redis from 'ioredis';
 
 import { RedisCartRepository } from './redis-cart-repository';
-import type { CartOwner } from '@/modules/cart/domain/cart';
+import { Cart, type CartOwner } from '@/modules/cart/domain/cart';
 
 /** Just enough of ioredis to exercise the serialization boundary — no server,
  * in keeping with "domain and use-case tests run without infra". */
@@ -69,5 +69,29 @@ describe('RedisCartRepository', () => {
   it('returns null when there is no cart at all', async () => {
     const { redis } = makeFakeRedis();
     expect(await new RedisCartRepository(redis).get(owner)).toBeNull();
+  });
+
+  // An empty guest session id used to build the key `cart:guest:` — one key
+  // that every cookie-less visitor shared, so they saw and edited each
+  // other's carts. There is no sane cart to return for "no session", so the
+  // key builder refuses rather than silently picking the shared one.
+  describe('with an empty guest session id', () => {
+    const anonymous: CartOwner = { type: 'guest', sessionId: '' };
+
+    it('refuses to read', async () => {
+      const { redis } = makeFakeRedis({ 'cart:guest:': JSON.stringify({ id: 'c', lines: [] }) });
+      await expect(new RedisCartRepository(redis).get(anonymous)).rejects.toThrow(
+        /guest cart owner has no session id/i,
+      );
+    });
+
+    it('refuses to write', async () => {
+      const { redis, store } = makeFakeRedis();
+      const repo = new RedisCartRepository(redis);
+      const cart = Cart.create({ id: 'cart-1', owner: anonymous, lines: [] });
+
+      await expect(repo.save(cart)).rejects.toThrow(/guest cart owner has no session id/i);
+      expect(store.size).toBe(0);
+    });
   });
 });

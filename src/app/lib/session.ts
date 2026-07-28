@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { cookies } from 'next/headers';
 
 import { getContainer } from '@/composition/container';
@@ -6,6 +8,9 @@ import type { User } from '@/modules/identity/domain/user';
 
 export const GUEST_SESSION_COOKIE = 'guest_session_id';
 export const SESSION_COOKIE = 'session_id';
+/** Mirrors proxy.ts — the cookie is normally minted there, and only re-set
+ * here when a request somehow arrived without one. */
+const GUEST_SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
 export async function getSessionUser(): Promise<User | null> {
   const cookieStore = await cookies();
@@ -21,8 +26,29 @@ export async function resolveCartOwner(): Promise<CartOwner> {
   if (user) return { type: 'user', userId: user.id };
 
   const cookieStore = await cookies();
-  const guestSessionId = cookieStore.get(GUEST_SESSION_COOKIE)?.value ?? '';
-  return { type: 'guest', sessionId: guestSessionId };
+  const existing = cookieStore.get(GUEST_SESSION_COOKIE)?.value;
+  if (existing) return { type: 'guest', sessionId: existing };
+
+  // No cookie: proxy.ts should have set one, but anything that slips past it
+  // (an excluded path, a client that drops cookies) must still get its OWN
+  // cart. The old fallback was an empty string, which every such visitor
+  // shared as the single Redis key `cart:guest:` — strangers reading and
+  // editing one another's carts.
+  const sessionId = randomUUID();
+  try {
+    cookieStore.set(GUEST_SESSION_COOKIE, sessionId, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: GUEST_SESSION_TTL_SECONDS,
+    });
+  } catch {
+    // Server Components can't set cookies — only Actions and Route Handlers
+    // can. The id is then ephemeral: this render gets an empty cart of its
+    // own rather than somebody else's, and the next mutation persists one.
+  }
+  return { type: 'guest', sessionId };
 }
 
 /**

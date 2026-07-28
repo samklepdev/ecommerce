@@ -11,8 +11,6 @@ interface PublicOrderDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-const AWAITING_PAYMENT_STATUSES = new Set(['pending', 'awaiting_payment', 'awaiting_confirmation']);
-
 /**
  * No login required — knowledge of the order id (a randomUUID, effectively
  * unguessable) is the access capability, matching the existing
@@ -28,10 +26,12 @@ export default async function PublicOrderDetailPage({ params }: PublicOrderDetai
 
   const shipments = await getShipmentsForOrder.execute({ orderId: order.id });
 
-  let paymentSession = null;
-  if (AWAITING_PAYMENT_STATUSES.has(order.paymentStatus)) {
-    paymentSession = await getPaymentSessionForOrder.execute({ orderId: order.id });
-  }
+  // Fetched for every status, not just the awaiting ones. The panel holds
+  // the "Payment confirmed" and "expired" copy, so gating it on awaiting
+  // meant it vanished at the exact moment payment settled — the most
+  // anxious moment of an irreversible purchase. It's null only when the
+  // order never had a BTC intent at all.
+  const paymentSession = await getPaymentSessionForOrder.execute({ orderId: order.id });
 
   return (
     <OrderDetailView

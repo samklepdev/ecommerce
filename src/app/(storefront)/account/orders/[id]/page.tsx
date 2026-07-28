@@ -11,8 +11,6 @@ interface OrderDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-const AWAITING_PAYMENT_STATUSES = new Set(['pending', 'awaiting_payment', 'awaiting_confirmation']);
-
 export default async function OrderDetailPage({ params }: OrderDetailPageProps) {
   const user = await getSessionUser();
   if (!user) redirect('/login');
@@ -26,10 +24,9 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
   const shipments = await getShipmentsForOrder.execute({ orderId: order.id });
 
-  let paymentSession = null;
-  if (AWAITING_PAYMENT_STATUSES.has(order.paymentStatus)) {
-    paymentSession = await getPaymentSessionForOrder.execute({ orderId: order.id });
-  }
+  // Every status, not just the awaiting ones — see the note on the public
+  // order page: the panel carries the settled/expired copy too.
+  const paymentSession = await getPaymentSessionForOrder.execute({ orderId: order.id });
 
   return (
     <OrderDetailView

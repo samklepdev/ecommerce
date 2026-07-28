@@ -98,7 +98,11 @@ export class ImportProductsFromFeed
     let skipped = 0;
 
     for (const listing of result.value) {
-      const existing = await this.products.findBySlug(listing.slug);
+      // findAnyBySlug: this is a duplicate check against a unique column, so
+      // it has to see drafts and archived products. Imports land as `draft`,
+      // so the active-only lookup would miss every previous import of the
+      // same listing and fail on the slug constraint instead of skipping.
+      const existing = await this.products.findAnyBySlug(listing.slug);
       if (existing) {
         skipped += 1;
         continue;

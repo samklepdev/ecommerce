@@ -13,6 +13,7 @@ import { Stack } from '@/components/ui/Stack';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { BitcoinCheckout } from '../checkout/BitcoinCheckout';
+import { toWidgetStatus } from '../checkout/bitcoin-checkout-status';
 import { CancelOrderButton, type CancelOrderButtonProps } from './CancelOrderButton';
 import { ReorderButton, type ReorderButtonProps } from './ReorderButton';
 import styles from './OrderDetailView.module.css';
@@ -45,7 +46,11 @@ export function OrderDetailView({
   );
   const shipping = Money.of(order.shippingAmountMinor, order.currency);
   const discount = Money.of(order.discountAmountMinor, order.currency);
-  const total = subtotal.add(shipping).subtract(discount);
+  // The persisted total, not a re-derivation of it — `amountMinor` is what
+  // PlaceOrder charged and what the BTC quote was struck from. The lines
+  // above it are the breakdown; this is the number that has to match the
+  // confirmation email and the customer's wallet.
+  const total = Money.of(order.amountMinor, order.currency);
   const trackedShipments = shipments.filter((s) => s.trackingNumber);
 
   return (
@@ -81,6 +86,7 @@ export function OrderDetailView({
             expiresAt={paymentSession.expiresAt.toISOString()}
             amountBtc={satsToBtcString(paymentSession.expectedSats)}
             amountFiat={total.toDisplayString()}
+            initialStatus={toWidgetStatus(order.paymentStatus)}
           />
         )}
 
@@ -110,6 +116,10 @@ export function OrderDetailView({
                   </li>
                 ))}
               </ul>
+              <div className={styles.lineRow}>
+                <span>Subtotal</span>
+                <span>{subtotal.toDisplayString()}</span>
+              </div>
               {order.discountAmountMinor > 0 && (
                 <div className={styles.lineRow}>
                   <span>Discount{order.couponCode ? ` (${order.couponCode})` : ''}</span>
