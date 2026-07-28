@@ -132,6 +132,17 @@ feature" checklist).
   offer or supplier order holding it makes the row say so (and how many)
   where the Delete button would be, since supplier orders are purchase
   history and are never deletable. Deactivating is the reversible option.
+- **Categories** (`/admin/categories`) — categories are their own records,
+  not a free-text field on the product. Create one, rename it, give it a
+  description, merge one into another (every product moves, then the source
+  is deleted, in one transaction), or delete it (its products become
+  uncategorized — deleting a label never deletes what it labelled). A rename
+  is a single write and every product in the category follows it; as a text
+  column that was an update across the catalog that silently missed any row
+  spelled differently, and a typo created a second category that looked
+  identical in the table. The slug survives a rename on purpose, so existing
+  `/products?category=…` links keep resolving — and that filter accepts
+  either the slug or the display name.
 - **Products** (`/admin/products`) — create a product and its preferred
   supplier offer in one form; import a batch of products from a supplier feed (URL, pasted
   JSON, or an uploaded spreadsheet); a "paste a product URL" helper that

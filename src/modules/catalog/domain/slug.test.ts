@@ -48,3 +48,19 @@ describe('Slug#toString', () => {
     expect(Slug.create('widget-x').toString()).toBe('widget-x');
   });
 });
+
+describe('Slug.fromName', () => {
+  it('slugs a human category name', () => {
+    expect(Slug.fromName('Hardware wallets').value).toBe('hardware-wallets');
+  });
+
+  // Matches migration 0022's SQL exactly: collapse runs, trim the edges.
+  it('collapses punctuation runs and trims the edges', () => {
+    expect(Slug.fromName('  Seed backup & storage!  ').value).toBe('seed-backup-storage');
+    expect(Slug.fromName('--Accessories--').value).toBe('accessories');
+  });
+
+  it('refuses a name with nothing sluggable in it', () => {
+    expect(() => Slug.fromName('!!!')).toThrow(/Invalid slug/);
+  });
+});

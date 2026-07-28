@@ -57,6 +57,15 @@ export function TruckIcon(props: IconProps) {
   );
 }
 
+/** A folder — categories group products the way a folder groups files. */
+export function FolderIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 6a1 1 0 0 1 1-1h5l2 2.5h8a1 1 0 0 1 1 1V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z" />
+    </Icon>
+  );
+}
+
 export function TagIcon(props: IconProps) {
   return (
     <Icon {...props}>

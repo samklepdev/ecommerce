@@ -246,6 +246,12 @@ Worth knowing rather than rediscovering:
   see `0021_remove_product_variants.sql`.
 - **There are no product variants.** The product is the sellable unit and
   carries its own sku and price. Anything still saying otherwise is stale.
+- **Categories are a table**, not a string on the product (0022/0023).
+  `products.category_id` is the FK; `Product.category` is the display name,
+  hydrated on read, and `Product.categoryId` is what writes use. The
+  storefront's `?category=` accepts a slug or a name. Deleting a category
+  uncategorizes its products (ON DELETE SET NULL) rather than taking them
+  with it.
 - **Admin pages are themed on `.shell`**, the storefront on `.storefront`.
   Both are marked `data-theme-scope`, and anything portaled (see `Modal`)
   must land inside one or it resolves the bare `:root` palette instead.

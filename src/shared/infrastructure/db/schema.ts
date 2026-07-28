@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
@@ -174,6 +174,33 @@ export const analyticsEvents = pgTable(
   }),
 );
 
+/**
+ * A catalog category. Was a free-text column on `products` until 0022, which
+ * made "rename a category" an UPDATE across every product holding the old
+ * string, and made a typo a second category. It's a row now, so a rename is
+ * one write and the products follow.
+ *
+ * Deleting one leaves its products uncategorized (ON DELETE SET NULL) rather
+ * than taking them with it — a category is a label, and losing the label
+ * should never lose the thing labelled.
+ */
+export const categories = pgTable(
+  'categories',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    /** URL form, used by the storefront's ?category= filter. */
+    slug: text('slug').notNull(),
+    description: text('description'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    nameUnique: uniqueIndex('categories_name_unique').on(t.name),
+    slugUnique: uniqueIndex('categories_slug_unique').on(t.slug),
+  }),
+);
+
 export const products = pgTable(
   'products',
   {
@@ -182,7 +209,7 @@ export const products = pgTable(
     name: text('name').notNull(),
     description: text('description'),
     imageUrl: text('image_url'),
-    category: text('category'), // free-text tag; null means uncategorized
+    categoryId: text('category_id').references(() => categories.id, { onDelete: 'set null' }),
     status: text('status').notNull().default('draft'), // draft | active | archived
     source: text('source').notNull().default('manual'), // manual | feed_import
     // The product is the sellable unit — these came off `product_variants`
@@ -197,8 +224,25 @@ export const products = pgTable(
   (t) => ({
     slugUnique: uniqueIndex('products_slug_unique').on(t.slug),
     skuUnique: uniqueIndex('products_sku_unique').on(t.sku),
+    // The storefront filters by category on every catalog page.
+    categoryIdx: index('products_category_id_idx').on(t.categoryId),
   }),
 );
+
+/** The only relation declared so far. Products carry their category's *name*
+ * through the domain (nothing downstream wants an id), and this is what lets
+ * `with: { category: true }` hydrate it without every query restating the
+ * join. */
+export const productsRelations = relations(products, ({ one }) => ({
+  category: one(categories, {
+    fields: [products.categoryId],
+    references: [categories.id],
+  }),
+}));
+
+export const categoriesRelations = relations(categories, ({ many }) => ({
+  products: many(products),
+}));
 
 /** Images beyond a product's primary `products.image_url` — e.g. a
  * hover/alternate shot. `position` starts at 1 (0 is reserved for the

@@ -1,9 +1,25 @@
 import { randomUUID } from 'node:crypto';
 
-import { and, asc, count as countRows, desc, eq, exists, ilike, inArray, isNotNull, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  count as countRows,
+  desc,
+  eq,
+  exists,
+  ilike,
+  inArray,
+  or,
+  sql,
+} from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
-import { products, productImages, supplierOffers } from '@/shared/infrastructure/db/schema';
+import {
+  categories,
+  products,
+  productImages,
+  supplierOffers,
+} from '@/shared/infrastructure/db/schema';
 import { Money } from '@/shared/domain/money';
 import {
   Product,
@@ -27,7 +43,11 @@ function toProductImage(row: ProductImageRow): ProductImage {
   return { id: row.id, url: row.url, position: row.position };
 }
 
-function toProduct(row: ProductRow, additionalImages: ProductImage[]): Product {
+function toProduct(
+  row: ProductRow,
+  additionalImages: ProductImage[],
+  categoryName: string | null,
+): Product {
   return Product.create({
     id: row.id,
     slug: Slug.create(row.slug),
@@ -37,17 +57,20 @@ function toProduct(row: ProductRow, additionalImages: ProductImage[]): Product {
     additionalImages,
     status: row.status as ProductStatus,
     source: row.source as ProductSource,
-    category: row.category,
+    categoryId: row.categoryId,
+    category: categoryName,
     sku: row.sku,
     price: Money.of(row.unitAmountMinor, row.currency),
   });
 }
 
-function buildListFilter(params?: Pick<ListProductsParams, 'search' | 'category'>) {
+function buildListFilter(db: DB, params?: Pick<ListProductsParams, 'search' | 'category'>) {
   return and(
     eq(products.status, 'active'),
     params?.search ? ilike(products.name, `%${params.search}%`) : undefined,
-    params?.category ? eq(products.category, params.category) : undefined,
+    // Matches the category's slug or its display name, so links minted
+    // before categories became an entity still resolve.
+    params?.category ? categoryFilter(db, params.category) : undefined,
   );
 }
 
@@ -66,6 +89,17 @@ function adminProductFilter(db: DB, filter: AdminProductFilter) {
           eq(supplierOffers.supplierId, filter.supplierId),
         ),
       ),
+  );
+}
+
+/** `?category=` carries a slug or a name; either resolves to the same row. */
+function categoryFilter(db: DB, value: string) {
+  return inArray(
+    products.categoryId,
+    db
+      .select({ id: categories.id })
+      .from(categories)
+      .where(or(eq(categories.slug, value), eq(categories.name, value))),
   );
 }
 
@@ -94,14 +128,16 @@ export class DrizzleProductRepository implements ProductRepository {
     });
     if (!row) return null;
     const images = await this.imagesFor([row.id]);
-    return toProduct(row, images.get(row.id) ?? []);
+    const categoryNames = await this.categoryNamesFor([row]);
+    return toProduct(row, images.get(row.id) ?? [], categoryNames.get(row.categoryId ?? '') ?? null);
   }
 
   async findAnyBySlug(slug: string): Promise<Product | null> {
     const row = await this.db.query.products.findFirst({ where: eq(products.slug, slug) });
     if (!row) return null;
     const images = await this.imagesFor([row.id]);
-    return toProduct(row, images.get(row.id) ?? []);
+    const categoryNames = await this.categoryNamesFor([row]);
+    return toProduct(row, images.get(row.id) ?? [], categoryNames.get(row.categoryId ?? '') ?? null);
   }
 
   async list(params?: ListProductsParams): Promise<Product[]> {
@@ -111,29 +147,31 @@ export class DrizzleProductRepository implements ProductRepository {
     const rows = await this.db
       .select()
       .from(products)
-      .where(buildListFilter(params))
+      .where(buildListFilter(this.db, params))
       .orderBy(...buildOrderBy(params?.sort))
       .limit(params?.limit ?? 50)
       .offset(params?.offset ?? 0);
     if (rows.length === 0) return [];
 
     const imagesByProduct = await this.imagesFor(rows.map((r) => r.id));
-    return rows.map((row) => toProduct(row, imagesByProduct.get(row.id) ?? []));
+    const categoryNames = await this.categoryNamesFor(rows);
+    return rows.map((row) => toProduct(row, imagesByProduct.get(row.id) ?? [], categoryNames.get(row.categoryId ?? '') ?? null));
   }
 
   async count(params?: Pick<ListProductsParams, 'search' | 'category'>): Promise<number> {
     const [row] = await this.db
       .select({ value: countRows() })
       .from(products)
-      .where(buildListFilter(params));
+      .where(buildListFilter(this.db, params));
     return row?.value ?? 0;
   }
 
   async listCategories(): Promise<string[]> {
     const rows = await this.db
-      .selectDistinct({ category: products.category })
-      .from(products)
-      .where(and(eq(products.status, 'active'), isNotNull(products.category)));
+      .selectDistinct({ category: categories.name })
+      .from(categories)
+      .innerJoin(products, eq(products.categoryId, categories.id))
+      .where(eq(products.status, 'active'));
     return rows.map((r) => r.category).filter((c): c is string => c !== null).sort();
   }
 
@@ -143,14 +181,16 @@ export class DrizzleProductRepository implements ProductRepository {
     });
     if (!row) return null;
     const images = await this.imagesFor([row.id]);
-    return toProduct(row, images.get(row.id) ?? []);
+    const categoryNames = await this.categoryNamesFor([row]);
+    return toProduct(row, images.get(row.id) ?? [], categoryNames.get(row.categoryId ?? '') ?? null);
   }
 
   async findAnyById(productId: string): Promise<Product | null> {
     const row = await this.db.query.products.findFirst({ where: eq(products.id, productId) });
     if (!row) return null;
     const images = await this.imagesFor([row.id]);
-    return toProduct(row, images.get(row.id) ?? []);
+    const categoryNames = await this.categoryNamesFor([row]);
+    return toProduct(row, images.get(row.id) ?? [], categoryNames.get(row.categoryId ?? '') ?? null);
   }
 
   async findAnyByIds(productIds: string[]): Promise<Product[]> {
@@ -161,7 +201,8 @@ export class DrizzleProductRepository implements ProductRepository {
     if (rows.length === 0) return [];
 
     const imagesByProduct = await this.imagesFor(rows.map((r) => r.id));
-    return rows.map((row) => toProduct(row, imagesByProduct.get(row.id) ?? []));
+    const categoryNames = await this.categoryNamesFor(rows);
+    return rows.map((row) => toProduct(row, imagesByProduct.get(row.id) ?? [], categoryNames.get(row.categoryId ?? '') ?? null));
   }
 
   async findByIds(ids: string[]): Promise<Product[]> {
@@ -172,7 +213,8 @@ export class DrizzleProductRepository implements ProductRepository {
     if (rows.length === 0) return [];
 
     const imagesByProduct = await this.imagesFor(rows.map((r) => r.id));
-    return rows.map((row) => toProduct(row, imagesByProduct.get(row.id) ?? []));
+    const categoryNames = await this.categoryNamesFor(rows);
+    return rows.map((row) => toProduct(row, imagesByProduct.get(row.id) ?? [], categoryNames.get(row.categoryId ?? '') ?? null));
   }
 
   async listAllForAdmin(
@@ -190,7 +232,8 @@ export class DrizzleProductRepository implements ProductRepository {
     if (rows.length === 0) return [];
 
     const imagesByProduct = await this.imagesFor(rows.map((r) => r.id));
-    return rows.map((row) => toProduct(row, imagesByProduct.get(row.id) ?? []));
+    const categoryNames = await this.categoryNamesFor(rows);
+    return rows.map((row) => toProduct(row, imagesByProduct.get(row.id) ?? [], categoryNames.get(row.categoryId ?? '') ?? null));
   }
 
   async getAdminCatalogCounts(): Promise<AdminCatalogCounts> {
@@ -219,17 +262,17 @@ export class DrizzleProductRepository implements ProductRepository {
       description: product.description,
       status: product.status,
       source: product.source,
-      category: product.category,
+      categoryId: product.categoryId,
       sku: product.sku,
       unitAmountMinor: product.price.amountMinor,
       currency: product.price.currency,
     });
   }
 
-  async updateCategory(productId: string, category: string | null): Promise<void> {
+  async updateCategory(productId: string, categoryId: string | null): Promise<void> {
     await this.db
       .update(products)
-      .set({ category, updatedAt: new Date() })
+      .set({ categoryId, updatedAt: new Date() })
       .where(eq(products.id, productId));
   }
 
@@ -315,6 +358,19 @@ export class DrizzleProductRepository implements ProductRepository {
 
   async deleteProduct(productId: string): Promise<void> {
     await this.db.delete(products).where(eq(products.id, productId));
+  }
+
+  /** Category names for a set of rows, in one query — same shape as
+   * `imagesFor`. Products carry their category's name through the domain, so
+   * every read path needs this and none of them should spell out the join. */
+  private async categoryNamesFor(rows: { categoryId: string | null }[]): Promise<Map<string, string>> {
+    const ids = [...new Set(rows.map((r) => r.categoryId).filter((id): id is string => id !== null))];
+    if (ids.length === 0) return new Map();
+    const found = await this.db
+      .select({ id: categories.id, name: categories.name })
+      .from(categories)
+      .where(inArray(categories.id, ids));
+    return new Map(found.map((c) => [c.id, c.name] as const));
   }
 
   private async imagesFor(productIds: string[]): Promise<Map<string, ProductImage[]>> {

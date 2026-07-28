@@ -155,6 +155,20 @@
       "when": 1785600000000,
       "tag": "0021_remove_product_variants",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1785277167843,
+      "tag": "0022_add_categories_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1785277202394,
+      "tag": "0023_drop_product_category_text",
+      "breakpoints": true
     }
   ]
 }
