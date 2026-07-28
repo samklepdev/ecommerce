@@ -24,12 +24,12 @@
     "bip32": "^4.0.0",
     "bitcoinjs-lib": "^6.1.7",
     "cheerio": "^1.2.0",
-    "drizzle-orm": "^0.36.4",
+    "drizzle-orm": "^0.45.2",
     "exceljs": "^4.4.0",
     "ioredis": "^5.4.1",
     "leaflet": "^1.9.4",
     "maxmind": "^5.0.6",
-    "next": "^16.2.11",
+    "next": "^16.2.12",
     "postgres": "^3.4.5",
     "qrcode.react": "^4.1.0",
     "react": "19.2.4",
@@ -45,11 +45,18 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "drizzle-kit": "^0.28.1",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "tsx": "^4.19.2",
     "typescript": "^5",
-    "vitest": "^2.1.8"
+    "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "sharp": "^0.35.3",
+    "postcss": "^8.5.24",
+    "brace-expansion": "^5.0.8",
+    "minimatch": "^10.2.6",
+    "uuid": "^11.1.1"
   }
 }
