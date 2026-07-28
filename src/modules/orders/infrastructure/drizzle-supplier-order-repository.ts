@@ -79,6 +79,14 @@ export class DrizzleSupplierOrderRepository implements SupplierOrderRepository {
     return this.hydrateLines(rows);
   }
 
+  async listByOrderIds(orderIds: string[]): Promise<SupplierOrderSummary[]> {
+    if (orderIds.length === 0) return [];
+    const rows = await this.db.query.supplierOrders.findMany({
+      where: inArray(supplierOrders.orderId, orderIds),
+    });
+    return this.hydrateLines(rows);
+  }
+
   async listByStatus(status?: SupplierOrderStatus): Promise<SupplierOrderSummary[]> {
     const rows = await this.db.query.supplierOrders.findMany({
       where: status ? eq(supplierOrders.status, status) : undefined,

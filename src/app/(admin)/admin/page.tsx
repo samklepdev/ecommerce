@@ -21,23 +21,24 @@ export default async function AdminDashboardPage() {
     listUnfulfillableOrderLines,
     listSupplierOrdersNeedingAction,
     listAllOrdersForAdmin,
+    getAdminOrderCounts,
     getRevenueSummary,
     getWebAnalyticsSummary,
   } = getContainer();
 
-  const [unfulfillableLines, supplierOrdersNeedingAction, allOrders, revenue, web] =
+  const [unfulfillableLines, supplierOrdersNeedingAction, orderCounts, latestOrders, revenue, web] =
     await Promise.all([
       listUnfulfillableOrderLines.execute(),
       listSupplierOrdersNeedingAction.execute(),
-      listAllOrdersForAdmin.execute({}),
+      // Counted in SQL, and only the rows this page actually renders are
+      // fetched. Both used to come from reading every order in the store.
+      getAdminOrderCounts.execute({ since, until }),
+      listAllOrdersForAdmin.execute({ page: 1, pageSize: RECENT_ORDER_LIMIT }),
       getRevenueSummary.execute({ since, until }),
       getWebAnalyticsSummary.execute({ since, until }),
     ]);
 
-  const awaitingConfirmation = allOrders.filter(
-    (o) => o.paymentStatus === 'awaiting_confirmation',
-  ).length;
-  const recovered = allOrders.filter((o) => o.paymentRecoveredFrom !== null).length;
+  const { awaitingConfirmation, recovered } = orderCounts;
 
   // Ordered by how much a delay costs: money that may never settle first,
   // then orders that can't ship, then everything else.
@@ -72,19 +73,16 @@ export default async function AdminDashboardPage() {
   const revenueByDay = alignToDays(dayKeys, revenue.days, (d) => d.day, (d) => d.totalMinor);
   const viewsByDay = alignToDays(dayKeys, web.pageViewsPerDay, (d) => d.day, (d) => d.count);
 
-  const ordersInWindow = allOrders.filter((o) => o.createdAt >= since && o.createdAt <= until);
-
-  const recentOrders: OrderRow[] = [...allOrders]
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    .slice(0, RECENT_ORDER_LIMIT)
-    .map((o) => ({
+  // listAllForAdmin already returns newest first, so the page it hands back
+  // is the recent-orders list.
+  const recentOrders: OrderRow[] = latestOrders.items.map((o) => ({
       id: o.id,
       customerEmail: o.customerEmail,
       placed: o.createdAt.toISOString().slice(0, 10),
       amountLabel: Money.of(o.amountMinor, o.currency).toDisplayString(),
       paymentStatus: o.paymentStatus,
       fulfillmentStatus: o.fulfillmentStatus,
-    }));
+  }));
 
   return (
     <AdminOverview
@@ -96,7 +94,7 @@ export default async function AdminDashboardPage() {
         revenue.days.reduce((t, d) => t + d.totalMinor, 0),
         revenue.currency,
       ).toDisplayString()}
-      ordersCount={ordersInWindow.length}
+      ordersCount={orderCounts.placedInWindow}
       itemsSold={revenue.days.reduce((t, d) => t + d.totalQuantity, 0)}
       pageViews={viewsByDay.reduce((t, v) => t + v, 0)}
       revenuePerDay={dayKeys.map((day, i) => ({ day, value: revenueByDay[i] ?? 0 }))}

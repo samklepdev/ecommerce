@@ -10,6 +10,18 @@ export interface ListProductsParams {
   offset?: number;
 }
 
+/** Narrows the admin catalog list. Shared by the list and its count so the
+ * two can't report different totals. */
+export interface AdminProductFilter {
+  /** Only products with an offer from this supplier. */
+  supplierId?: string;
+}
+
+export interface AdminCatalogCounts {
+  total: number;
+  active: number;
+}
+
 export interface ProductRepository {
   /** Active-only. A draft or archived product reads as gone here, exactly
    * like one that never existed — this is what the public product page
@@ -35,12 +47,20 @@ export interface ProductRepository {
   /** Any status, including draft and archived. Admin and internal callers
    * only — never reachable from a storefront page. */
   findAnyById(productId: string): Promise<Product | null>;
+  /** Batch form of `findAnyById`, for admin screens that need names for a
+   * set of product ids they already hold. */
+  findAnyByIds(productIds: string[]): Promise<Product[]>;
   /** Active-only; ids that don't resolve (deleted/archived/never existed)
    * are silently omitted, not errored. Returned order is not guaranteed to
    * match `ids`' order — callers that need a specific order must re-sort. */
   findByIds(ids: string[]): Promise<Product[]>;
-  /** Admin-only — includes draft/archived products, not just active ones. */
-  listAllForAdmin(): Promise<Product[]>;
+  /** Admin-only — includes draft/archived products, not just active ones.
+   * One page, newest first, sliced in SQL. */
+  listAllForAdmin(filter: AdminProductFilter, limit: number, offset: number): Promise<Product[]>;
+  countAllForAdmin(filter: AdminProductFilter): Promise<number>;
+  /** Catalog size and how much of it is live, in one query — the admin
+   * header's summary line. */
+  getAdminCatalogCounts(): Promise<AdminCatalogCounts>;
   createProduct(product: Product): Promise<void>;
   updatePrice(productId: string, amountMinor: number, currency: string): Promise<void>;
   updateCategory(productId: string, category: string | null): Promise<void>;

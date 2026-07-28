@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, gte, ilike, inArray, isNotNull, lt, lte, notExists, sql } from 'drizzle-orm';
+import { and, count as countRows, eq, gte, ilike, inArray, isNotNull, lt, lte, notExists, sql } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import {
@@ -40,6 +40,8 @@ import type {
   OrderSummaryRepository,
 } from '@/modules/orders/application/ports/order-summary-repository';
 import type {
+  AdminOrderCounts,
+  AdminOrderFilter,
   OrderDetail,
   OrderHistoryRepository,
   OrderListItem,
@@ -49,6 +51,12 @@ import type {
   UnfulfillableOrderLinesRepository,
 } from '@/modules/orders/application/ports/unfulfillable-order-lines-repository';
 import type { CancelOrderRepository } from '@/modules/orders/application/ports/cancel-order-repository';
+
+/** Shared by listAllForAdmin and countAllForAdmin — a filter that lived in
+ * two places would eventually mean a total that disagrees with the rows. */
+function adminOrderFilter(filter: AdminOrderFilter) {
+  return filter.email ? ilike(orders.customerEmail, `%${filter.email}%`) : undefined;
+}
 
 /**
  * One repository satisfies the place-order, checkout-side, confirm-side,
@@ -421,20 +429,79 @@ export class DrizzleOrderRepository
     return { id: row.id, customerEmail: row.customerEmail, shippingAddress: row.shippingAddress };
   }
 
-  async listByCustomer(userId: string): Promise<OrderListItem[]> {
+  async getSummaries(orderIds: string[]): Promise<OrderSummary[]> {
+    if (orderIds.length === 0) return [];
+    const rows = await this.db.query.orders.findMany({
+      where: inArray(orders.id, orderIds),
+      columns: { id: true, customerEmail: true, shippingAddress: true },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      customerEmail: row.customerEmail,
+      shippingAddress: row.shippingAddress,
+    }));
+  }
+
+  async listByCustomer(userId: string, limit: number, offset: number): Promise<OrderListItem[]> {
     const rows = await this.db.query.orders.findMany({
       where: eq(orders.userId, userId),
       orderBy: (o, { desc }) => [desc(o.createdAt)],
+      limit,
+      offset,
     });
     return rows.map(toOrderListItem);
   }
 
-  async listAllForAdmin(params?: { email?: string }): Promise<OrderListItem[]> {
+  async countByCustomer(userId: string): Promise<number> {
+    const [row] = await this.db
+      .select({ value: countRows() })
+      .from(orders)
+      .where(eq(orders.userId, userId));
+    return row?.value ?? 0;
+  }
+
+  async listAllForAdmin(
+    filter: AdminOrderFilter,
+    limit: number,
+    offset: number,
+  ): Promise<OrderListItem[]> {
     const rows = await this.db.query.orders.findMany({
-      where: params?.email ? ilike(orders.customerEmail, `%${params.email}%`) : undefined,
+      where: adminOrderFilter(filter),
       orderBy: (o, { desc }) => [desc(o.createdAt)],
+      limit,
+      offset,
     });
     return rows.map(toOrderListItem);
+  }
+
+  async getAdminOrderCounts(window: { since: Date; until: Date }): Promise<AdminOrderCounts> {
+    // Filtered aggregates: one pass over the table for all three numbers,
+    // rather than three round trips or one full read into the process.
+    const [row] = await this.db
+      .select({
+        awaitingConfirmation: sql<number>`count(*) filter (where ${orders.paymentStatus} = 'awaiting_confirmation')`,
+        recovered: sql<number>`count(*) filter (where ${orders.paymentRecoveredFrom} is not null)`,
+        // The bounds go through drizzle's own comparators rather than being
+        // interpolated raw: a bare Date in a sql template carries no column
+        // type, and postgres.js rejects it at bind time. Typecheck and build
+        // both pass either way — only running it finds this.
+        placedInWindow: sql<number>`count(*) filter (where ${and(gte(orders.createdAt, window.since), lte(orders.createdAt, window.until))})`,
+      })
+      .from(orders);
+
+    return {
+      awaitingConfirmation: Number(row?.awaitingConfirmation ?? 0),
+      recovered: Number(row?.recovered ?? 0),
+      placedInWindow: Number(row?.placedInWindow ?? 0),
+    };
+  }
+
+  async countAllForAdmin(filter: AdminOrderFilter): Promise<number> {
+    const [row] = await this.db
+      .select({ value: countRows() })
+      .from(orders)
+      .where(adminOrderFilter(filter));
+    return row?.value ?? 0;
   }
 
   async findDetailById(orderId: string, userId: string): Promise<OrderDetail | null> {

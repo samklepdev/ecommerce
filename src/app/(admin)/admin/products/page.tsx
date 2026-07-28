@@ -4,8 +4,7 @@ import { ProductActionsBar } from './ProductActionsBar';
 import { SupplierFilterSelect } from './SupplierFilterSelect';
 import { AdminProductsTable, type AdminProductRow } from './AdminProductsTable';
 import { Pagination } from '@/components/ui/Pagination';
-import { paginate, parsePage, DEFAULT_PAGE_SIZE } from '@/components/ui/paginate';
-import type { SupplierOffer } from '@/modules/sourcing/domain/supplier-offer';
+import { parsePage, DEFAULT_PAGE_SIZE } from '@/components/ui/paginate';
 import styles from './page.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -26,12 +25,24 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
   await requireAdmin();
   const { supplierId, page: pageParam } = await searchParams;
 
-  const { listAllProductsForAdmin, listSuppliers, listSupplierOffersForProduct } =
+  const { listAllProductsForAdmin, listSuppliers, listSupplierOffersForProducts, getAdminCatalogCounts } =
     getContainer();
-  const [allProducts, suppliers] = await Promise.all([
-    listAllProductsForAdmin.execute(),
+
+  // One page of products, filtered and counted in SQL; then a single query
+  // for that page's offers. This page used to load the whole catalog, run an
+  // offers query per product, filter by supplier in memory, and slice in
+  // JavaScript.
+  const [pageResult, suppliers, catalogCounts] = await Promise.all([
+    listAllProductsForAdmin.execute({
+      supplierId,
+      page: parsePage(pageParam),
+      pageSize: DEFAULT_PAGE_SIZE,
+    }),
     listSuppliers.execute(),
+    getAdminCatalogCounts.execute(),
   ]);
+
+  const { items: pagedProducts, page, totalPages, totalItems } = pageResult;
   const supplierNameById = new Map(suppliers.map((s) => [s.id, s.name] as const));
   // The filter dropdown shows every supplier (including inactive) so admins
   // can still find products sourced from one they've since deactivated —
@@ -42,51 +53,37 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
     .filter((s) => s.isActive)
     .map((s) => ({ id: s.id, name: s.name }));
 
-  const offersByProduct = new Map<string, SupplierOffer[]>(
-    await Promise.all(
-      allProducts.map(
-        async (p) =>
-          [p.id, await listSupplierOffersForProduct.execute({ productId: p.id })] as const,
-      ),
-    ),
-  );
+  const offersByProduct = await listSupplierOffersForProducts.execute({
+    productIds: pagedProducts.map((p) => p.id),
+  });
 
-  const products = supplierId
-    ? allProducts.filter((p) =>
-        (offersByProduct.get(p.id) ?? []).some((offer) => offer.supplierId === supplierId),
-      )
-    : allProducts;
+  const { total: catalogTotal, active: activeCount } = catalogCounts;
 
-  const { items: pagedProducts, page, totalPages } = paginate(
-    products,
-    parsePage(pageParam),
-    DEFAULT_PAGE_SIZE,
-  );
-
-  const rows: AdminProductRow[] = pagedProducts.map((p) => ({
-    id: p.id,
-    name: p.name,
-    description: p.description,
-    slug: p.slug.value,
-    status: p.status,
-    category: p.category,
-    imageUrl: p.imageUrl,
-    additionalImages: p.additionalImages,
-    sku: p.sku,
-    priceAmountMinor: p.price.amountMinor,
-    currency: p.price.currency,
-    hasNoOffers: (offersByProduct.get(p.id) ?? []).length === 0,
-    offers: (offersByProduct.get(p.id) ?? []).map((offer) => ({
-      id: offer.id,
-      supplierId: offer.supplierId,
-      supplierName: supplierNameById.get(offer.supplierId) ?? offer.supplierId,
-      isPreferred: offer.isPreferred,
-      costAmountMinor: offer.cost.amountMinor,
-      currency: offer.cost.currency,
-    })),
-  }));
-
-  const activeCount = allProducts.filter((p) => p.status === 'active').length;
+  const rows: AdminProductRow[] = pagedProducts.map((p) => {
+    const offers = offersByProduct.get(p.id) ?? [];
+    return {
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      slug: p.slug.value,
+      status: p.status,
+      category: p.category,
+      imageUrl: p.imageUrl,
+      additionalImages: p.additionalImages,
+      sku: p.sku,
+      priceAmountMinor: p.price.amountMinor,
+      currency: p.price.currency,
+      hasNoOffers: offers.length === 0,
+      offers: offers.map((offer) => ({
+        id: offer.id,
+        supplierId: offer.supplierId,
+        supplierName: supplierNameById.get(offer.supplierId) ?? offer.supplierId,
+        isPreferred: offer.isPreferred,
+        costAmountMinor: offer.cost.amountMinor,
+        currency: offer.cost.currency,
+      })),
+    };
+  });
 
   return (
     <div className={styles.page}>
@@ -98,7 +95,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
         {/* The dashboard puts the date range here; the equivalent fact for a
             catalog is how much of it is actually live. */}
         <span className={styles.headMeta}>
-          {allProducts.length} total · {activeCount} live · {suppliers.length} suppliers
+          {catalogTotal} total · {activeCount} live · {suppliers.length} suppliers
         </span>
       </header>
 
@@ -115,9 +112,9 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
               word meaning two things is how a console stops being learnable. */}
           <h2>All products</h2>
           <span className={styles.sectionCount}>
-            {products.length === allProducts.length
-              ? `${products.length} products`
-              : `${products.length} of ${allProducts.length} products`}
+            {totalItems === catalogTotal
+              ? `${totalItems} products`
+              : `${totalItems} of ${catalogTotal} products`}
           </span>
         </div>
 
