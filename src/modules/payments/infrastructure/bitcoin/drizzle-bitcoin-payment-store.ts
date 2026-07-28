@@ -1,4 +1,4 @@
-import { and, eq, gt, gte, lte } from 'drizzle-orm';
+import { and, eq, gt, gte, lte, sql } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { bitcoinPaymentIntents, orders } from '@/shared/infrastructure/db/schema';
@@ -73,6 +73,13 @@ export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore, OnChainA
       ),
     });
     return rows.map(toIntent);
+  }
+
+  async highestAddressIndex(): Promise<number | null> {
+    const [row] = await this.db
+      .select({ max: sql<number | null>`max(${bitcoinPaymentIntents.addressIndex})` })
+      .from(bitcoinPaymentIntents);
+    return row?.max ?? null;
   }
 
   async markConfirmed(orderId: string): Promise<void> {

@@ -301,7 +301,7 @@ function build(): Container {
   // --- bitcoin infrastructure ---
   const deriver = new HdAddressDeriver(env.BTC_ACCOUNT_XPUB, network);
   const indexAllocator = new RedisAddressIndexAllocator(redis);
-  const rates = new MempoolRateProvider(env.BTC_ESPLORA_URL);
+  const rates = new MempoolRateProvider(env.BTC_RATE_URL);
   const paymentStore = new DrizzleBitcoinPaymentStore(db);
   const getOnChainActivityReport = new GetOnChainActivityReport(paymentStore);
   const chain = new EsploraChainDataProvider(env.BTC_ESPLORA_URL, network);
@@ -462,7 +462,7 @@ function build(): Container {
   const placeOrder = new PlaceOrder(carts, products, orders, shippingRates, coupons);
   const reorderItems = new ReorderItems(orders, carts, products);
   const startCheckout = new StartCheckout(orders, gateways, env.QUOTE_TTL_SECONDS);
-  const expireStaleCheckouts = new ExpireStaleCheckouts(orders);
+  const expireStaleCheckouts = new ExpireStaleCheckouts(orders, paymentStore);
 
   const createSupplierOrdersForPaidOrder = new CreateSupplierOrdersForPaidOrder(
     orders,

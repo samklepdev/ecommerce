@@ -27,6 +27,16 @@ const envSchema = z.object({
     }),
   BTC_NETWORK: z.enum(['bitcoin', 'testnet']).default('testnet'),
   BTC_ESPLORA_URL: z.string().url().default('https://mempool.space/api'),
+  /**
+   * The fiat price feed — deliberately separate from BTC_ESPLORA_URL.
+   *
+   * `/v1/prices` is a mempool.space extension, not part of the Esplora API,
+   * so pointing both at a self-hosted electrs/Esplora (which this repo's own
+   * deployment guide recommends) made every checkout fail on a 404 at the
+   * rate lookup. They're different services that happen to share a host by
+   * default.
+   */
+  BTC_RATE_URL: z.string().url().default('https://mempool.space/api'),
   BTC_REQUIRED_CONFIRMATIONS: z.coerce.number().int().positive().default(2),
   // Extra confirmations layered on top of BTC_REQUIRED_CONFIRMATIONS before
   // an order is actually marked paid/fulfilled — a reorg-safety margin, not

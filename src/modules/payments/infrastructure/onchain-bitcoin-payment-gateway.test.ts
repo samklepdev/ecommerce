@@ -27,6 +27,23 @@ function makeFakeAllocator(startAt = 0): AddressIndexAllocator {
   };
 }
 
+/** Behaves like the real Redis allocator, including being raisable — so a
+ * test can show a wiped counter recovering rather than reusing an index. */
+function makeSeedableAllocator(startAt = 0) {
+  let next = startAt;
+  const seeded: number[] = [];
+  const allocator: AddressIndexAllocator = {
+    async next() {
+      return next++;
+    },
+    async seedFloor(minNextIndex) {
+      seeded.push(minNextIndex);
+      if (minNextIndex > next) next = minNextIndex;
+    },
+  };
+  return { allocator, seeded };
+}
+
 function makeFakeRates(satsPerFiatUnit = 1000): BtcRateProvider {
   return {
     async satsPerFiatUnit() {
@@ -50,7 +67,10 @@ function makeFakeStoreThatLosesTheRace(winningIntent: BitcoinPaymentIntent): Bit
     async listWatchable() {
       return [];
     },
-    async markConfirmed() {},
+    async highestAddressIndex() {
+    return null;
+  },
+  async markConfirmed() {},
     async markExpired() {},
     async markCancelled() {},
     async recordProgress() {},
@@ -65,6 +85,9 @@ function makeFakeStoreEmpty(): { store: BitcoinPaymentStore; saved: BitcoinPayme
     },
     async getByOrderId() {
       return saved[0] ?? null;
+    },
+    async highestAddressIndex() {
+      return saved.length > 0 ? Math.max(...saved.map((i) => i.addressIndex)) : null;
     },
     async listWatchable() {
       return [];
@@ -129,5 +152,90 @@ describe('OnChainBitcoinPaymentGateway.createPayment', () => {
       expect(result.value.reference).toBe(saved[0]?.address);
       expect(result.value.expectedSats).toBe(saved[0]?.expectedSats);
     }
+  });
+});
+
+
+describe('OnChainBitcoinPaymentGateway address-index floor', () => {
+  const deriver = new HdAddressDeriver(TEST_XPUB, networks.testnet);
+
+  // The scenario: Redis lost the counter (evicted, wiped, new instance), so
+  // it restarts at 0 — but the database still knows index 41 was handed out.
+  // Allocating 0 again would re-derive an address a previous order used.
+  it('raises a reset counter above the highest index the database has seen', async () => {
+    const { allocator, seeded } = makeSeedableAllocator(0);
+    const { store, saved } = makeFakeStoreEmpty();
+    store.highestAddressIndex = async () => 41;
+
+    const gateway = new OnChainBitcoinPaymentGateway(
+      deriver,
+      allocator,
+      makeFakeRates(),
+      store,
+      900,
+    );
+
+    const result = await gateway.createPayment({
+      orderId: 'order-1',
+      amount: Money.of(5000, 'USD'),
+      idempotencyKey: 'order-1',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(seeded).toEqual([42]);
+    expect(saved[0]?.addressIndex).toBe(42);
+  });
+
+  it('seeds once per process, not on every checkout', async () => {
+    const { allocator, seeded } = makeSeedableAllocator(0);
+    const { store } = makeFakeStoreEmpty();
+    let highestCalls = 0;
+    store.highestAddressIndex = async () => {
+      highestCalls += 1;
+      return 5;
+    };
+    store.getByOrderId = async () => null; // never idempotency-short-circuit
+
+    const gateway = new OnChainBitcoinPaymentGateway(
+      deriver,
+      allocator,
+      makeFakeRates(),
+      store,
+      900,
+    );
+    const pay = (id: string) =>
+      gateway.createPayment({ orderId: id, amount: Money.of(5000, 'USD'), idempotencyKey: id });
+
+    await pay('order-1');
+    await pay('order-2');
+
+    expect(highestCalls).toBe(1);
+    expect(seeded).toEqual([6]);
+  });
+
+  // Refusing every checkout because a bookkeeping query failed would be the
+  // worse outcome; the unique constraint on `address` is the real backstop.
+  it('still allocates if the high-water query fails', async () => {
+    const { allocator } = makeSeedableAllocator(0);
+    const { store } = makeFakeStoreEmpty();
+    store.highestAddressIndex = async () => {
+      throw new Error('db down');
+    };
+
+    const gateway = new OnChainBitcoinPaymentGateway(
+      deriver,
+      allocator,
+      makeFakeRates(),
+      store,
+      900,
+    );
+
+    const result = await gateway.createPayment({
+      orderId: 'order-1',
+      amount: Money.of(5000, 'USD'),
+      idempotencyKey: 'order-1',
+    });
+
+    expect(result.ok).toBe(true);
   });
 });

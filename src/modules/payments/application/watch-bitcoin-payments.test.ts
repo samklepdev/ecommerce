@@ -57,6 +57,9 @@ function makeFakePaymentStore(intent: BitcoinPaymentIntent) {
     async listWatchable() {
       return [intent];
     },
+    async highestAddressIndex() {
+      return null;
+    },
     async markConfirmed() {
       confirmedCalled = true;
     },
@@ -93,6 +96,25 @@ function makeWatcher(paymentStore: BitcoinPaymentStore, chain: ChainDataProvider
 }
 
 describe('WatchBitcoinPayments#runOnce', () => {
+  // The distinction the rest of the system is built on: "hasn't paid" is not
+  // "paid the wrong amount". Without a `confirmedSats > 0` guard, 0 is less
+  // than expected-minus-dust, so every unpaid order looked underpaid on the
+  // first poll — which took it out of reach of expiry and of cancellation.
+  it('leaves an order alone while nothing has arrived on-chain', async () => {
+    const { repo, getStatus } = makeFakeOrders('awaiting_payment');
+    const intent = makeIntent({ expectedSats: 100000 });
+    const { store, getProgress, wasConfirmed } = makeFakePaymentStore(intent);
+    const chain = makeFakeChain({ address: intent.address, confirmedSats: 0, confirmations: 0 });
+
+    await makeWatcher(store, chain, repo).runOnce();
+
+    expect(getStatus()).toBe('awaiting_payment');
+    expect(wasConfirmed()).toBe(false);
+    // Still recorded, so "we looked and saw nothing" is distinguishable from
+    // "we never looked".
+    expect(getProgress()).toEqual({ confirmations: 0, underpaid: false, overpaid: false });
+  });
+
   it('marks awaiting_confirmation and records progress when underpaid', async () => {
     const { repo, getStatus } = makeFakeOrders('awaiting_payment');
     const intent = makeIntent({ expectedSats: 100000 });

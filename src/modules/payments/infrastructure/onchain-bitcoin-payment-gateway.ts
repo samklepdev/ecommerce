@@ -12,6 +12,7 @@ import type {
 } from '@/modules/payments/application/ports/bitcoin-ports';
 import type { HdAddressDeriver } from '@/modules/payments/infrastructure/bitcoin/address-deriver';
 import { toBip21 } from '@/modules/payments/domain/bip21';
+import { logger } from '@/shared/infrastructure/logger';
 
 export class OnChainBitcoinPaymentGateway implements PaymentGateway {
   readonly method = 'crypto' as const;
@@ -23,6 +24,40 @@ export class OnChainBitcoinPaymentGateway implements PaymentGateway {
     private readonly paymentStore: BitcoinPaymentStore,
     private readonly quoteTtlSeconds: number,
   ) {}
+
+  /** Memoized: the floor only has to be established once per process. */
+  private indexFloorEnsured: Promise<void> | null = null;
+
+  /**
+   * Raise the Redis counter to the highest index the database has ever
+   * persisted, before allocating anything.
+   *
+   * `INCR` on a missing key starts at 1, so a wiped or evicted counter
+   * silently restarts allocation at index 0 and re-derives addresses that
+   * previous orders already used — the one thing CLAUDE.md calls out as
+   * destroying order↔payment correlation. Managed Redis is commonly
+   * provisioned with an eviction policy, so "the key is always there" is not
+   * a safe assumption.
+   *
+   * Doing it here rather than in a boot script means it cannot be forgotten:
+   * every process that can allocate an address goes through this method
+   * first. A failure is logged and allowed through — the unique constraint
+   * on `address` is the backstop, and refusing all checkouts because the
+   * high-water query failed would be the worse outcome.
+   */
+  private async ensureIndexFloor(): Promise<void> {
+    this.indexFloorEnsured ??= (async () => {
+      try {
+        const highest = await this.paymentStore.highestAddressIndex();
+        if (highest !== null) await this.indexAllocator.seedFloor(highest + 1);
+      } catch (e) {
+        logger.error('could not seed the address-index floor; allocation continues', {
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    })();
+    return this.indexFloorEnsured;
+  }
 
   async createPayment(
     input: CreatePaymentInput,
@@ -39,6 +74,7 @@ export class OnChainBitcoinPaymentGateway implements PaymentGateway {
     }
 
     try {
+      await this.ensureIndexFloor();
       const index = await this.indexAllocator.next();
       const address = this.deriver.deriveAddress(index);
       const satsPerFiatUnit = await this.rates.satsPerFiatUnit(input.amount.currency);

@@ -24,10 +24,23 @@ export class RedisAddressIndexAllocator implements AddressIndexAllocator {
     return n - 1; // 0-based index
   }
 
-  /** Idempotently raise the counter floor (e.g. on boot from wallet state). */
+  /**
+   * Idempotently raise the counter floor, never lower it.
+   *
+   * A Lua script rather than GET-then-SET, because the read-compare-write
+   * has to be one step: a concurrent `next()` between the two halves would
+   * otherwise be clobbered, and lowering this counter is precisely how an
+   * address gets reused.
+   */
   async seedFloor(minNextIndex: number): Promise<void> {
-    // Only raise, never lower.
-    const current = Number((await this.redis.get(this.key)) ?? '0');
-    if (minNextIndex > current) await this.redis.set(this.key, String(minNextIndex));
+    await this.redis.eval(
+      `local current = tonumber(redis.call('GET', KEYS[1]) or '0')
+       local floor = tonumber(ARGV[1])
+       if floor > current then redis.call('SET', KEYS[1], ARGV[1]) end
+       return 1`,
+      1,
+      this.key,
+      String(minNextIndex),
+    );
   }
 }

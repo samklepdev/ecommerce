@@ -29,7 +29,14 @@ export class WatchBitcoinPayments {
     for (const intent of intents) {
       try {
         const status = await this.chain.getStatus(intent.address);
-        const underpaid = status.confirmedSats < intent.expectedSats - DUST_TOLERANCE_SATS;
+        // Nothing on-chain yet is not the same as a short payment, and the
+        // difference matters: `underpaid` moves the order to
+        // awaiting_confirmation, which puts it beyond the reach of both
+        // ExpireStaleCheckouts and the customer's own cancel button. Without
+        // this guard 0 < expected-dust is true, so every order that had
+        // simply not been paid yet looked underpaid on the first pass.
+        const seen = status.confirmedSats > 0;
+        const underpaid = seen && status.confirmedSats < intent.expectedSats - DUST_TOLERANCE_SATS;
         // Not a gate like underpaid — they paid at least what was expected,
         // so fulfillment proceeds normally. Just a flag for admin/customer
         // visibility; the excess is an ops/refund concern, not a reason to
@@ -48,6 +55,11 @@ export class WatchBitcoinPayments {
         // Underpayment is not payment — stays awaiting_confirmation for
         // manual review, never auto-fulfilled. Still recorded as "seen"
         // rather than left indistinguishable from "hasn't paid at all."
+        // Recorded above either way, so "we polled and saw nothing" is
+        // distinguishable from "we never polled", but the order stays in
+        // awaiting_payment where expiry and cancellation can still reach it.
+        if (!seen) continue;
+
         if (underpaid) {
           await this.markAwaitingConfirmation.execute({ orderId: intent.orderId });
           continue;

@@ -27,6 +27,10 @@ export interface BitcoinPaymentStore {
   getByOrderId(orderId: string): Promise<BitcoinPaymentIntent | null>;
   /** Awaiting intents whose quote hasn't expired — the watcher polls these. */
   listWatchable(): Promise<BitcoinPaymentIntent[]>;
+  /** Highest address index ever persisted, or null if none. The DB is the
+   * durable record of what the wallet has handed out, so it — not Redis —
+   * is the authority when the counter needs rebuilding. */
+  highestAddressIndex(): Promise<number | null>;
   markConfirmed(orderId: string): Promise<void>;
   markExpired(orderId: string): Promise<void>;
   markCancelled(orderId: string): Promise<void>;
