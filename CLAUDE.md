@@ -98,6 +98,8 @@ reserves inventory → calls `createPayment` → returns a `PaymentSession` carr
   state exists but is driven from ops tooling, not an API call.
 - **Privacy:** the default Esplora provider is the public `mempool.space` API, which sees every
   address you query (dev only). In production run your own `electrs`/Esplora or `bitcoind`.
+  Repoint `BTC_ESPLORA_URL` only — the rate feed has its own `BTC_RATE_URL` because
+  `/v1/prices` is a mempool.space extension, not an Esplora endpoint.
 - **Compliance:** with no processor in the flow, we own what one would otherwise absorb —
   AML/sanctions screening and tax reporting obligations vary by jurisdiction and what's sold.
   This is a standing consideration, not a code detail; flag it when payment scope changes.
