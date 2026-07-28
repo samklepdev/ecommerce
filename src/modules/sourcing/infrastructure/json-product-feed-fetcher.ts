@@ -8,6 +8,7 @@ import { isAllowedByRobots, USER_AGENT } from '@/modules/sourcing/infrastructure
 import { decodeHtml } from '@/modules/sourcing/infrastructure/decode-html';
 import { parseSpreadsheetRows } from '@/modules/sourcing/infrastructure/spreadsheet-rows';
 import { toListingFromRow } from '@/modules/sourcing/infrastructure/feed-row-mapper';
+import { safeFetch } from '@/shared/infrastructure/safe-fetch';
 
 interface FeedImage {
   src?: string;
@@ -61,7 +62,9 @@ export class JsonProductFeedFetcher implements SupplierFeedFetcher {
 
     let res: Response;
     try {
-      res = await fetch(feedUrl, { headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' } });
+      res = await safeFetch(feedUrl, {
+        headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
+      });
     } catch (e) {
       return err({ code: 'network_error', message: e instanceof Error ? e.message : String(e) });
     }

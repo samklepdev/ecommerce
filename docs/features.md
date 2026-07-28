@@ -44,7 +44,12 @@ feature" checklist).
   URL. Shows a subtotal/shipping/total summary before the customer
   submits; redirects back to the cart if it's empty. A logged-in customer
   can pick a saved address to autofill the form, or check a box to save
-  the address they just entered.
+  the address they just entered. The address is checked before the order
+  is created: the country has to be one the store ships to, a US address
+  needs a real state, and the postal code has to match the country's
+  format where that format is well known (US, CA, GB, AU, DE, FR) —
+  elsewhere it just has to be present and a sane length, since inventing
+  a pattern for an unchecked country would reject real addresses.
 - **Coupons** — admin-managed percentage or fixed-amount discount codes,
   entered at checkout and validated/applied server-side (never trusted
   from the client) before the BTC quote is locked; a fixed amount is
@@ -85,14 +90,19 @@ feature" checklist).
   confirmation required; past orders are kept but unlinked from the
   account); a banner + resend button while the email is unverified; a
   saved-address book (add, edit in place, delete, set default — used to autofill
-  checkout); (`/account/orders`) — order history list and detail (same
-  view as the guest order page, plus the login wall). Orders that are
+  checkout); (`/account/orders`, `/account/orders/[id]`) — order history
+  list and detail (same view as the guest order page, plus the login wall). Orders that are
   still pre-payment (`pending`/`awaiting_payment`) can be cancelled right
   from the list, not just the detail page — once BTC is in flight,
   cancellation is no longer offered anywhere.
 - **Auth** (`/signup`, `/login`, `/forgot-password`, `/reset-password/[token]`,
   `/verify-email/[token]`) — email/password accounts, rate-limited login
-  and signup, password reset via emailed one-time token (doesn't reveal
+  and signup. New passwords need at least 12 characters including a
+  number and a symbol, or 24+ characters if you'd rather use a passphrase,
+  in which case neither is required; the rule is shown on the form rather
+  than only after a rejected submit. It applies wherever a password is
+  set (signup, reset, change) but not at login, so accounts created under
+  the old rule can still sign in. Password reset via emailed one-time token (doesn't reveal
   whether an email is registered), email verification via a similar
   emailed link (soft — unverified accounts can still log in and shop;
   it's just a reminder banner, not a login gate).
@@ -115,14 +125,18 @@ feature" checklist).
   supplier offer in one form; import a batch of products from a supplier feed (URL, pasted
   JSON, or an uploaded spreadsheet); a "paste a product URL" helper that
   scrapes and prefills the add-product form; bulk publish/unpublish/
-  delete/assign-category; upload/manage product images; editable name
-  and description after creation (the slug stays permanent so existing
-  product URLs never break); sell-price editing; per-offer
-  supplier-cost editing; add a further supplier offer to an existing
-  product (e.g. once the original supplier goes out of stock) and switch
-  which offer is preferred; bulk "apply X% markup" across the selected
-  products; a "No supplier offer" badge on any product that
-  could never actually be fulfilled; an editable category tag (free
+  delete/assign-category. The table lists one row per product — image,
+  name, status, SKU, price and where it's sourced from — with an "Edit"
+  toggle that opens a panel for that row (one at a time). The panel saves
+  name, price, category and description together under a single "Save
+  changes"; the slug is shown but never editable, so existing product
+  URLs never break. Images and supplier offers sit alongside it with
+  their own controls, since they're separate records: upload/manage
+  product images, per-offer supplier-cost editing, add a further supplier
+  offer to an existing product (e.g. once the original supplier goes out
+  of stock) and switch which offer is preferred. Also bulk "apply X%
+  markup" across the selected products; a "No supplier offer" badge on
+  any product that could never actually be fulfilled; an editable category tag (free
   text) used by the storefront's category filter and assignable in bulk;
   filter the list by supplier.
 - **Fulfillment** (`/admin/fulfillment`) — the ops queue of supplier
@@ -179,12 +193,26 @@ feature" checklist).
   who/when record, not a complete activity feed.
 - **Analytics** (`/admin/analytics`) — best-effort, in-house event
   tracking (no third-party analytics tool, no data leaves the server).
-  Web: page views per day, top pages, top referrers, top search terms,
-  over the last 30 days. On-chain: total BTC received and distinct
-  addresses used, with a per-order table flagging any underpaid/overpaid
-  orders — totals use each order's expected amount as a stand-in for
-  actually-received sats (accurate in the common exact-payment case; no
-  change to the live payment-confirmation path to get an exact figure).
+  The dashboard covers revenue, traffic, top pages, referrers, searches
+  and cart activity, over a window you choose: 7/30/90-day presets or a
+  custom from/to range, with every panel and drill-down honouring the
+  same window. On-chain: total BTC received and distinct addresses used,
+  with a per-order table flagging any underpaid/overpaid orders — totals
+  use each order's expected amount as a stand-in for actually-received
+  sats (accurate in the common exact-payment case; no change to the live
+  payment-confirmation path to get an exact figure).
+- **Analytics drill-downs** — each headline links to a fuller page:
+  `/admin/analytics/page-views` (per-page views, plus median time on page,
+  measured by a beacon sent when the visitor leaves rather than by
+  polling), `/admin/analytics/searches` (what people typed, and how often
+  it returned nothing), `/admin/analytics/cart` (cart changes over time),
+  and `/admin/analytics/on-chain` (settlement detail). Each exports the
+  current range as CSV.
+- **Where visitors are** (on the page-views drill-down) — a world map
+  shaded by volume, with US states and cities when known, zoomable, plus
+  country and city lists beside it. Locations are resolved from the
+  visitor's IP against a database on the server (DB-IP Lite); no request
+  leaves the machine and no third party is involved.
   Page views, searches, and cart changes are captured server-side
   (IP address and user-agent included) — this data is admin-only, never
   exposed to customers or third parties; worth a retention policy before

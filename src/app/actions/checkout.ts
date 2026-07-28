@@ -10,19 +10,34 @@ import { isErr } from '@/shared/domain/result';
 import { logger } from '@/shared/infrastructure/logger';
 import { getSessionUser, resolveCartOwner } from '@/app/lib/session';
 import { checkRateLimit, getClientIp, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
+import { countrySchema, postalCodeSchema, refineAddress } from '@/app/lib/address-schema';
 
-const StartCheckoutSchema = z.object({
-  customerEmail: z.string().email(),
-  shippingName: z.string().min(1),
-  shippingLine1: z.string().min(1),
-  shippingLine2: z.string().optional(),
-  shippingCity: z.string().min(1),
-  shippingRegion: z.string().min(1),
-  shippingPostalCode: z.string().min(1),
-  shippingCountry: z.string().min(1),
-  saveAddress: z.string().optional(),
-  couponCode: z.string().optional(),
-});
+const StartCheckoutSchema = z
+  .object({
+    customerEmail: z.string().email(),
+    shippingName: z.string().min(1),
+    shippingLine1: z.string().min(1),
+    shippingLine2: z.string().optional(),
+    shippingCity: z.string().min(1),
+    shippingRegion: z.string().min(1),
+    shippingPostalCode: postalCodeSchema,
+    shippingCountry: countrySchema,
+    saveAddress: z.string().optional(),
+    couponCode: z.string().optional(),
+  })
+  .superRefine((data, ctx) =>
+    refineAddress(
+      {
+        country: data.shippingCountry,
+        region: data.shippingRegion,
+        postalCode: data.shippingPostalCode,
+      },
+      ctx,
+      // This form namespaces its address inputs, so issues have to be
+      // reported against those names rather than the logical ones.
+      (field) => `shipping${field.charAt(0).toUpperCase()}${field.slice(1)}`,
+    ),
+  );
 
 export interface StartCheckoutActionResult {
   error?: string;

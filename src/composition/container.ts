@@ -304,7 +304,7 @@ function build(): Container {
   const rates = new MempoolRateProvider(env.BTC_ESPLORA_URL);
   const paymentStore = new DrizzleBitcoinPaymentStore(db);
   const getOnChainActivityReport = new GetOnChainActivityReport(paymentStore);
-  const chain = new EsploraChainDataProvider(env.BTC_ESPLORA_URL);
+  const chain = new EsploraChainDataProvider(env.BTC_ESPLORA_URL, network);
 
   const btcGateway = new OnChainBitcoinPaymentGateway(
     deriver,

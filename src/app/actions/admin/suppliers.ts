@@ -5,11 +5,12 @@ import { z } from 'zod';
 
 import { getContainer } from '@/composition/container';
 import { requireAdmin } from '@/app/lib/session';
+import { httpUrlSchema } from '@/app/lib/url-schema';
 
 const UpdateSupplierSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  url: z.string().url(),
+  url: httpUrlSchema,
   notes: z.string().optional(),
 });
 

@@ -5,16 +5,19 @@ import { z } from 'zod';
 
 import { getContainer } from '@/composition/container';
 import { requireUser } from '@/app/lib/session';
+import { countrySchema, postalCodeSchema, refineAddress } from '@/app/lib/address-schema';
 
-const AddSavedAddressSchema = z.object({
-  name: z.string().min(1),
-  line1: z.string().min(1),
-  line2: z.string().optional(),
-  city: z.string().min(1),
-  region: z.string().optional(),
-  postalCode: z.string().min(1),
-  country: z.string().min(1),
-});
+const AddSavedAddressSchema = z
+  .object({
+    name: z.string().min(1),
+    line1: z.string().min(1),
+    line2: z.string().optional(),
+    city: z.string().min(1),
+    region: z.string().optional(),
+    postalCode: postalCodeSchema,
+    country: countrySchema,
+  })
+  .superRefine(refineAddress);
 
 export interface AddSavedAddressActionResult {
   message?: string;
@@ -44,16 +47,18 @@ export async function addSavedAddressAction(
   return { message: 'Address saved.' };
 }
 
-const EditSavedAddressSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  line1: z.string().min(1),
-  line2: z.string().optional(),
-  city: z.string().min(1),
-  region: z.string().optional(),
-  postalCode: z.string().min(1),
-  country: z.string().min(1),
-});
+const EditSavedAddressSchema = z
+  .object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    line1: z.string().min(1),
+    line2: z.string().optional(),
+    city: z.string().min(1),
+    region: z.string().optional(),
+    postalCode: postalCodeSchema,
+    country: countrySchema,
+  })
+  .superRefine(refineAddress);
 
 export interface EditSavedAddressActionResult {
   message?: string;

@@ -9,12 +9,12 @@ framework and the payment provider are both **adapters** — the domain never im
 | ------------------ | ------------------------------- | --- |
 | Framework          | Next.js (App Router)            | SSR/ISR for crawlable, fast product pages |
 | Language           | TypeScript (strict)             | — |
-| DB                 | PostgreSQL                      | Transactions + row locking for inventory |
-| ORM                | Drizzle                         | SQL-close control for locking & atomic updates |
-| Cache / sessions   | Redis                           | Carts, idempotency keys, reservation TTLs, rate limits |
-| Queue              | BullMQ (on Redis)               | Webhooks side effects, email, fulfillment |
-| Payments           | Stripe (hosted Elements)        | PANs never touch our servers (PCI scope) |
-| Tax                | Stripe Tax / TaxJar             | Never hand-roll jurisdiction logic |
+| DB                 | PostgreSQL                      | Durable orders, catalog, payment intents |
+| ORM                | Drizzle                         | SQL-close control for atomic updates |
+| Cache / sessions   | Redis                           | Carts, sessions, idempotency keys, BTC address index, rate limits |
+| Queue              | BullMQ (on Redis)               | BTC chain-watcher, email, fulfillment |
+| Payments           | Non-custodial on-chain Bitcoin  | No processor, no custody; server holds only a watch-only xpub |
+| Tax / AML          | Not delegated — we own it       | With no processor in the flow, obligations land on us. See CLAUDE.md |
 | Search             | Postgres FTS → Typesense later  | Start simple, graduate when faceting is needed |
 | Validation         | Zod                             | Shared schemas, request + domain boundaries |
 
@@ -31,7 +31,7 @@ infrastructure (adapters)─┘                                     ↑
 
 - **domain** — entities, value objects, domain events, invariants. Pure TS, zero deps.
 - **application** — use cases (interactors) + **ports** (interfaces the outside must implement).
-- **infrastructure** — adapters: Drizzle repos, Stripe client, Redis, BullMQ, email.
+- **infrastructure** — adapters: Drizzle repos, bitcoin/Esplora clients, Redis, BullMQ, email.
 - **presentation** — Next.js App Router: server components, route handlers, server actions.
 
 ## Directory layout
@@ -58,8 +58,7 @@ ecommerce/
     │   │   ├── cart/page.tsx        # dynamic (never cached)
     │   │   └── checkout/page.tsx    # dynamic
     │   ├── api/
-    │   │   ├── webhooks/
-    │   │   │   └── stripe/route.ts  # webhook = source of truth for payment state
+    │   │   ├── orders/[id]/status/route.ts  # polled by the checkout page
     │   │   └── health/route.ts
     │   ├── layout.tsx
     │   └── actions/                 # server actions → call use cases only
@@ -92,17 +91,6 @@ ecommerce/
     │   │   └── infrastructure/
     │   │       └── redis-cart-repository.ts
     │   │
-    │   ├── inventory/
-    │   │   ├── domain/
-    │   │   │   └── stock-item.ts
-    │   │   ├── application/
-    │   │   │   ├── ports/inventory-repository.ts
-    │   │   │   └── use-cases/
-    │   │   │       ├── reserve-stock.ts      # decrement → reserved w/ TTL
-    │   │   │       └── release-reservation.ts
-    │   │   └── infrastructure/
-    │   │       └── drizzle-inventory-repository.ts   # SELECT ... FOR UPDATE
-    │   │
     │   ├── checkout/
     │   │   ├── application/
     │   │   │   └── use-cases/
@@ -118,16 +106,21 @@ ecommerce/
     │   │   │   ├── ports/order-repository.ts
     │   │   │   └── use-cases/
     │   │   │       ├── place-order.ts
-    │   │   │       ├── mark-order-paid.ts    # driven by Stripe webhook only
-    │   │   │       └── refund-order.ts
+    │   │   │       ├── confirm-payment.ts    # the ONLY path to `paid`; watcher-driven
+    │   │   │       └── mark-order-refunded.ts  # refunds are manual, out-of-band
     │   │   └── infrastructure/
     │   │       └── drizzle-order-repository.ts
     │   │
     │   ├── payments/
     │   │   ├── application/
-    │   │   │   └── ports/payment-gateway.ts  # domain-facing interface
-    │   │   └── infrastructure/
-    │   │       └── stripe-payment-gateway.ts # the only file that imports `stripe`
+    │   │   │   ├── ports/payment-gateway.ts  # domain-facing interface
+    │   │   │   └── ports/bitcoin-ports.ts    # chain data, rates, address index
+    │   │   └── infrastructure/bitcoin/
+    │   │       ├── address-deriver.ts        # the ONLY file deriving addresses
+    │   │       ├── esplora-chain-data-provider.ts
+    │   │       ├── esplora-response.ts       # parses chain data, never casts it
+    │   │       ├── mempool-rate-provider.ts
+    │   │       └── redis-address-index-allocator.ts
     │   │
     │   └── identity/                          # auth, users, sessions
     │       └── ...
@@ -159,19 +152,21 @@ ecommerce/
 
 ## Key boundary rules (the ones that bite)
 
-1. **`src/app/**` calls use cases, never repositories or Stripe directly.** Route handlers
+1. **`src/app/**` calls use cases, never repositories or bitcoin libraries directly.** Route handlers
    and server actions are thin: parse/validate input → resolve use case from the container →
    return. No business logic in the presentation layer.
 
-2. **`domain/**` imports nothing but `shared/domain`.** No Drizzle, no Stripe, no `next/*`.
+2. **`domain/**` imports nothing but `shared/domain`.** No Drizzle, no bitcoin libs, no `next/*`.
    If a domain file imports an adapter, the layering is broken.
 
 3. **Ports live in `application`, implementations in `infrastructure`.** The use case depends
    on the interface; the container injects the concrete adapter.
 
-4. **One file imports `stripe`** (`stripe-payment-gateway.ts`) and **one imports the raw
-   Drizzle client per repo.** Everything else goes through ports. This is what makes the
-   payment provider swappable.
+4. **One file derives BTC addresses** (`address-deriver.ts`) and **one imports the raw
+   Drizzle client per repo.** Everything else goes through ports. This is what would make a
+   second payment method a matter of implementing `PaymentGateway` — there is no card
+   processor here, and no `stripe` dependency; payment is non-custodial on-chain Bitcoin
+   only. See CLAUDE.md.
 
 ## Evolution path
 

@@ -54,5 +54,50 @@ docker compose up -d postgres redis web worker
 
 Real deployments should point `DATABASE_URL`/`REDIS_URL` at managed
 services (not the `postgres`/`redis` services in this compose file, which
-use dev-grade credentials) and inject the rest of `env.ts`'s schema via
-whatever secrets mechanism the chosen host provides.
+use dev-grade credentials) and inject the rest via whatever secrets
+mechanism the chosen host provides.
+
+Run `npm run db:migrate` against the target database before the first
+boot of a new version; the app does not migrate on startup.
+
+## Environment
+
+`src/config/env.ts` is the only place environment is read, and it
+validates at startup — a missing required value fails the boot rather
+than surfacing later as a confusing runtime error.
+
+**Required — no default, boot fails without them:**
+
+| Variable | Notes |
+| --- | --- |
+| `DATABASE_URL` | Postgres connection string |
+| `REDIS_URL` | Carts, sessions, idempotency keys, BTC address index, rate limits |
+| `BTC_ACCOUNT_XPUB` | **Watch-only account xpub only.** Validated as a public extended key; an `xprv`/`tprv` is rejected outright. A seed or private key must never reach the server |
+
+**Defaulted, but wrong by default in production:**
+
+| Variable | Default | Why it matters |
+| --- | --- | --- |
+| `BTC_NETWORK` | `testnet` | Must be `bitcoin` for real money |
+| `APP_URL` | `http://localhost:3000` | Used to build links in outbound email. Left unset, password-reset and verification emails point customers at localhost |
+| `SUPPORT_EMAIL` | `support@storefront.example` | Shown in the storefront footer as the contact address — a real one, or customers write to nobody |
+
+**Defaulted, tune if you need to:**
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `BTC_ESPLORA_URL` | `https://mempool.space/api` | The public API sees every address queried. Self-host `electrs`/Esplora in production — see the privacy note in CLAUDE.md |
+| `BTC_REQUIRED_CONFIRMATIONS` | `2` | Confirmations before an order is `paid` |
+| `BTC_SETTLEMENT_BUFFER_CONFIRMATIONS` | `1` | Extra depth before settlement is treated as final |
+| `BTC_WATCH_INTERVAL_MS` | `45000` | How often the watcher polls |
+| `QUOTE_TTL_SECONDS` | `900` | How long a fiat→BTC quote is held before the order expires |
+| `SESSION_TTL_SECONDS` | `2592000` | 30 days |
+| `PASSWORD_RESET_TTL_SECONDS` | `3600` | |
+| `EMAIL_VERIFICATION_TTL_SECONDS` | `86400` | |
+
+**Optional:**
+
+| Variable | Notes |
+| --- | --- |
+| `IP_GEO_DB_PATH` | Path to the DB-IP Lite `.mmdb` used by the analytics map. Not in git — fetch it with `npm run geo:fetch` and bind-mount it. Unset, the map is simply empty; nothing else is affected |
+| `ANALYTICS_DEV_IP` | Overrides the client IP when resolving location, so geolocation can be exercised locally where the real IP is `::1` |

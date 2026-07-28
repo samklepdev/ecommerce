@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { logger } from '@/shared/infrastructure/logger';
 import { isErr } from '@/shared/domain/result';
 import { getContainer } from '@/composition/container';
+import { newPasswordSchema } from '@/app/lib/password-schema';
 import { requireUser, SESSION_COOKIE } from '@/app/lib/session';
 
 const MAX_AVATAR_BYTES = 8 * 1024 * 1024;
@@ -15,7 +16,7 @@ const MAX_AVATAR_BYTES = 8 * 1024 * 1024;
 const ChangePasswordSchema = z
   .object({
     currentPassword: z.string().min(1),
-    newPassword: z.string().min(8),
+    newPassword: newPasswordSchema,
     confirmPassword: z.string(),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {

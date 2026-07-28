@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import styles from '../AuthForm.module.css';
+import { MIN_PASSWORD_LENGTH, PASSWORD_RULE_TEXT } from '@/shared/domain/password-policy';
 
 const initialState: AuthActionResult = {};
 
@@ -19,15 +20,15 @@ export function SignUpForm() {
       <Field label="Email" htmlFor="email">
         <Input type="email" id="email" name="email" required />
       </Field>
-      <Field label="Password" htmlFor="password" hint="At least 8 characters">
-        <Input type="password" id="password" name="password" minLength={8} required />
+      <Field label="Password" htmlFor="password" hint={PASSWORD_RULE_TEXT}>
+        <Input type="password" id="password" name="password" minLength={MIN_PASSWORD_LENGTH} required />
       </Field>
       <Field label="Confirm password" htmlFor="confirmPassword">
         <Input
           type="password"
           id="confirmPassword"
           name="confirmPassword"
-          minLength={8}
+          minLength={MIN_PASSWORD_LENGTH}
           required
         />
       </Field>
