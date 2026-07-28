@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import styles from '../../AuthForm.module.css';
+import { MIN_PASSWORD_LENGTH, PASSWORD_RULE_TEXT } from '@/shared/domain/password-policy';
 
 const initialState: ResetPasswordActionResult = {};
 
@@ -21,11 +22,11 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   return (
     <form action={formAction}>
       <input type="hidden" name="token" value={token} />
-      <Field label="New password" htmlFor="newPassword" hint="At least 8 characters.">
-        <Input type="password" id="newPassword" name="newPassword" required minLength={8} />
+      <Field label="New password" htmlFor="newPassword" hint={PASSWORD_RULE_TEXT}>
+        <Input type="password" id="newPassword" name="newPassword" required minLength={MIN_PASSWORD_LENGTH} />
       </Field>
       <Field label="Confirm new password" htmlFor="confirmPassword">
-        <Input type="password" id="confirmPassword" name="confirmPassword" required minLength={8} />
+        <Input type="password" id="confirmPassword" name="confirmPassword" required minLength={MIN_PASSWORD_LENGTH} />
       </Field>
 
       {state.error && <Alert>{state.error}</Alert>}

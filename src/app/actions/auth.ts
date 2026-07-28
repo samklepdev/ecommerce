@@ -8,18 +8,24 @@ import { env } from '@/config/env';
 import { isErr } from '@/shared/domain/result';
 import { logger } from '@/shared/infrastructure/logger';
 import { getContainer } from '@/composition/container';
+import { newPasswordSchema } from '@/app/lib/password-schema';
+import { PASSWORD_RULE_TEXT } from '@/shared/domain/password-policy';
 import { GUEST_SESSION_COOKIE, SESSION_COOKIE } from '@/app/lib/session';
 import { checkRateLimit, getClientIp, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
 
+/** Sign-in, not sign-up: the password policy is deliberately NOT applied
+ * here. Accounts created under the old rule must still be able to log in,
+ * and rejecting a password at the door tells an attacker which ones aren't
+ * worth trying. */
 const CredentialsSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: z.string().min(1),
 });
 
 const SignUpSchema = z
   .object({
     email: z.string().email(),
-    password: z.string().min(8),
+    password: newPasswordSchema,
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -73,7 +79,8 @@ export async function signUpAction(
     return {
       error: mismatch
         ? 'Passwords do not match.'
-        : 'Enter a valid email and a password of at least 8 characters.',
+        : (parsed.error.issues.find((i) => i.path.includes('password'))?.message ??
+          `Enter a valid email. ${PASSWORD_RULE_TEXT}`),
     };
   }
 
@@ -179,7 +186,7 @@ export async function requestPasswordResetAction(
 const ResetPasswordSchema = z
   .object({
     token: z.string().min(1),
-    newPassword: z.string().min(8),
+    newPassword: newPasswordSchema,
     confirmPassword: z.string(),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
@@ -205,7 +212,8 @@ export async function resetPasswordAction(
     return {
       error: mismatch
         ? 'Passwords do not match.'
-        : 'Enter a new password of at least 8 characters.',
+        : (parsed.error.issues.find((i) => i.path.includes('newPassword'))?.message ??
+          PASSWORD_RULE_TEXT),
     };
   }
 

@@ -11,10 +11,11 @@ import {
   isAllowedJsonFeedUpload,
   isAllowedSpreadsheetUpload,
 } from '@/app/actions/admin/feed-upload-validation';
+import { httpUrlSchema } from '@/app/lib/url-schema';
 
 const CreateSupplierSchema = z.object({
   name: z.string().min(1),
-  url: z.string().url(),
+  url: httpUrlSchema,
   notes: z.string().optional(),
 });
 
@@ -52,7 +53,7 @@ const CreateProductSchema = z.object({
   unitAmountMinor: z.coerce.number().int().positive(),
   currency: z.string().length(3),
   supplierId: z.string().min(1),
-  supplierProductUrl: z.string().url(),
+  supplierProductUrl: httpUrlSchema,
   costAmountMinor: z.coerce.number().int().positive(),
   costCurrency: z.string().length(3),
 });
@@ -117,7 +118,7 @@ const ImportFeedSchema = z
     z.object({
       sourceType: z.literal('url'),
       supplierId: z.string().min(1),
-      feedUrl: z.string().url(),
+      feedUrl: httpUrlSchema,
       queryParams: z.string().optional(),
     }),
     z.object({
@@ -443,7 +444,7 @@ export async function removePrimaryProductImageAction(
 }
 
 const ExtractProductFromUrlSchema = z.object({
-  url: z.string().url(),
+  url: httpUrlSchema,
 });
 
 export interface ExtractProductFromUrlActionResult {
@@ -674,7 +675,7 @@ export async function assignCategoryToProductsAction(
 const AddSupplierOfferSchema = z.object({
   productId: z.string().min(1),
   supplierId: z.string().min(1),
-  supplierProductUrl: z.string().min(1),
+  supplierProductUrl: httpUrlSchema,
   costAmountMinor: z.coerce.number().int().nonnegative(),
 });
 

@@ -1,12 +1,13 @@
+import type * as bitcoin from 'bitcoinjs-lib';
+
 import type {
   AddressChainStatus,
   ChainDataProvider,
 } from '@/modules/payments/application/ports/bitcoin-ports';
+import { parseEsploraTxs, parseTipHeight, type EsploraTx } from './esplora-response';
+import { assertValidBitcoinAddress } from './bitcoin-address';
 
-export interface EsploraTx {
-  vout: { scriptpubkey_address?: string; value: number }[];
-  status: { confirmed: boolean; block_height?: number };
-}
+export type { EsploraTx };
 
 /**
  * Pure aggregation, split out from `getStatus` so it's unit-testable without
@@ -50,9 +51,17 @@ export function aggregateChainStatus(
  * production for privacy.
  */
 export class EsploraChainDataProvider implements ChainDataProvider {
-  constructor(private readonly baseUrl: string) {}
+  constructor(
+    private readonly baseUrl: string,
+    private readonly network: bitcoin.networks.Network,
+  ) {}
 
   async getStatus(address: string): Promise<AddressChainStatus> {
+    // Checked before it reaches the request path. The address is read back
+    // from the database and interpolated into a URL, so a malformed value
+    // would reshape the request rather than address it.
+    assertValidBitcoinAddress(address, this.network);
+
     const [txsRes, tipRes] = await Promise.all([
       fetch(`${this.baseUrl}/address/${address}/txs`),
       fetch(`${this.baseUrl}/blocks/tip/height`),
@@ -60,8 +69,10 @@ export class EsploraChainDataProvider implements ChainDataProvider {
     if (!txsRes.ok) throw new Error(`esplora txs HTTP ${txsRes.status}`);
     if (!tipRes.ok) throw new Error(`esplora tip HTTP ${tipRes.status}`);
 
-    const txs = (await txsRes.json()) as EsploraTx[];
-    const tipHeight = Number(await tipRes.text());
+    // Parsed, not cast: this response decides whether an order gets marked
+    // paid, so it has to be checked like any other untrusted input.
+    const txs = parseEsploraTxs(await txsRes.json());
+    const tipHeight = parseTipHeight(await tipRes.text());
 
     return { address, ...aggregateChainStatus(txs, address, tipHeight) };
   }
