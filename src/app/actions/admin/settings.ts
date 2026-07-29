@@ -49,3 +49,51 @@ export async function updateShippingRateAction(
   revalidatePath('/checkout');
   return { message: 'Shipping rate updated.' };
 }
+
+const SetStoreAvailabilitySchema = z.object({
+  isOpen: z.enum(['true', 'false']).transform((v) => v === 'true'),
+  reason: z.string().max(200).optional(),
+});
+
+export interface SetStoreAvailabilityActionResult {
+  message?: string;
+  error?: string;
+}
+
+/**
+ * The kill switch's ordinary door. The CLI script and the token URL exist
+ * for when this one isn't reachable.
+ *
+ * Unlike those two, this path can invalidate the render cache, so the closed
+ * page goes up immediately instead of waiting for a revalidation — hence the
+ * layout-wide `revalidatePath` below.
+ */
+export async function setStoreAvailabilityAction(
+  _prevState: SetStoreAvailabilityActionResult | undefined,
+  formData: FormData,
+): Promise<SetStoreAvailabilityActionResult> {
+  const admin = await requireAdmin();
+  const parsed = SetStoreAvailabilitySchema.safeParse({
+    isOpen: formData.get('isOpen'),
+    reason: formData.get('reason') || undefined,
+  });
+  if (!parsed.success) return { error: 'Could not read the requested state.' };
+
+  const { setStoreAvailability } = getContainer();
+  await setStoreAvailability.execute({
+    isOpen: parsed.data.isOpen,
+    reason: parsed.data.reason ?? null,
+    actor: { userId: admin.id, email: admin.email },
+  });
+
+  // Every storefront route renders through the gated layout, so the whole
+  // layout tree is what needs rebuilding — not one path.
+  revalidatePath('/', 'layout');
+  revalidatePath('/admin/settings');
+
+  return {
+    message: parsed.data.isOpen
+      ? 'Store reopened — customers can browse and check out again.'
+      : 'Store closed. Checkout refuses and the storefront shows a paused notice.',
+  };
+}

@@ -6,8 +6,25 @@ import { getSessionUser, GUEST_SESSION_COOKIE } from '@/app/lib/session';
 import { getClientIp } from '@/app/lib/rate-limit';
 import { StorefrontChrome } from '@/components/StorefrontChrome';
 import { PageDwellTracker } from './PageDwellTracker';
+import { StoreClosed } from './StoreClosed';
 
 export default async function StorefrontLayout({ children }: { children: React.ReactNode }) {
+  // The kill switch, checked before anything else this layout does. Closing
+  // the shop shouldn't cost a page view record or a session lookup.
+  //
+  // Only the customer-facing group is gated. `/login` lives in `(auth)` and
+  // `/admin` in `(admin)`, both untouched — otherwise closing the store
+  // would lock you out of the console you reopen it from.
+  const { getStoreAvailability } = getContainer();
+  const { isOpen } = await getStoreAvailability.execute();
+  if (!isOpen) {
+    return (
+      <StorefrontChrome>
+        <StoreClosed />
+      </StorefrontChrome>
+    );
+  }
+
   const headerStore = await headers();
   const path = headerStore.get('x-pathname');
   const referrer = headerStore.get('referer');

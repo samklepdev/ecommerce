@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import type { AssertStoreOpenForCheckout } from '@/shared/application/use-cases/assert-store-open-for-checkout';
 import { StartCheckout } from './start-checkout';
 import { PaymentGatewayRegistry } from '@/modules/payments/application/payment-gateway-registry';
 import { Money } from '@/shared/domain/money';
@@ -37,6 +38,12 @@ function makeFakeGateway(
   };
 }
 
+/** The kill switch, open — every test here predates it and none is about
+ * it. The closed case has its own test at the bottom. */
+function storeOpen(isOpen = true): AssertStoreOpenForCheckout {
+  return { execute: async () => isOpen } as AssertStoreOpenForCheckout;
+}
+
 describe('StartCheckout', () => {
   it('reprices, creates a payment, and marks the order awaiting payment', async () => {
     const { repo: orders, markedAwaiting } = makeFakeOrders();
@@ -47,7 +54,7 @@ describe('StartCheckout', () => {
       expectedSats: 1999,
     };
     const gateways = new PaymentGatewayRegistry([makeFakeGateway(ok(output))]);
-    const useCase = new StartCheckout(orders, gateways, 900, 24);
+    const useCase = new StartCheckout(orders, gateways, 900, 24, storeOpen());
 
     const result = await useCase.execute({
       orderId: 'order-1',
@@ -73,7 +80,7 @@ describe('StartCheckout', () => {
     const gateways = new PaymentGatewayRegistry([
       makeFakeGateway(err({ code: 'gateway_error', message: 'boom' })),
     ]);
-    const useCase = new StartCheckout(orders, gateways, 900, 24);
+    const useCase = new StartCheckout(orders, gateways, 900, 24, storeOpen());
 
     const result = await useCase.execute({
       orderId: 'order-1',
@@ -90,7 +97,7 @@ describe('StartCheckout', () => {
   it('throws when no gateway is registered for the requested payment method', async () => {
     const { repo: orders } = makeFakeOrders();
     const gateways = new PaymentGatewayRegistry([]);
-    const useCase = new StartCheckout(orders, gateways, 900, 24);
+    const useCase = new StartCheckout(orders, gateways, 900, 24, storeOpen());
 
     await expect(
       useCase.execute({
@@ -100,5 +107,37 @@ describe('StartCheckout', () => {
         idempotencyKey: 'order-1',
       }),
     ).rejects.toThrow(/No payment gateway registered/);
+  });
+
+  // The authoritative half of the kill switch. The storefront's closed page
+  // is cosmetic — a server action can be POSTed at directly, and an ISR page
+  // can be served from cache — so the refusal has to live here.
+  it('refuses when the store kill switch is on, before allocating an address', async () => {
+    const { repo: orders } = makeFakeOrders();
+    let createPaymentCalls = 0;
+    const gateway: PaymentGateway = {
+      method: 'crypto',
+      async repricePayment() {
+        return ok({ expiresAt: null, expectedSats: null });
+      },
+      async createPayment() {
+        createPaymentCalls += 1;
+        throw new Error('should never be reached while the store is closed');
+      },
+    };
+    const gateways = new PaymentGatewayRegistry([gateway]);
+
+    const result = await new StartCheckout(orders, gateways, 900, 24, storeOpen(false)).execute({
+      orderId: 'order-1',
+      customerEmail: 'test@example.com',
+      paymentMethod: 'crypto',
+      idempotencyKey: 'order-1',
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe('store_closed');
+    // A BTC address index only ever moves forward, so a refused checkout
+    // must not have burned one.
+    expect(createPaymentCalls).toBe(0);
   });
 });

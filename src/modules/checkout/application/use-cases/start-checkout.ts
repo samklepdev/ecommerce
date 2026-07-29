@@ -1,5 +1,6 @@
 import { err, isErr, ok, type Result } from '@/shared/domain/result';
 import type { UseCase } from '@/shared/application/use-case';
+import type { AssertStoreOpenForCheckout } from '@/shared/application/use-cases/assert-store-open-for-checkout';
 import type { CheckoutOrderRepository } from '@/modules/checkout/application/ports/checkout-order-repository';
 import type { PaymentGatewayRegistry } from '@/modules/payments/application/payment-gateway-registry';
 import type { PaymentMethod } from '@/modules/payments/application/payment-provider';
@@ -14,7 +15,9 @@ export interface StartCheckoutInput {
 
 export type PaymentSession = CreatePaymentOutput;
 
-export type StartCheckoutError = { code: 'gateway_error'; message: string };
+export type StartCheckoutError =
+  | { code: 'gateway_error'; message: string }
+  | { code: 'store_closed' };
 
 /**
  * reprice (server-side) -> gateway.createPayment. No inventory reservation —
@@ -30,9 +33,15 @@ export class StartCheckout
     private readonly gateways: PaymentGatewayRegistry,
     private readonly quoteTtlSeconds: number,
     private readonly orderWindowHours: number,
+    private readonly storeIsOpen: AssertStoreOpenForCheckout,
   ) {}
 
   async execute(input: StartCheckoutInput): Promise<Result<PaymentSession, StartCheckoutError>> {
+    // Before allocating anything. A BTC address index is a one-way counter,
+    // so a checkout that starts and then gets refused has already burned an
+    // address — and burned addresses eat into the wallet's scan gap limit.
+    if (!(await this.storeIsOpen.execute())) return err({ code: 'store_closed' });
+
     const total = await this.orders.repriceAndGetTotal(input.orderId);
 
     const gateway = this.gateways.resolve(input.paymentMethod);

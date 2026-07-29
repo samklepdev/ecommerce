@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
+import type { AssertStoreOpenForCheckout } from '@/shared/application/use-cases/assert-store-open-for-checkout';
+
 import type { UseCase } from '@/shared/application/use-case';
 import { err, ok, type Result } from '@/shared/domain/result';
 import { Money } from '@/shared/domain/money';
@@ -24,7 +26,8 @@ export interface PlaceOrderInput {
 export type PlaceOrderError =
   | { code: 'empty_cart' }
   | { code: 'product_unavailable'; productId: string }
-  | { code: 'invalid_coupon' };
+  | { code: 'invalid_coupon' }
+  | { code: 'store_closed' };
 
 /** Real production path: turns a priced cart into a durable, pending order. */
 export class PlaceOrder implements UseCase<PlaceOrderInput, Result<Order, PlaceOrderError>> {
@@ -34,9 +37,15 @@ export class PlaceOrder implements UseCase<PlaceOrderInput, Result<Order, PlaceO
     private readonly orders: OrderRepository,
     private readonly shippingRates: ShippingRateRepository,
     private readonly coupons: CouponRepository,
+    private readonly storeIsOpen: AssertStoreOpenForCheckout,
   ) {}
 
   async execute(input: PlaceOrderInput): Promise<Result<Order, PlaceOrderError>> {
+    // First, before any repricing or coupon work: the kill switch. A closed
+    // store must not mint orders, and this is checked here rather than only
+    // in the UI because a server action can be POSTed at directly.
+    if (!(await this.storeIsOpen.execute())) return err({ code: 'store_closed' });
+
     const cart = await this.carts.get(input.owner);
     if (!cart || cart.isEmpty) return err({ code: 'empty_cart' });
 

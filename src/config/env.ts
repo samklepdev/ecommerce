@@ -62,6 +62,12 @@ const envSchema = z.object({
   // welcome-email tracking pixel) — never derived from a request header.
   APP_URL: z.string().url().default('http://localhost:3000'),
 
+  // The kill switch's out-of-band trigger (`/api/store-switch`). Unset, that
+  // route is disabled entirely rather than open — a shutdown endpoint with no
+  // secret behind it is worse than no endpoint. 32 chars minimum because this
+  // single value is the whole authentication for closing the shop.
+  STORE_SWITCH_TOKEN: z.preprocess(emptyAsUndefined, z.string().min(32).optional()),
+
   PASSWORD_RESET_TTL_SECONDS: z.coerce.number().int().positive().default(3600),
   EMAIL_VERIFICATION_TTL_SECONDS: z.coerce.number().int().positive().default(86_400),
 

@@ -25,7 +25,14 @@ interface ProductPageProps {
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const { getProductBySlug } = getContainer();
+  const { getProductBySlug, getStoreAvailability } = getContainer();
+
+  // Metadata is resolved independently of the layout, so without this a
+  // closed store still names the product in the browser tab and in any link
+  // preview — the one part of the page the kill switch would otherwise miss.
+  const { isOpen } = await getStoreAvailability.execute();
+  if (!isOpen) return { title: 'Ordering paused' };
+
   const product = await getProductBySlug.execute({ slug });
   if (!product) return { title: 'Product not found' };
 

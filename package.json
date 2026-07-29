@@ -17,6 +17,9 @@
     "worker": "tsx --env-file-if-exists=.env src/workers/btc-watcher.ts",
     "fixture:supplier": "node scripts/fixture-supplier-server.mjs",
     "admin:promote": "tsx --env-file=.env scripts/bootstrap-admin.ts",
+    "store:close": "tsx --env-file-if-exists=.env scripts/store-switch.ts close",
+    "store:open": "tsx --env-file-if-exists=.env scripts/store-switch.ts open",
+    "store:status": "tsx --env-file-if-exists=.env scripts/store-switch.ts status",
     "geo:fetch": "node scripts/fetch-geo-db.mjs"
   },
   "dependencies": {

@@ -92,7 +92,12 @@ export async function startCheckoutAction(
           ? 'Your cart is empty.'
           : placed.error.code === 'invalid_coupon'
             ? "That coupon code isn't valid."
-            : 'An item in your cart is no longer available.',
+            : placed.error.code === 'store_closed'
+              ? // Named explicitly: the fallback below would otherwise tell a
+                // customer an item was unavailable, which is both wrong and
+                // the kind of message that makes someone re-add their cart.
+                'Ordering is paused right now — nothing was charged, and your cart is saved.'
+              : 'An item in your cart is no longer available.',
     };
   }
 
@@ -127,7 +132,12 @@ export async function startCheckoutAction(
     idempotencyKey: placed.value.id,
   });
   if (isErr(result)) {
-    return { error: 'Could not start checkout — try again.' };
+    return {
+      error:
+        result.error.code === 'store_closed'
+          ? 'Ordering is paused right now — nothing was charged.'
+          : 'Could not start checkout — try again.',
+    };
   }
 
   // Placing the order empties the cart — the Header's cart-count badge

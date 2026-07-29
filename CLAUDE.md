@@ -112,6 +112,30 @@ reserves inventory → calls `createPayment` → returns a `PaymentSession` carr
   AML/sanctions screening and tax reporting obligations vary by jurisdiction and what's sold.
   This is a standing consideration, not a code detail; flag it when payment scope changes.
 
+## The kill switch
+
+`store:closed` in Redis. Absent means open — the store's default state can't
+depend on a write having succeeded.
+
+- **Two reads, opposite failure modes, on purpose.** `AssertStoreOpenForCheckout`
+  (in `PlaceOrder` and `StartCheckout`) fails **closed**: if the switch can't be read we
+  don't take money, which costs nothing because checkout needs Redis for the address-index
+  `INCR` anyway. `GetStoreAvailability` (the storefront layout, `/api/health`) fails
+  **open**: a Redis blip must not take a browsable catalogue down, and it runs during
+  `next build`, where Redis is deliberately absent.
+- **The closed page is cosmetic; the use-case guard is what holds.** A server action can be
+  POSTed at directly. Never move the check into the UI only.
+- **Only `(storefront)` is gated.** `(auth)` and `(admin)` stay reachable, or closing the
+  store locks you out of the console you reopen it from.
+- **The watcher is untouched.** Orders already paid still settle and ship — closing the
+  front door must not strand someone who paid before you shut it.
+- **`/api/health` reports `storeOpen` but stays 200 when closed.** A 503 would have the load
+  balancer pull the instance and take admin with it.
+- Three triggers, all audited (`store.closed` / `store.opened`): the admin toggle, `npm run
+  store:close`, and `GET /api/store-switch` with `STORE_SWITCH_TOKEN`. Only the admin toggle
+  can revalidate, so a CLI flip may leave a cached page up briefly — nothing is buyable
+  through it.
+
 ## Idempotency
 
 Every mutating money- or inventory-touching operation **must** be idempotent:
@@ -203,6 +227,9 @@ npm run db:migrate       # apply migrations
 npm run db:studio        # drizzle studio
 npm run queue:dev        # run the BTC watcher locally (tsx watch; no queue involved)
 npm run admin:promote -- <email>  # promote an existing account to admin
+npm run store:close      # kill switch: shut the storefront (optionally: -- "reason")
+npm run store:open       # reopen it
+npm run store:status     # is it open?
 ```
 
 ## Git workflow

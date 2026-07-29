@@ -1,4 +1,5 @@
 import type { UseCase } from '@/shared/application/use-case';
+import type { GetStoreAvailability } from '@/shared/application/use-cases/get-store-availability';
 import {
   BTC_WATCHER_HEARTBEAT,
   type HeartbeatStore,
@@ -27,6 +28,9 @@ export interface SystemHealth {
     redis: ServiceCheck;
     btcWatcher: HeartbeatCheck;
   };
+  /** Whether the kill switch is on. Reported, never counted toward
+   * `status` — see the class doc. */
+  storeOpen: boolean;
 }
 
 /**
@@ -45,6 +49,12 @@ export interface SystemHealth {
  * **The response is unauthenticated**, so it carries fixed reason codes and
  * never the underlying error — a connection error's message routinely
  * contains the credentials it failed to connect with.
+ *
+ * The kill switch is reported here but deliberately does **not** make the
+ * check fail. A closure is intentional, and a 503 would have the load
+ * balancer pull the instance out — taking down the admin console the switch
+ * is turned off from, and paging whoever is on call about a decision they
+ * just made.
  */
 export class CheckSystemHealth implements UseCase<void, SystemHealth> {
   constructor(
@@ -53,14 +63,16 @@ export class CheckSystemHealth implements UseCase<void, SystemHealth> {
     private readonly heartbeats: HeartbeatStore,
     /** How long the watcher may go quiet before it counts as dead. */
     private readonly watcherStaleAfterMs: number,
+    private readonly storeAvailability: GetStoreAvailability,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
   async execute(): Promise<SystemHealth> {
-    const [database, redis, btcWatcher] = await Promise.all([
+    const [database, redis, btcWatcher, availability] = await Promise.all([
       this.probe(this.database),
       this.probe(this.cache),
       this.checkWatcher(),
+      this.storeAvailability.execute(),
     ]);
 
     const status =
@@ -68,7 +80,7 @@ export class CheckSystemHealth implements UseCase<void, SystemHealth> {
         ? 'ok'
         : 'degraded';
 
-    return { status, checks: { database, redis, btcWatcher } };
+    return { status, checks: { database, redis, btcWatcher }, storeOpen: availability.isOpen };
   }
 
   private async probe(service: ServiceProbe): Promise<ServiceCheck> {
