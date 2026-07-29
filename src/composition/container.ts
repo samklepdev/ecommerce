@@ -593,17 +593,23 @@ function build(): Container {
   const markSupplierOrderOrdered = new MarkSupplierOrderOrdered(supplierOrders);
   // Bulk marking delegates to this same use case per id, so the shipment
   // email is wired once and can't be forgotten on the bulk path.
+  const shipmentNotifier = new EmailShipmentNotifier(
+    orders,
+    supplierOrders,
+    emailSender,
+    env.APP_URL,
+  );
   const markSupplierOrderShipped = new MarkSupplierOrderShipped(
     supplierOrders,
     orders,
-    new EmailShipmentNotifier(orders, supplierOrders, emailSender, env.APP_URL),
+    shipmentNotifier,
   );
   const cancelSupplierOrder = new CancelSupplierOrder(supplierOrders, orders);
   const bulkMarkSupplierOrdersOrdered = new BulkMarkSupplierOrdersOrdered(markSupplierOrderOrdered);
   const bulkMarkSupplierOrdersShipped = new BulkMarkSupplierOrdersShipped(markSupplierOrderShipped);
   const bulkCancelSupplierOrders = new BulkCancelSupplierOrders(cancelSupplierOrder);
   const updateSupplierOrderReference = new UpdateSupplierOrderReference(supplierOrders);
-  const updateSupplierOrderTrackingNumber = new UpdateSupplierOrderTrackingNumber(supplierOrders);
+  const updateSupplierOrderTrackingNumber = new UpdateSupplierOrderTrackingNumber(supplierOrders, shipmentNotifier);
   const listSupplierOrdersByStatus = new ListSupplierOrdersByStatus(supplierOrders);
   const listSupplierOrdersNeedingAction = new ListSupplierOrdersNeedingAction(supplierOrders);
   const listUnfulfillableOrderLines = new ListUnfulfillableOrderLines(orders);

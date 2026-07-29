@@ -54,7 +54,20 @@ export interface SupplierOrderRepository {
   updateReference(supplierOrderId: string, reference: string): Promise<void>;
   /** Unguarded — edits an already-set tracking number without
    * re-triggering the ordered -> shipped transition `markShipped` performs. */
-  updateTrackingNumber(supplierOrderId: string, trackingNumber: string, carrier?: string | null): Promise<void>;
+  /**
+   * Returns which order it belongs to and whether the tracking number
+   * actually changed — null if there's no such supplier order.
+   *
+   * The caller needs both: a corrected number has to reach the customer,
+   * because the wrong one is already in their inbox, while fixing only the
+   * carrier dropdown must not send them a second email about a parcel they
+   * already know is moving.
+   */
+  updateTrackingNumber(
+    supplierOrderId: string,
+    trackingNumber: string,
+    carrier?: string | null,
+  ): Promise<{ orderId: string; trackingNumberChanged: boolean } | null>;
   /** Guarded + idempotent: false unless currently `needs_ordering` or `ordered`. */
   cancel(supplierOrderId: string): Promise<boolean>;
   allShippedForOrder(orderId: string): Promise<boolean>;
