@@ -161,7 +161,12 @@ export function AnalyticsDashboard({
       <section className={styles.section}>
         <div className={styles.sectionHead}>
           <h2>Site traffic</h2>
-          <Link href="/admin/analytics/page-views">All activity →</Link>
+          <span className={styles.sectionLinks}>
+            {/* The three panels below slice by event type across everyone;
+                this one slices by person across every type. */}
+            <Link href="/admin/analytics/identity">By visitor →</Link>
+            <Link href="/admin/analytics/page-views">All activity →</Link>
+          </span>
         </div>
 
         <div className={styles.panels}>

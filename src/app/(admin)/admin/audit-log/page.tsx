@@ -1,4 +1,5 @@
 import { getContainer } from '@/composition/container';
+import { summariseUserAgent } from '@/shared/domain/user-agent';
 import { requireAdmin } from '@/app/lib/session';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
@@ -63,6 +64,7 @@ export default async function AdminAuditLogPage({ searchParams }: AdminAuditLogP
                   <th>Actor</th>
                   <th>Action</th>
                   <th>Target</th>
+                  <th>From</th>
                 </tr>
               </thead>
               <tbody>
@@ -73,6 +75,17 @@ export default async function AdminAuditLogPage({ searchParams }: AdminAuditLogP
                     <td>{entry.action}</td>
                     <td>
                       {entry.targetType}: {entry.targetId}
+                    </td>
+                    <td className={styles.origin}>
+                      {/* Raw agent stored, readable form shown — an admin
+                          scanning this wants "Chrome on macOS", not 140
+                          characters of Mozilla/5.0. */}
+                      {entry.ipAddress ?? '—'}
+                      {summariseUserAgent(entry.userAgent) && (
+                        <span className={styles.originAgent} title={entry.userAgent ?? undefined}>
+                          {summariseUserAgent(entry.userAgent)}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}

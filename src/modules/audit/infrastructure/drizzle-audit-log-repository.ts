@@ -5,7 +5,7 @@ import type { DB } from '@/shared/infrastructure/db/client';
 import { auditLog } from '@/shared/infrastructure/db/schema';
 import type {
   AuditLogEntry,
-  AuditLogEntryInput,
+  AuditLogEntryRecord,
   AuditLogRepository,
 } from '@/modules/audit/application/ports/audit-log-repository';
 
@@ -20,6 +20,8 @@ function toEntry(row: Row): AuditLogEntry {
     targetType: row.targetType,
     targetId: row.targetId,
     metadata: (row.metadata as Record<string, unknown> | null) ?? undefined,
+    ipAddress: row.ipAddress,
+    userAgent: row.userAgent,
     createdAt: row.createdAt,
   };
 }
@@ -27,7 +29,7 @@ function toEntry(row: Row): AuditLogEntry {
 export class DrizzleAuditLogRepository implements AuditLogRepository {
   constructor(private readonly db: DB) {}
 
-  async record(entry: AuditLogEntryInput): Promise<void> {
+  async record(entry: AuditLogEntryRecord): Promise<void> {
     await this.db.insert(auditLog).values({
       id: randomUUID(),
       actorUserId: entry.actorUserId,
@@ -36,6 +38,8 @@ export class DrizzleAuditLogRepository implements AuditLogRepository {
       targetType: entry.targetType,
       targetId: entry.targetId,
       metadata: entry.metadata ?? null,
+      ipAddress: entry.ipAddress,
+      userAgent: entry.userAgent,
     });
   }
 

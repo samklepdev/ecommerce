@@ -3,6 +3,7 @@
 import { useActionState } from 'react';
 
 import { signUpAction, type AuthActionResult } from '@/app/actions/auth';
+import { HoneypotField } from '@/components/ui/HoneypotField';
 import { Field } from '@/components/ui/Field';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -17,6 +18,7 @@ export function SignUpForm() {
 
   return (
     <form action={formAction}>
+      <HoneypotField />
       <Field label="Email" htmlFor="email">
         <Input type="email" id="email" name="email" required />
       </Field>

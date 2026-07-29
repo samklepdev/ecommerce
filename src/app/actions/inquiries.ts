@@ -3,6 +3,7 @@
 import { z } from 'zod';
 
 import { getContainer } from '@/composition/container';
+import { isHoneypotTripped } from '@/app/lib/honeypot';
 import { getSessionUser } from '@/app/lib/session';
 import { checkRateLimit, getClientIp, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
 
@@ -26,6 +27,12 @@ export async function submitInquiryAction(
   _prevState: SubmitInquiryActionResult | undefined,
   formData: FormData,
 ): Promise<SubmitInquiryActionResult> {
+  // Answers exactly as a real submission does. Telling a bot it was caught
+  // is telling its author what to change.
+  if (isHoneypotTripped(formData)) {
+    return { message: "Thanks — we'll look into sourcing it and reply by email." };
+  }
+
   const parsed = InquirySchema.safeParse({
     subject: formData.get('subject'),
     message: formData.get('message'),
