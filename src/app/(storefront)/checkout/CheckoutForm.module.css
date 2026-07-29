@@ -1,6 +1,8 @@
+/* The 480px cap was what made this form a narrow ribbon down the middle of
+   a wide page. The grid in page.module.css sizes the column now, so the
+   card fills whatever it's given. */
 .card {
-  max-width: 480px;
-  margin: 0 auto;
+  min-width: 0;
 }
 
 .fieldset {
@@ -43,4 +45,12 @@
   .row {
     grid-template-columns: 1fr;
   }
+}
+
+/* Stands in for the email field a signed-in customer no longer has to fill
+   in. Says where the confirmation is going, and how to change it. */
+.emailNote {
+  margin: 0 0 var(--space-4);
+  font-size: 0.875rem;
+  color: var(--color-muted);
 }

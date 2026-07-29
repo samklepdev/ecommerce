@@ -12,6 +12,7 @@ import {
   FolderIcon,
   TicketIcon,
   TruckIcon,
+  MailIcon,
   UsersIcon,
 } from './icons';
 
@@ -37,6 +38,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: '/admin', label: 'Dashboard', icon: GridIcon },
       { href: '/admin/orders', label: 'Orders', icon: ReceiptIcon },
       { href: '/admin/fulfillment', label: 'Fulfillment', icon: TruckIcon },
+      { href: '/admin/inquiries', label: 'Inquiries', icon: MailIcon },
     ],
   },
   {

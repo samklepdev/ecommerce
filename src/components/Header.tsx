@@ -9,6 +9,7 @@ import { Dropdown, DropdownDivider, DropdownItem } from '@/components/ui/Dropdow
 import { Avatar } from '@/components/ui/Avatar';
 import { AdminStrip } from './AdminStrip';
 import { StorefrontNav, type NavLink } from './StorefrontNav';
+import { cx } from '@/components/ui/cx';
 import styles from './Header.module.css';
 
 /** Only destinations that exist. The prototype also listed /about/payments
@@ -53,6 +54,7 @@ export async function Header() {
       <span className={styles.drawerEmail}>{user.email}</span>
       <Link href="/account">Account</Link>
       <Link href="/account/orders">My orders</Link>
+      <Link href="/account/wishlist">Saved products</Link>
       {user.isAdmin && <Link href="/admin">Admin console</Link>}
       <form action={logOutAction}>
         <button type="submit" className={styles.drawerLogout}>
@@ -77,6 +79,39 @@ export async function Header() {
 
           <StorefrontNav links={NAV} itemCount={itemCount} drawerAccount={accountLinks} />
 
+          {/* Every menu in this header needs JavaScript: the drawer is
+              portaled on mount, and the avatar dropdown is a toggle. With
+              scripting off that leaves the brand and the cart, so the same
+              destinations are laid out here as plain links. Rendered only
+              when there's no JS, so it costs a logged-in visitor nothing. */}
+          <noscript>
+            <nav className={styles.noscriptNav} aria-label="Site">
+              {NAV.map((link) => (
+                <Link key={link.href} href={link.href}>
+                  {link.label}
+                </Link>
+              ))}
+              <Link href="/cart">Cart</Link>
+              {user ? (
+                <>
+                  <Link href="/account">Account</Link>
+                  <Link href="/account/orders">My orders</Link>
+                  <Link href="/account/wishlist">Saved products</Link>
+                  {user.isAdmin && <Link href="/admin">Admin console</Link>}
+                  {/* A server action bound to a form posts without JS, so
+                      logging out still works here. */}
+                  <form action={logOutAction}>
+                    <button type="submit" className={styles.noscriptLogout}>
+                      Log out
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <Link href="/login">Log in</Link>
+              )}
+            </nav>
+          </noscript>
+
           <div className={styles.right}>
             <Link
               href="/cart"
@@ -88,15 +123,27 @@ export async function Header() {
               {itemCount > 0 && <span className={styles.cartBadge}>{itemCount}</span>}
             </Link>
 
+            {user && (
+              /* Mobile keeps the avatar — it's the "you're signed in, as
+                 this person" cue — but as a plain link to the account page.
+                 The menu behind it lives in the drawer, and two menus in one
+                 header is what this replaced. */
+              <Link href="/account" className={styles.avatarLink} aria-label="Account">
+                <Avatar avatarUrl={user.avatarUrl} label={user.email} size="sm" />
+              </Link>
+            )}
+
             {user ? (
               <Dropdown
                 align="right"
+                className={styles.accountMenu}
                 trigger={<Avatar avatarUrl={user.avatarUrl} label={user.email} size="sm" />}
               >
                 <span className={styles.ddEmail}>{user.email}</span>
                 <DropdownDivider />
                 <DropdownItem href="/account">Account</DropdownItem>
                 <DropdownItem href="/account/orders">My orders</DropdownItem>
+                <DropdownItem href="/account/wishlist">Saved products</DropdownItem>
                 {user.isAdmin && (
                   <>
                     <DropdownDivider />
@@ -109,7 +156,7 @@ export async function Header() {
                 </form>
               </Dropdown>
             ) : (
-              <Link href="/login" className={styles.loginLink}>
+              <Link href="/login" className={cx(styles.loginLink, styles.accountMenu)}>
                 Log in
               </Link>
             )}

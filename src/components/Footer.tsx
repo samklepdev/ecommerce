@@ -21,6 +21,7 @@ const COLUMNS = [
     title: 'Support',
     links: [
       { label: 'Find my order', href: '/orders/find' },
+      { label: 'Source a product', href: '/sourcing' },
       { label: 'Contact support', href: `mailto:${env.SUPPORT_EMAIL}` },
     ],
   },

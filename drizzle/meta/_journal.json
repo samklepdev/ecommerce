@@ -169,6 +169,20 @@
       "when": 1785277202394,
       "tag": "0023_drop_product_category_text",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1785285817732,
+      "tag": "0024_add_wishlist_items",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1785289144963,
+      "tag": "0025_add_product_inquiries",
+      "breakpoints": true
     }
   ]
 }

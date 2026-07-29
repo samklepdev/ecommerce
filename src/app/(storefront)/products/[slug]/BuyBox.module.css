@@ -224,3 +224,17 @@
   cursor: not-allowed;
   font-weight: 500;
 }
+
+/* Sits under the buy row, quieter than it — saving is the secondary action
+   on a page whose job is selling. */
+.saveRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.saveHint {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}

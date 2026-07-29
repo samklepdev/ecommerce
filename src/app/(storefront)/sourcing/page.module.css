@@ -1,0 +1,6 @@
+.lede {
+  margin-top: var(--space-2);
+  max-width: 62ch;
+  color: var(--color-muted);
+  line-height: 1.6;
+}

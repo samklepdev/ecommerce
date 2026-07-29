@@ -3,6 +3,7 @@
 import { useActionState, useState } from 'react';
 
 import { addToCartAction, type AddToCartActionResult } from '@/app/actions/cart';
+import { SaveButton } from '../SaveButton';
 import { useAddToCartFeedback } from '@/app/lib/use-add-to-cart-feedback';
 import { MAX_CART_LINE_QUANTITY } from '@/modules/cart/domain/cart-line';
 import { Amount } from '@/components/ui/Amount';
@@ -10,6 +11,10 @@ import { QuantityStepper } from '@/components/ui/QuantityStepper';
 import styles from './BuyBox.module.css';
 
 export interface BuyBoxProps {
+  /** For the save button beside "Add to cart". */
+  productName: string;
+  initialSaved: boolean;
+  isLoggedIn: boolean;
   productId: string;
   priceDisplay: string;
   /** Pre-formatted on the server; null when the rate feed was unreachable. */
@@ -38,6 +43,9 @@ function formatTotal(minor: number, currency: string): string {
  */
 export function BuyBox({
   productId,
+  productName,
+  initialSaved,
+  isLoggedIn,
   priceDisplay,
   satsDisplay,
   priceMinor,
@@ -75,6 +83,20 @@ export function BuyBox({
           {!isAvailable ? 'Out of stock' : isPending ? 'Adding…' : `Add to cart · ${total}`}
         </button>
       </form>
+
+      {/* Outside the add-to-cart form on purpose — nesting forms is invalid,
+          and saving is a separate decision from buying. */}
+      <div className={styles.saveRow}>
+        <SaveButton
+          productId={productId}
+          productName={productName}
+          initialSaved={initialSaved}
+          isLoggedIn={isLoggedIn}
+        />
+        <span className={styles.saveHint}>
+          {isLoggedIn ? 'Save for later' : 'Sign in to save for later'}
+        </span>
+      </div>
     </div>
   );
 }
