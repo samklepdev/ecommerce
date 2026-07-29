@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { shouldRefreshOnStatusChange, type WidgetStatus } from './bitcoin-checkout-status';
+import { RefreshQuoteButton } from './RefreshQuoteButton';
 import styles from './BitcoinCheckout.module.css';
 
 interface StatusResponse {
@@ -94,6 +95,10 @@ export function BitcoinCheckout({
   const [copied, setCopied] = useState(false);
   const { status } = progress;
   const countdown = useCountdown(status === 'awaiting' ? expiresAt : null);
+  // The rate lock has run out, but the order hasn't: the customer needs a
+  // new price, not a new checkout. Reads "0:00" rather than a missing
+  // countdown, so this only fires once the clock has genuinely elapsed.
+  const quoteLapsed = status === 'awaiting' && countdown === '0:00';
   const router = useRouter();
   const lastStatusRef = useRef<WidgetStatus | null>(null);
 
@@ -203,15 +208,30 @@ export function BitcoinCheckout({
             </p>
           )}
 
-          {status === 'awaiting' && (
+          {status === 'awaiting' && !quoteLapsed && (
             <p className={styles.amount}>
               {amountBtc} BTC <span className={styles.amountFiat}>({amountFiat})</span>
             </p>
           )}
 
-          <div className={styles.qrWrapper}>
-            <QRCodeSVG value={bip21Uri} size={220} />
-          </div>
+          {quoteLapsed && (
+            <div className={styles.stack}>
+              <p className={styles.message}>
+                This price was held for a short window and has now lapsed — bitcoin&apos;s rate
+                moves, so we can&apos;t honour an old one. Your order is still open: get today&apos;s
+                price and pay to the same address below.
+              </p>
+              <RefreshQuoteButton orderId={orderId} />
+            </div>
+          )}
+
+          {/* Hidden while the price is stale: a QR encodes the amount, and
+              scanning a lapsed one would send the wrong number of sats. */}
+          {!quoteLapsed && (
+            <div className={styles.qrWrapper}>
+              <QRCodeSVG value={bip21Uri} size={220} />
+            </div>
+          )}
 
           <div className={styles.addressRow}>
             <code className={styles.address}>{address}</code>

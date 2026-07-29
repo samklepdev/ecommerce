@@ -29,6 +29,7 @@ export class StartCheckout
     private readonly orders: CheckoutOrderRepository,
     private readonly gateways: PaymentGatewayRegistry,
     private readonly quoteTtlSeconds: number,
+    private readonly orderWindowHours: number,
   ) {}
 
   async execute(input: StartCheckoutInput): Promise<Result<PaymentSession, StartCheckoutError>> {
@@ -44,11 +45,12 @@ export class StartCheckout
     if (isErr(result)) return err(result.error);
 
     const paymentWindowExpiresAt = new Date(Date.now() + this.quoteTtlSeconds * 1000);
-    await this.orders.markAwaitingPayment(
-      input.orderId,
-      result.value.reference,
-      paymentWindowExpiresAt,
-    );
+    // Two clocks. The quote's is short because it's a held price; the
+    // order's is long because it's a customer's attention span. The
+    // repository keeps the first deadline it was given, so re-quoting an
+    // order never extends how long it stays open.
+    const paymentDeadlineAt = new Date(Date.now() + this.orderWindowHours * 3_600_000);
+    await this.orders.markAwaitingPayment(input.orderId, result.value.reference, paymentWindowExpiresAt, paymentDeadlineAt);
 
     return ok(result.value);
   }

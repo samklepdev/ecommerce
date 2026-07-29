@@ -90,8 +90,14 @@ reserves inventory → calls `createPayment` → returns a `PaymentSession` carr
 - **BIP32 gap limit:** watch-only wallets stop scanning after ~20 consecutive unused
   addresses. High abandoned-checkout volume can outrun this — raise the scan gap limit on the
   watching wallet if needed.
-- **Rate lock + expiry:** the fiat→BTC quote is locked at checkout with a TTL (default 15 min).
-  Past expiry with nothing on-chain → `expired` (releases the order + inventory).
+- **Two clocks, deliberately.** `QUOTE_TTL_SECONDS` (default 15 min) is the rate lock — every
+  minute of it is BTC/USD exposure on a price already quoted.
+  `ORDER_PAYMENT_WINDOW_HOURS` (default 24) is how long the ORDER stays open.
+  A lapsed quote does **not** expire the order: the customer re-quotes
+  (`RefreshPaymentQuote`) and gets today's price on the **same address**. Only the order
+  deadline expires an order, and `listWatchable` keys off that same deadline — watching must
+  outlive the quote, or a customer paying against a stale QR sends real BTC to an address
+  nobody is polling.
 - **Confirmations:** `BTC_REQUIRED_CONFIRMATIONS` (default 2). Seen-but-shallow →
   `awaiting_confirmation`, never fulfilled.
 - **Underpayment is not payment.** `confirmedSats < expectedSats − dustTolerance` stays in

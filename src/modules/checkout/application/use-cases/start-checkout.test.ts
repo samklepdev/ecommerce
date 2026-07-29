@@ -47,7 +47,7 @@ describe('StartCheckout', () => {
       expectedSats: 1999,
     };
     const gateways = new PaymentGatewayRegistry([makeFakeGateway(ok(output))]);
-    const useCase = new StartCheckout(orders, gateways, 900);
+    const useCase = new StartCheckout(orders, gateways, 900, 24);
 
     const result = await useCase.execute({
       orderId: 'order-1',
@@ -73,7 +73,7 @@ describe('StartCheckout', () => {
     const gateways = new PaymentGatewayRegistry([
       makeFakeGateway(err({ code: 'gateway_error', message: 'boom' })),
     ]);
-    const useCase = new StartCheckout(orders, gateways, 900);
+    const useCase = new StartCheckout(orders, gateways, 900, 24);
 
     const result = await useCase.execute({
       orderId: 'order-1',
@@ -90,7 +90,7 @@ describe('StartCheckout', () => {
   it('throws when no gateway is registered for the requested payment method', async () => {
     const { repo: orders } = makeFakeOrders();
     const gateways = new PaymentGatewayRegistry([]);
-    const useCase = new StartCheckout(orders, gateways, 900);
+    const useCase = new StartCheckout(orders, gateways, 900, 24);
 
     await expect(
       useCase.execute({

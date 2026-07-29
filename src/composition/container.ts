@@ -12,6 +12,7 @@ import type { RateLimiter } from '@/shared/application/ports/rate-limiter';
 
 import { StartCheckout } from '@/modules/checkout/application/use-cases/start-checkout';
 import { ExpireStaleCheckouts } from '@/modules/checkout/application/use-cases/expire-stale-checkouts';
+import { RefreshPaymentQuote } from '@/modules/checkout/application/use-cases/refresh-payment-quote';
 import { ConfirmPayment } from '@/modules/orders/application/use-cases/confirm-payment';
 import { MarkOrderRefunded } from '@/modules/orders/application/use-cases/mark-order-refunded';
 import { MarkOrderDelivered } from '@/modules/orders/application/use-cases/mark-order-delivered';
@@ -316,6 +317,7 @@ export interface Container {
   setCouponActive: SetCouponActive;
   startCheckout: StartCheckout;
   expireStaleCheckouts: ExpireStaleCheckouts;
+  refreshPaymentQuote: RefreshPaymentQuote;
   confirmPayment: ConfirmPayment;
   markOrderRefunded: MarkOrderRefunded;
   markOrderDelivered: MarkOrderDelivered;
@@ -574,7 +576,8 @@ function build(): Container {
   const setCouponActive = new SetCouponActive(coupons);
   const placeOrder = new PlaceOrder(carts, products, orders, shippingRates, coupons);
   const reorderItems = new ReorderItems(orders, carts, products);
-  const startCheckout = new StartCheckout(orders, gateways, env.QUOTE_TTL_SECONDS);
+  const startCheckout = new StartCheckout(orders, gateways, env.QUOTE_TTL_SECONDS, env.ORDER_PAYMENT_WINDOW_HOURS);
+  const refreshPaymentQuote = new RefreshPaymentQuote(orders, btcGateway);
   const expireStaleCheckouts = new ExpireStaleCheckouts(orders, paymentStore);
 
   const createSupplierOrdersForPaidOrder = new CreateSupplierOrdersForPaidOrder(
@@ -752,6 +755,7 @@ function build(): Container {
     setCouponActive,
     startCheckout,
     expireStaleCheckouts,
+    refreshPaymentQuote,
     confirmPayment,
     markOrderRefunded,
     markOrderDelivered,

@@ -453,8 +453,14 @@ export const orders = pgTable(
     paymentReference: text('payment_reference'),
     customerEmail: text('customer_email').notNull(),
     shippingAddress: jsonb('shipping_address').$type<ShippingAddressJson>(),
-    // BTC quote/rate-lock expiry. ExpireStaleCheckouts scans this column.
+    // The BTC quote's rate-lock expiry — short, because holding a fiat->BTC
+    // price is real exposure. When it lapses the customer re-quotes; the
+    // order itself is unaffected.
     paymentWindowExpiresAt: timestamp('payment_window_expires_at', { withTimezone: true }),
+    // How long the ORDER stays open, which is a different question: the
+    // customer may wander off and come back. ExpireStaleCheckouts scans this
+    // column, and the watcher keeps polling the address until it passes.
+    paymentDeadlineAt: timestamp('payment_deadline_at', { withTimezone: true }),
     // Set once, when the order first enters awaiting_confirmation (never
     // touched again on repeat watcher passes) — FailStuckAwaitingConfirmationOrders
     // scans this column for orders that have sat there too long.

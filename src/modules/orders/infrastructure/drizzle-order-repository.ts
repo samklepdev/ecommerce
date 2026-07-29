@@ -65,6 +65,7 @@ import type {
   UnfulfillableOrderLinesRepository,
 } from '@/modules/orders/application/ports/unfulfillable-order-lines-repository';
 import type { CancelOrderRepository } from '@/modules/orders/application/ports/cancel-order-repository';
+import type { QuotableOrderRepository } from '@/modules/checkout/application/use-cases/refresh-payment-quote';
 import type {
   EditableOrder,
   EditableOrderLine,
@@ -100,6 +101,7 @@ export class DrizzleOrderRepository
     UnfulfillableOrderLinesRepository,
     CancelOrderRepository,
     OrderEditRepository,
+    QuotableOrderRepository,
     RevenueSummaryRepository
 {
   constructor(private readonly db: DB) {}
@@ -282,14 +284,17 @@ export class DrizzleOrderRepository
   }
 
   async findExpiredAwaitingOrderIds(now: Date): Promise<string[]> {
-    // Same grace period as DrizzleBitcoinPaymentStore.listWatchable's
-    // continued-polling window — an order must never be expired while its
-    // payment intent might still be found by the watcher.
+    // Keyed on the ORDER's deadline, not the quote's. A lapsed quote just
+    // means the price is stale and the customer needs a fresh one — killing
+    // the order for it would throw away a sale over a 15-minute rate lock.
+    //
+    // Same grace period as listWatchable's continued-polling window: an
+    // order must never be expired while its address is still being watched.
     const cutoff = new Date(now.getTime() - PAYMENT_EXPIRY_GRACE_MS);
     const rows = await this.db.query.orders.findMany({
       where: and(
         inArray(orders.paymentStatus, ['pending', 'awaiting_payment']),
-        lt(orders.paymentWindowExpiresAt, cutoff),
+        lt(orders.paymentDeadlineAt, cutoff),
       ),
       columns: { id: true },
     });
@@ -383,6 +388,7 @@ export class DrizzleOrderRepository
     orderId: string,
     reference: string,
     paymentWindowExpiresAt: Date,
+    paymentDeadlineAt: Date,
   ): Promise<void> {
     await this.db.transaction(async (tx) => {
       await tx
@@ -391,6 +397,10 @@ export class DrizzleOrderRepository
           paymentStatus: 'awaiting_payment',
           paymentReference: reference,
           paymentWindowExpiresAt,
+          // COALESCE, not assignment: a second checkout on the same order
+          // re-quotes the price but must not hand the customer another full
+          // window to pay in.
+          paymentDeadlineAt: sql`coalesce(${orders.paymentDeadlineAt}, ${paymentDeadlineAt})`,
           updatedAt: new Date(),
         })
         .where(eq(orders.id, orderId));
@@ -644,6 +654,29 @@ export class DrizzleOrderRepository
         quantity: lines.reduce((sum, l) => sum + l.quantity, 0),
       });
     });
+  }
+
+  async findQuotable(orderId: string): Promise<{
+    paymentStatus: string;
+    paymentDeadlineAt: Date | null;
+    total: Money;
+  } | null> {
+    const row = await this.db.query.orders.findFirst({
+      where: eq(orders.id, orderId),
+      columns: {
+        paymentStatus: true,
+        paymentDeadlineAt: true,
+        amountMinor: true,
+        currency: true,
+      },
+    });
+    if (!row) return null;
+    return {
+      paymentStatus: row.paymentStatus,
+      paymentDeadlineAt: row.paymentDeadlineAt,
+      // The persisted total, so a re-quote prices exactly what was ordered.
+      total: Money.of(row.amountMinor, row.currency),
+    };
   }
 
   async setPaymentWindow(orderId: string, expiresAt: Date): Promise<void> {
