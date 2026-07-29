@@ -85,11 +85,17 @@ export function CheckoutForm({ isLoggedIn, savedAddresses, userEmail }: Checkout
               id="customerEmail"
               name="customerEmail"
               defaultValue={userEmail}
+              autoComplete="email"
               required
             />
           </Field>
         )}
 
+        {/* autoComplete on every field, not just for the convenience of it:
+            without the hints a browser or password manager guesses at what
+            an address form wants, and guessing is when they start injecting
+            their own attributes into the inputs — which is a common source
+            of hydration warnings on exactly this page. */}
         <fieldset className={styles.fieldset}>
           <legend className={styles.legend}>Shipping address</legend>
 
@@ -111,24 +117,52 @@ export function CheckoutForm({ isLoggedIn, savedAddresses, userEmail }: Checkout
           )}
 
           <Field label="Full name" htmlFor="shippingName">
-            <Input type="text" id="shippingName" name="shippingName" ref={nameRef} required />
+            <Input
+              type="text"
+              id="shippingName"
+              name="shippingName"
+              ref={nameRef}
+              autoComplete="name"
+              required
+            />
           </Field>
           <Field label="Address line 1" htmlFor="shippingLine1">
-            <Input type="text" id="shippingLine1" name="shippingLine1" ref={line1Ref} required />
+            <Input
+              type="text"
+              id="shippingLine1"
+              name="shippingLine1"
+              ref={line1Ref}
+              autoComplete="address-line1"
+              required
+            />
           </Field>
           <Field label="Address line 2 (optional)" htmlFor="shippingLine2">
-            <Input type="text" id="shippingLine2" name="shippingLine2" ref={line2Ref} />
+            <Input
+              type="text"
+              id="shippingLine2"
+              name="shippingLine2"
+              ref={line2Ref}
+              autoComplete="address-line2"
+            />
           </Field>
 
           <div className={styles.row}>
             <Field label="City" htmlFor="shippingCity" className={styles.rowField}>
-              <Input type="text" id="shippingCity" name="shippingCity" ref={cityRef} required />
+              <Input
+                type="text"
+                id="shippingCity"
+                name="shippingCity"
+                ref={cityRef}
+                autoComplete="address-level2"
+                required
+              />
             </Field>
             <Field label="State / region" htmlFor="shippingRegion" className={styles.rowField}>
               {country === 'US' ? (
                 <Select
                   id="shippingRegion"
                   name="shippingRegion"
+                  autoComplete="address-level1"
                   value={region}
                   onChange={(e) => setRegion(e.target.value)}
                   required
@@ -145,6 +179,7 @@ export function CheckoutForm({ isLoggedIn, savedAddresses, userEmail }: Checkout
                   type="text"
                   id="shippingRegion"
                   name="shippingRegion"
+                  autoComplete="address-level1"
                   value={region}
                   onChange={(e) => setRegion(e.target.value)}
                   required
@@ -163,6 +198,7 @@ export function CheckoutForm({ isLoggedIn, savedAddresses, userEmail }: Checkout
                 type="text"
                 id="shippingPostalCode"
                 name="shippingPostalCode"
+                autoComplete="postal-code"
                 ref={postalCodeRef}
                 required
               />
@@ -171,6 +207,7 @@ export function CheckoutForm({ isLoggedIn, savedAddresses, userEmail }: Checkout
               <Select
                 id="shippingCountry"
                 name="shippingCountry"
+                autoComplete="country"
                 value={country}
                 onChange={(e) => {
                   setCountry(e.target.value);
