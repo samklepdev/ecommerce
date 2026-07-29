@@ -433,7 +433,6 @@ function build(): Container {
   const getAdminCatalogCounts = new GetAdminCatalogCounts(products);
   const getAnyProductsByIds = new GetAnyProductsByIds(products);
   const deleteProducts = new DeleteProducts(products);
-  const publishProducts = new PublishProducts(products);
   const unpublishProducts = new UnpublishProducts(products);
 
   // --- cart ---
@@ -535,6 +534,7 @@ function build(): Container {
   const setPreferredSupplierOffer = new SetPreferredSupplierOffer(supplierOffers);
   const getPreferredOfferForProduct = new GetPreferredOfferForProduct(supplierOffers);
   const listSupplierOffersForProduct = new ListSupplierOffersForProduct(supplierOffers);
+  const publishProducts = new PublishProducts(products, supplierOffers);
   const listSupplierOffersForProducts = new ListSupplierOffersForProducts(supplierOffers);
   const imageStorage = new LocalFileImageStorage();
   const addProductImages = new AddProductImages(products, imageStorage);

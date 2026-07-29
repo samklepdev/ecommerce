@@ -28,12 +28,12 @@ function makeInput(overrides: Partial<CreateProductInput> = {}): CreateProductIn
 }
 
 describe('CreateProduct', () => {
-  it('creates a product with defaulted status and source', async () => {
+  it('defaults to draft, not active — nothing is sellable before it has a supplier', async () => {
     const { repo, created } = makeFakeProducts();
 
     const product = await new CreateProduct(repo).execute(makeInput());
 
-    expect(product.status).toBe('active');
+    expect(product.status).toBe('draft');
     expect(product.source).toBe('manual');
     expect(product.slug.value).toBe('widget-x');
     expect(created).toEqual([product]);

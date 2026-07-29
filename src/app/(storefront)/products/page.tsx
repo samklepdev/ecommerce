@@ -36,7 +36,9 @@ async function resolveQuickAddAvailability(
   getPreferredOfferForProduct: ReturnType<typeof getContainer>['getPreferredOfferForProduct'],
 ): Promise<boolean> {
   const offer = await getPreferredOfferForProduct.execute({ productId: product.id });
-  return offer?.isAvailable ?? true;
+  // Same rule as the product page: no offer means nowhere to buy it from,
+  // so it isn't for sale.
+  return offer?.isAvailable ?? false;
 }
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {

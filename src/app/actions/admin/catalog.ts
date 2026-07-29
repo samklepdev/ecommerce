@@ -87,12 +87,16 @@ export async function createProductWithOfferAction(
     return { error: parsed.error.issues[0]?.message ?? 'Fill in all required fields.' };
   }
 
-  const { createProduct, createSupplierOffer } = getContainer();
+  const { createProduct, createSupplierOffer, publishProducts } = getContainer();
 
+  // Draft → offer → publish, in that order. Creating it active would put a
+  // buyable product in the catalogue a moment before it had anywhere to be
+  // bought from, and leave it there if the offer below failed.
   const product = await createProduct.execute({
     slug: parsed.data.slug,
     name: parsed.data.name,
     description: parsed.data.description ?? null,
+    status: 'draft',
     categoryId: parsed.data.categoryId ?? null,
     sku: parsed.data.sku,
     unitAmountMinor: parsed.data.unitAmountMinor,
@@ -107,8 +111,16 @@ export async function createProductWithOfferAction(
     costCurrency: parsed.data.costCurrency,
   });
 
+  const { published } = await publishProducts.execute({ productIds: [product.id] });
+
   revalidatePath('/admin/products');
   revalidatePath('/products');
+
+  if (published === 0) {
+    return {
+      error: `Added "${product.name}" as a draft, but it could not be published. Check its supplier offer under Sourcing.`,
+    };
+  }
   return { message: `Added product "${product.name}".` };
 }
 
@@ -299,6 +311,16 @@ export async function publishProductsAction(
 
   if (result.failed > 0) {
     return { error: `Published ${result.published}, but ${result.failed} could not be published.` };
+  }
+  // A refusal has to say *why*, and name the fix — otherwise publishing a
+  // sourceless product looks like the button did nothing.
+  if (result.unsourced > 0) {
+    const plural = result.unsourced === 1 ? '' : 's';
+    return {
+      error: `Published ${result.published}. ${result.unsourced} product${plural} ${
+        result.unsourced === 1 ? 'has' : 'have'
+      } no preferred supplier offer — add a supplier under Sourcing before publishing.`,
+    };
   }
   return { message: `Published ${result.published} product${result.published === 1 ? '' : 's'}.` };
 }

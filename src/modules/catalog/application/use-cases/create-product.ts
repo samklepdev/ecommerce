@@ -18,6 +18,12 @@ export interface CreateProductInput {
   currency: string;
 }
 
+/**
+ * Creates a product. **Draft unless told otherwise** — the old default was
+ * `active`, which meant a product went live in the instant before its
+ * supplier offer was written, and stayed live if writing that offer failed.
+ * Nothing sellable should exist before the thing that says where to buy it.
+ */
 export class CreateProduct implements UseCase<CreateProductInput, Product> {
   constructor(private readonly products: ProductRepository) {}
 
@@ -27,7 +33,7 @@ export class CreateProduct implements UseCase<CreateProductInput, Product> {
       slug: Slug.create(input.slug),
       name: input.name,
       description: input.description ?? null,
-      status: input.status ?? 'active',
+      status: input.status ?? 'draft',
       source: input.source ?? 'manual',
       categoryId: input.categoryId ?? null,
       sku: input.sku,
