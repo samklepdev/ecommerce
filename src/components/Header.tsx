@@ -9,6 +9,7 @@ import { Dropdown, DropdownDivider, DropdownItem } from '@/components/ui/Dropdow
 import { Avatar } from '@/components/ui/Avatar';
 import { AdminStrip } from './AdminStrip';
 import { StorefrontNav, type NavLink } from './StorefrontNav';
+import { cx } from '@/components/ui/cx';
 import styles from './Header.module.css';
 
 /** Only destinations that exist. The prototype also listed /about/payments
@@ -92,6 +93,7 @@ export async function Header() {
             {user ? (
               <Dropdown
                 align="right"
+                className={styles.accountMenu}
                 trigger={<Avatar avatarUrl={user.avatarUrl} label={user.email} size="sm" />}
               >
                 <span className={styles.ddEmail}>{user.email}</span>
@@ -111,7 +113,7 @@ export async function Header() {
                 </form>
               </Dropdown>
             ) : (
-              <Link href="/login" className={styles.loginLink}>
+              <Link href="/login" className={cx(styles.loginLink, styles.accountMenu)}>
                 Log in
               </Link>
             )}

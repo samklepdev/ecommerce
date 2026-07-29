@@ -269,6 +269,15 @@
     display: flex;
   }
 
+  /* The drawer already carries Account, My orders, Saved products and Log
+     out. Leaving the avatar menu up as well put two controls 145px apart in
+     the same header opening the same four links — and a dropdown pinned to
+     the right edge of a 390px screen is the worse of the two. Same reason
+     for the logged-out Log in link, which the drawer also holds. */
+  .accountMenu {
+    display: none;
+  }
+
   .inner {
     gap: 16px;
     justify-content: space-between;
