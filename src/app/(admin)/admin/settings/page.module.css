@@ -1,3 +1,369 @@
+/* Same system as /admin/products and /admin/analytics: fixed px type,
+   hairline rules instead of boxes, mono for anything you'd read as data, no
+   radius or shadow. This page is one table plus a modal, so it borrows the
+   products page's structure wholesale rather than inventing a second look
+   for the same kind of screen. */
+
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* header ----------------------------------------------------------- */
+.pageHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 4px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* The accent-over-amber mark, same as the dashboard and the sidebar. */
+.brandMark {
+  width: 10px;
+  height: 22px;
+  flex: none;
+  background: linear-gradient(180deg, var(--accent) 0 55%, var(--amber) 55% 100%);
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.headMeta {
+  font-family: var(--ui-mono);
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* shared ----------------------------------------------------------- */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--line-strong);
+  padding-bottom: 10px;
+}
+
+.sectionHead h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.sectionCount {
+  font-family: var(--ui-mono);
+  font-size: 11.5px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* toolbar ---------------------------------------------------------- */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.actionsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* modal ------------------------------------------------------------ */
+/* The console's own dialog look applied to the shared Modal from outside,
+   reaching its chrome by element because the Modal's own class names are
+   hashed. Doubled selector so it beats the Modal's `.panel` without
+   !important — see the same note on the products page. */
+.adminModal.adminModal {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.adminModal header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.adminModal h2 {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.adminModal header button {
+  font-family: var(--ui-mono);
+  color: var(--faint);
+}
+
+.adminModal header button:hover {
+  color: var(--ink);
+}
+
+.adminModal > div:last-child {
+  padding: 24px;
+}
+
+/* table ------------------------------------------------------------ */
+.tableWrap {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th {
+  text-align: left;
+  vertical-align: bottom;
+  padding: 12px 14px;
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+}
+
+.table td {
+  text-align: left;
+  vertical-align: middle;
+  padding: 16px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody tr:hover {
+  background: var(--color-row-hover);
+}
+
+.supplierCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 240px;
+}
+
+.supplierName {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* The URL reads as data, not prose — same treatment as a slug or a SKU. */
+.supplierUrl {
+  font-family: var(--ui-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--faint);
+  word-break: break-all;
+}
+
+.notesCell {
+  color: var(--muted);
+  max-width: 26rem;
+}
+
+.usageCell {
+  font-family: var(--ui-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Nothing references this supplier: the one state where Delete is offered,
+   worth spotting from the column rather than by opening every row. */
+.usageNone {
+  color: var(--faint);
+}
+
+.editCol {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.editToggle {
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease;
+}
+
+.editToggle:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.editToggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The open row and its panel read as one block. */
+.rowOpen td {
+  border-bottom: 0;
+  background: var(--surface-hi);
+}
+
+/* detail panel ----------------------------------------------------- */
+.detailRow > td {
+  padding: 0;
+  background: var(--surface-hi);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 28px 32px;
+  padding: 24px 14px 26px;
+}
+
+.detailPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.detailWide {
+  grid-column: 1 / -1;
+}
+
+.detailTitle {
+  margin: 0;
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.detailActions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+.detailActions form {
+  display: flex;
+  gap: 8px;
+  padding-top: 16px;
+}
+
+/* Says why Delete is missing, in the place Delete would have been. */
+.deleteNote {
+  margin: 0;
+  align-self: center;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+/* forms ------------------------------------------------------------ */
+/* Scoped here rather than changing the shared `Field`, which the storefront
+   uses too. Element selectors reach inside Field's own markup — the only way
+   to restyle a CSS-module component from outside it. */
+.modalForm,
+.editForm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.editForm {
+  gap: 14px;
+}
+
+.modalForm label,
+.editForm label {
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* Field ships a bottom margin for standalone use; the flex gap above does
+   that job here, so the two don't stack. */
+.modalForm > *,
+.editForm > * {
+  margin-bottom: 0;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+/* responsive ------------------------------------------------------- */
+@media (max-width: 640px) {
+  .toolbar {
+    align-items: stretch;
+  }
+}
 .settingCard {
   display: flex;
   flex-direction: column;
@@ -11,4 +377,91 @@
 .settingDescription {
   color: var(--color-muted);
   font-size: 0.875rem;
+}
+
+/* settings-specific --------------------------------------------------- */
+/* A settings screen is mostly facts, so it reads as a definition list
+   rather than a form: label above value, values in mono where they're
+   configuration rather than prose. */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.panelHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.panelNote {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  max-width: 76ch;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px 24px;
+  margin: 0;
+}
+
+.facts dt {
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.facts dd {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.mono {
+  font-family: var(--ui-mono);
+  font-size: 11.5px;
+}
+
+/* Marks a value that only changes by redeploying, so nobody hunts for a
+   field that isn't there. */
+.envTag {
+  display: inline-block;
+  margin-left: 6px;
+  font-family: var(--ui-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.ok {
+  color: var(--green);
+}
+
+.warn {
+  color: var(--amber);
+}
+
+.bad {
+  color: var(--rose);
 }
