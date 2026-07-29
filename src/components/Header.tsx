@@ -16,25 +16,6 @@ import styles from './Header.module.css';
  * is worse than no link. Add them here when those pages land. */
 const NAV: NavLink[] = [{ label: 'Products', href: '/products' }];
 
-/** Outline only in the header — the filled version means "saved" on a
- * product card, and the two shouldn't be confused. */
-function HeartIcon() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={styles.icon}
-      aria-hidden="true"
-    >
-      <path d="M10 17 3.5 10.7a3.9 3.9 0 0 1 0-5.6 3.9 3.9 0 0 1 5.5 0l1 1 1-1a3.9 3.9 0 0 1 5.5 0 3.9 3.9 0 0 1 0 5.6Z" />
-    </svg>
-  );
-}
-
 function CartIcon() {
   return (
     <svg
@@ -98,17 +79,6 @@ export async function Header() {
           <StorefrontNav links={NAV} itemCount={itemCount} drawerAccount={accountLinks} />
 
           <div className={styles.right}>
-            {user && (
-              <Link
-                href="/account/wishlist"
-                className={styles.cartLink}
-                aria-label="Saved products"
-              >
-                <HeartIcon />
-                <span className={styles.cartText}>Saved</span>
-              </Link>
-            )}
-
             <Link
               href="/cart"
               className={styles.cartLink}
