@@ -191,7 +191,7 @@ import { ListSuppliersWithUsage } from '@/modules/sourcing/application/use-cases
 import { CreateSupplierOffer } from '@/modules/sourcing/application/use-cases/create-supplier-offer';
 import { UpdateSupplierOfferCost } from '@/modules/sourcing/application/use-cases/update-supplier-offer-cost';
 import { SetPreferredSupplierOffer } from '@/modules/sourcing/application/use-cases/set-preferred-supplier-offer';
-import { GetPreferredOfferForProduct } from '@/modules/sourcing/application/use-cases/get-preferred-offer-for-product';
+import { GetSourceableOfferForProduct } from '@/modules/sourcing/application/use-cases/get-sourceable-offer-for-product';
 import { ListSupplierOffersForProduct } from '@/modules/sourcing/application/use-cases/list-supplier-offers-for-product';
 import { ImportProductsFromFeed } from '@/modules/sourcing/application/use-cases/import-products-from-feed';
 import { ExtractProductFromUrl } from '@/modules/sourcing/application/use-cases/extract-product-from-url';
@@ -303,7 +303,7 @@ export interface Container {
   createSupplierOffer: CreateSupplierOffer;
   updateSupplierOfferCost: UpdateSupplierOfferCost;
   setPreferredSupplierOffer: SetPreferredSupplierOffer;
-  getPreferredOfferForProduct: GetPreferredOfferForProduct;
+  getSourceableOfferForProduct: GetSourceableOfferForProduct;
   listSupplierOffersForProduct: ListSupplierOffersForProduct;
   importProductsFromFeed: ImportProductsFromFeed;
   extractProductFromUrl: ExtractProductFromUrl;
@@ -436,7 +436,6 @@ function build(): Container {
   const getAdminCatalogCounts = new GetAdminCatalogCounts(products);
   const getAnyProductsByIds = new GetAnyProductsByIds(products);
   const deleteProducts = new DeleteProducts(products);
-  const publishProducts = new PublishProducts(products);
   const unpublishProducts = new UnpublishProducts(products);
 
   // --- cart ---
@@ -536,8 +535,9 @@ function build(): Container {
   const createSupplierOffer = new CreateSupplierOffer(supplierOffers);
   const updateSupplierOfferCost = new UpdateSupplierOfferCost(supplierOffers);
   const setPreferredSupplierOffer = new SetPreferredSupplierOffer(supplierOffers);
-  const getPreferredOfferForProduct = new GetPreferredOfferForProduct(supplierOffers);
+  const getSourceableOfferForProduct = new GetSourceableOfferForProduct(supplierOffers);
   const listSupplierOffersForProduct = new ListSupplierOffersForProduct(supplierOffers);
+  const publishProducts = new PublishProducts(products, supplierOffers);
   const listSupplierOffersForProducts = new ListSupplierOffersForProducts(supplierOffers);
   const imageStorage = new LocalFileImageStorage();
   const addProductImages = new AddProductImages(products, imageStorage);
@@ -749,7 +749,7 @@ function build(): Container {
     createSupplierOffer,
     updateSupplierOfferCost,
     setPreferredSupplierOffer,
-    getPreferredOfferForProduct,
+    getSourceableOfferForProduct,
     listSupplierOffersForProduct,
     importProductsFromFeed,
     extractProductFromUrl,

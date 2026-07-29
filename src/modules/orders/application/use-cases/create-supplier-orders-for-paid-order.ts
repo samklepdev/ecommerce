@@ -34,13 +34,17 @@ export interface CreateSupplierOrdersForPaidOrderInput {
 }
 
 /**
- * Groups a paid order's lines by each product's preferred supplier and
- * creates one SupplierOrder per distinct supplier — the ops task queue this
- * becomes `/admin/fulfillment`. Lines whose product has no preferred offer
- * are flagged for admin attention rather than silently dropped.
+ * Groups a paid order's lines by each product's supplier and creates one
+ * SupplierOrder per distinct supplier — the ops task queue this becomes
+ * `/admin/fulfillment`. Lines whose product has no supplier offer at all are
+ * flagged for admin attention rather than silently dropped.
+ *
+ * Sourcing resolves through `findSourceableByProductId`, so a product whose
+ * offers exist but none is flagged preferred still gets ordered instead of
+ * stranding a paid line on a bookkeeping detail.
  *
  * **Re-runnable by design.** ConfirmPayment fires this once, but a line can
- * fail to source (no preferred offer) on that pass, and the customer's money
+ * fail to source (no offer) on that pass, and the customer's money
  * has already settled irreversibly — so an admin must be able to add the
  * missing offer and run it again. Safety comes from
  * `getUnsourcedOrderLines`, which never returns a line a supplier order
@@ -76,14 +80,14 @@ export class CreateSupplierOrdersForPaidOrder
     const sourcedLineIds: string[] = [];
 
     for (const line of lines) {
-      const offer = await this.supplierOffers.findPreferredByProductId(line.productId);
+      const offer = await this.supplierOffers.findSourceableByProductId(line.productId);
       if (!offer) {
-        logger.warn('supplier order line skipped: no preferred offer', {
+        logger.warn('supplier order line skipped: no supplier offer', {
           orderId: input.orderId,
           orderLineId: line.id,
           productId: line.productId,
         });
-        await this.orders.flagFulfillmentIssue(line.id, 'no_preferred_supplier_offer');
+        await this.orders.flagFulfillmentIssue(line.id, 'no_supplier_offer');
         continue;
       }
 

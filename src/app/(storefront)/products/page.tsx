@@ -33,15 +33,17 @@ interface ProductsPageProps {
  * to available — the same convention the product detail page uses. */
 async function resolveQuickAddAvailability(
   product: Product,
-  getPreferredOfferForProduct: ReturnType<typeof getContainer>['getPreferredOfferForProduct'],
+  getSourceableOfferForProduct: ReturnType<typeof getContainer>['getSourceableOfferForProduct'],
 ): Promise<boolean> {
-  const offer = await getPreferredOfferForProduct.execute({ productId: product.id });
-  return offer?.isAvailable ?? true;
+  const offer = await getSourceableOfferForProduct.execute({ productId: product.id });
+  // Same rule as the product page: no offer means nowhere to buy it from,
+  // so it isn't for sale.
+  return offer?.isAvailable ?? false;
 }
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const { q, category, sort, page: pageParam } = await searchParams;
-  const { listProducts, listProductCategories, getPreferredOfferForProduct, btcRates } =
+  const { listProducts, listProductCategories, getSourceableOfferForProduct, btcRates } =
     getContainer();
 
   const categories = await listProductCategories.execute();
@@ -95,7 +97,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     await Promise.all(
       pagedProducts.map(
         async (product) =>
-          [product.id, await resolveQuickAddAvailability(product, getPreferredOfferForProduct)] as const,
+          [product.id, await resolveQuickAddAvailability(product, getSourceableOfferForProduct)] as const,
       ),
     ),
   );

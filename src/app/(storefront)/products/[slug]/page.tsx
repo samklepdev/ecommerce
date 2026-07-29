@@ -72,7 +72,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const { slug } = await params;
   const {
     getProductBySlug,
-    getPreferredOfferForProduct,
+    getSourceableOfferForProduct,
     getShippingRate,
     listProducts,
     btcRates,
@@ -92,9 +92,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
     ? await getSavedProductIds.execute({ userId: user.id, productIds: [product.id] })
     : new Set<string>();
 
-  const preferredOffer = await getPreferredOfferForProduct.execute({ productId: product.id });
-  // No supplier offer at all means nothing to check against — default to available.
-  const isAvailable = preferredOffer?.isAvailable ?? true;
+  const supplierOffer = await getSourceableOfferForProduct.execute({ productId: product.id });
+  // No offer means nowhere to buy it from, so it cannot be sold — the
+  // opposite of what this used to assume. Publishing now refuses products in
+  // that state, but an offer can disappear after publishing, and the buy
+  // button must not be the thing that finds out.
+  const isAvailable = supplierOffer?.isAvailable ?? false;
 
   const images = [
     ...(product.imageUrl ? [{ id: 'primary', url: product.imageUrl }] : []),
