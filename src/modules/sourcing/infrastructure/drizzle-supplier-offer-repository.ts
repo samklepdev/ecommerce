@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { supplierOffers } from '@/shared/infrastructure/db/schema';
@@ -69,6 +69,18 @@ export class DrizzleSupplierOfferRepository implements SupplierOfferRepository {
   async findPreferredByProductId(productId: string): Promise<SupplierOffer | null> {
     const row = await this.db.query.supplierOffers.findFirst({
       where: and(eq(supplierOffers.productId, productId), eq(supplierOffers.isPreferred, true)),
+    });
+    return row ? toOffer(row) : null;
+  }
+
+  async findSourceableByProductId(productId: string): Promise<SupplierOffer | null> {
+    // Preferred first; otherwise the oldest offer, which is the one
+    // `CreateSupplierOffer` would have marked preferred had the flag been set
+    // properly. Ordering by cost would mean comparing amounts across
+    // currencies, which Money exists to stop us doing.
+    const row = await this.db.query.supplierOffers.findFirst({
+      where: eq(supplierOffers.productId, productId),
+      orderBy: [desc(supplierOffers.isPreferred), asc(supplierOffers.createdAt)],
     });
     return row ? toOffer(row) : null;
   }

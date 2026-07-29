@@ -49,7 +49,7 @@ function makeFakeOrderLines(lines: PaidOrderLine[]) {
 
 function makeFakeSupplierOffers(offersByProductId: Map<string, SupplierOffer>) {
   const repo: Partial<SupplierOfferRepository> = {
-    async findPreferredByProductId(productId) {
+    async findSourceableByProductId(productId) {
       return offersByProductId.get(productId) ?? null;
     },
   };
@@ -83,7 +83,7 @@ function makeFakeOrderFulfillment(paymentStatus: PaymentStatus | null, fulfillme
 }
 
 describe('CreateSupplierOrdersForPaidOrder', () => {
-  it('groups lines by preferred supplier into one supplier order per distinct supplier', async () => {
+  it('groups lines by supplier into one supplier order per distinct supplier', async () => {
     const productA = randomUUID();
     const productB = randomUUID();
     const productC = randomUUID();
@@ -114,7 +114,7 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
     expect(supplier2Order.lines).toHaveLength(1);
   });
 
-  it('skips lines whose product has no preferred supplier offer, logging a warning', async () => {
+  it('skips lines whose product has no supplier offer, logging a warning', async () => {
     const productA = randomUUID();
     const productNoOffer = randomUUID();
     const lines: PaidOrderLine[] = [
@@ -141,7 +141,7 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
     warnSpy.mockRestore();
 
     // Durable record, not just a log line — an admin can query for this later.
-    expect(flagged).toEqual([{ orderLineId: 'line-b', reason: 'no_preferred_supplier_offer' }]);
+    expect(flagged).toEqual([{ orderLineId: 'line-b', reason: 'no_supplier_offer' }]);
   });
 
   it('advances the order to processing when it was unfulfilled', async () => {
@@ -172,7 +172,7 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
     expect(getFulfillment()).toBe('unfulfilled'); // untouched
   });
 
-  it('does nothing when no line has a preferred offer (no supplier orders created, no advancement)', async () => {
+  it('does nothing when no line has a supplier offer (no supplier orders created, no advancement)', async () => {
     const productA = randomUUID();
     const { repo: orders } = makeFakeOrderLines([{ id: 'line-a', productId: productA, quantity: 1 }]);
     const offers = makeFakeSupplierOffers(new Map()); // no offers at all

@@ -18,7 +18,7 @@ export interface PublishProductsResult {
 /**
  * Moves draft (or archived) products to `active`, making them buyable.
  *
- * **A product with no preferred supplier offer is refused.** Being sellable
+ * **A product with no supplier offer is refused.** Being sellable
  * and having somewhere to buy it from are the same fact here: this is a
  * dropship model, so an active product with no offer is one a customer can
  * pay for — irreversibly, in bitcoin — before anyone discovers there's no
@@ -46,12 +46,10 @@ export class PublishProducts implements UseCase<PublishProductsInput, PublishPro
 
     for (const productId of input.productIds) {
       try {
-        const preferred = await this.offers.findPreferredByProductId(productId);
-        if (!preferred) {
+        const offer = await this.offers.findSourceableByProductId(productId);
+        if (!offer) {
           unsourced += 1;
-          logger.warn('refused to publish a product with no preferred supplier offer', {
-            productId,
-          });
+          logger.warn('refused to publish a product with no supplier offer', { productId });
           continue;
         }
 

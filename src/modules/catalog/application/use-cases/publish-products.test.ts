@@ -16,10 +16,10 @@ function makeFakeProducts(failingIds: Set<string>) {
   return { repo: repo as ProductRepository, updated };
 }
 
-/** Every product has a preferred offer unless its id is in `unsourcedIds`. */
+/** Every product has a supplier offer unless its id is in `unsourcedIds`. */
 function makeFakeOffers(unsourcedIds: Set<string> = new Set()) {
   const repo: Partial<SupplierOfferRepository> = {
-    async findPreferredByProductId(productId) {
+    async findSourceableByProductId(productId) {
       if (unsourcedIds.has(productId)) return null;
       return { id: `offer-${productId}`, productId } as SupplierOffer;
     },
@@ -74,7 +74,7 @@ describe('PublishProducts', () => {
     expect(result).toEqual({ published: 0, failed: 0, unsourced: 0 });
   });
 
-  it('refuses to publish a product with no preferred supplier offer', async () => {
+  it('refuses to publish a product with no supplier offer', async () => {
     const { repo, updated } = makeFakeProducts(new Set());
 
     const result = await new PublishProducts(repo, makeFakeOffers(new Set(['p2']))).execute({
