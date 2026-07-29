@@ -131,10 +131,20 @@ depend on a write having succeeded.
   front door must not strand someone who paid before you shut it.
 - **`/api/health` reports `storeOpen` but stays 200 when closed.** A 503 would have the load
   balancer pull the instance and take admin with it.
-- Three triggers, all audited (`store.closed` / `store.opened`): the admin toggle, `npm run
-  store:close`, and `GET /api/store-switch` with `STORE_SWITCH_TOKEN`. Only the admin toggle
-  can revalidate, so a CLI flip may leave a cached page up briefly — nothing is buyable
-  through it.
+- Three triggers, all audited (`store.closed` / `store.opened`, actor `cli` / `ops-url` /
+  the admin's email): the admin toggle, `npm run store:close`, and the ops URL.
+- **The ops URL carries two secrets, neither in this repo**: `STORE_SWITCH_PATH` (the path
+  segment itself) and `STORE_SWITCH_TOTP_SECRET` (a 6-digit rotating code). Unset either and
+  the route 404s. Generate both with `npm run store:switch-setup`.
+  A rotating code rather than a static token because the URL inevitably lands in access logs
+  and browser history — a code there is dead in 30 seconds, and a used step is burned so it
+  can't be replayed inside its own window. Every rejection returns an identical 404: one that
+  distinguished a wrong path from a wrong code would confirm the endpoint exists.
+  The failed-attempt budget is **global, not per-IP** (`getClientIp` reads a spoofable
+  header) and is checked **only after** a correct path, so a valid code is never rate-limited
+  — an attacker can't lock you out of your own switch.
+  It is unguessable, not unreachable: anyone holding both secrets can call it from anywhere.
+  Put it behind Tailscale/WireGuard if that matters.
 
 ## Idempotency
 
@@ -230,6 +240,7 @@ npm run admin:promote -- <email>  # promote an existing account to admin
 npm run store:close      # kill switch: shut the storefront (optionally: -- "reason")
 npm run store:open       # reopen it
 npm run store:status     # is it open?
+npm run store:switch-setup  # generate the ops URL's path + TOTP secret (prints a QR)
 ```
 
 ## Git workflow

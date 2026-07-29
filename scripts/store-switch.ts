@@ -17,11 +17,10 @@
  * front door must not strand someone who paid before you shut it. Stopping
  * the watcher is a separate, deliberate act (stop that process).
  *
- * One thing this can't do: the storefront's cached pages are only rebuilt by
- * the app, so after a CLI flip a visitor may see a stale page for up to the
- * ISR window. Nothing can be bought through it — the guard on the money path
- * reads Redis on every attempt — but if you want the closed page up
- * immediately, flip it from the admin toggle instead, which revalidates.
+ * Takes effect immediately, including on the storefront: every route in that
+ * group renders dynamically (the layout reads headers for analytics), so
+ * there is no cached page to wait out. Verified against a production build,
+ * not assumed.
  */
 import { getContainer } from '../src/composition/container';
 

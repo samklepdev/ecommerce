@@ -62,11 +62,33 @@ const envSchema = z.object({
   // welcome-email tracking pixel) — never derived from a request header.
   APP_URL: z.string().url().default('http://localhost:3000'),
 
-  // The kill switch's out-of-band trigger (`/api/store-switch`). Unset, that
-  // route is disabled entirely rather than open — a shutdown endpoint with no
-  // secret behind it is worse than no endpoint. 32 chars minimum because this
-  // single value is the whole authentication for closing the shop.
-  STORE_SWITCH_TOKEN: z.preprocess(emptyAsUndefined, z.string().min(32).optional()),
+  // The kill switch's out-of-band trigger, reachable at
+  // `/api/ops/<STORE_SWITCH_PATH>`. Both of these must be set or the route
+  // does not exist at all — a shutdown endpoint with no secret behind it is
+  // worse than no endpoint.
+  //
+  // The path is itself a secret, which is why it comes from env rather than
+  // being a literal in the repo: there is no URL to find by reading the
+  // source or by scanning. Generate both with `npm run store:switch-setup`.
+  STORE_SWITCH_PATH: z.preprocess(
+    emptyAsUndefined,
+    z
+      .string()
+      .min(16, 'STORE_SWITCH_PATH must be at least 16 characters — it is a secret, not a name')
+      .regex(/^[A-Za-z0-9_-]+$/, 'STORE_SWITCH_PATH must be URL-safe (A-Z a-z 0-9 _ -)')
+      .optional(),
+  ),
+  // Base32 shared secret for the 6-digit code, as held by your authenticator
+  // app. 32 base32 chars = 160 bits, the RFC 6238 recommendation. A static
+  // token would stay valid forever once it appeared in a log; this doesn't.
+  STORE_SWITCH_TOTP_SECRET: z.preprocess(
+    emptyAsUndefined,
+    z
+      .string()
+      .min(32, 'STORE_SWITCH_TOTP_SECRET must be at least 32 base32 characters')
+      .regex(/^[A-Z2-7]+=*$/i, 'STORE_SWITCH_TOTP_SECRET must be base32 (A-Z, 2-7)')
+      .optional(),
+  ),
 
   PASSWORD_RESET_TTL_SECONDS: z.coerce.number().int().positive().default(3600),
   EMAIL_VERIFICATION_TTL_SECONDS: z.coerce.number().int().positive().default(86_400),

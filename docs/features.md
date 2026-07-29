@@ -153,8 +153,10 @@ feature" checklist).
   notice, and checkout refuses even if a form is submitted directly. Orders
   already paid keep settling and shipping — the payment watcher is unaffected —
   and admin plus sign-in stay reachable. Also flippable outside the browser
-  with `npm run store:close` / `store:open`, or `GET /api/store-switch` with a
-  token, for when this page isn't reachable. Every flip is audit-logged with
+  with `npm run store:close` / `store:open`, or from a phone via a secret ops
+  URL guarded by a 6-digit rotating code from an authenticator app
+  (`npm run store:switch-setup` generates it), for when this page isn't
+  reachable. Every flip is audit-logged with
   who, when, and from where.
 - **Dashboard** (`/admin`) — at-a-glance counts (unsourced order lines,
   supplier orders needing action, orders awaiting confirmation, recovered
