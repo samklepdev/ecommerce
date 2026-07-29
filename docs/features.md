@@ -94,6 +94,15 @@ feature" checklist).
   item shows its own product thumbnail, and the shipping address sits in
   the same card right below the order total, so it's obvious at a glance
   what's being sent where.
+- **Shipping notifications** — the payment-confirmed email now says a
+  tracking number should arrive within 24–48 hours, and gives the support
+  address to chase it (outbound mail has no reply-to, so "reply to this
+  email" would point at nothing). When a parcel ships, the customer gets its
+  tracking number with a carrier link. Sent **per parcel**, not per order: an
+  order split across suppliers ships in parts, and holding the first number
+  back until the last one exists is how a customer ends up writing in to ask
+  where their order is. Each email lists everything dispatched so far and
+  says plainly when more is still to come.
 - **Find my order** (`/orders/find`) — a guest who lost their order link
   enters the email used at checkout and gets the confirmation email(s)
   resent, each with a link back to the order. Doesn't reveal whether the

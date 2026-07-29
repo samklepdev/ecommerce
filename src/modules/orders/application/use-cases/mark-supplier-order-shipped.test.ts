@@ -33,12 +33,18 @@ function makeFakeOrderFulfillment(paymentStatus: PaymentStatus | null, fulfillme
   return { repo, getFulfillment: () => currentFulfillment };
 }
 
+/** Records the calls so the "one email per parcel" rule can be asserted. */
+function makeFakeNotifier() {
+  const notified: string[] = [];
+  return { notifier: { async notifyShipped(orderId: string) { notified.push(orderId); } }, notified };
+}
+
 describe('MarkSupplierOrderShipped', () => {
   it('returns false without touching the order when the guarded markShipped rejects', async () => {
     const supplierOrders = makeFakeSupplierOrders({ markShippedResult: false, allShipped: false });
     const { repo: orders, getFulfillment } = makeFakeOrderFulfillment('paid', 'processing');
 
-    const result = await new MarkSupplierOrderShipped(supplierOrders, orders).execute({
+    const result = await new MarkSupplierOrderShipped(supplierOrders, orders, makeFakeNotifier().notifier).execute({
       supplierOrderId: 'so-1',
       orderId: 'order-1',
       trackingNumber: 'TRACK1',
@@ -52,7 +58,7 @@ describe('MarkSupplierOrderShipped', () => {
     const supplierOrders = makeFakeSupplierOrders({ markShippedResult: true, allShipped: false });
     const { repo: orders, getFulfillment } = makeFakeOrderFulfillment('paid', 'processing');
 
-    const result = await new MarkSupplierOrderShipped(supplierOrders, orders).execute({
+    const result = await new MarkSupplierOrderShipped(supplierOrders, orders, makeFakeNotifier().notifier).execute({
       supplierOrderId: 'so-1',
       orderId: 'order-1',
       trackingNumber: 'TRACK1',
@@ -66,7 +72,7 @@ describe('MarkSupplierOrderShipped', () => {
     const supplierOrders = makeFakeSupplierOrders({ markShippedResult: true, allShipped: true });
     const { repo: orders, getFulfillment } = makeFakeOrderFulfillment('paid', 'processing');
 
-    const result = await new MarkSupplierOrderShipped(supplierOrders, orders).execute({
+    const result = await new MarkSupplierOrderShipped(supplierOrders, orders, makeFakeNotifier().notifier).execute({
       supplierOrderId: 'so-1',
       orderId: 'order-1',
       trackingNumber: 'TRACK1',
@@ -80,7 +86,7 @@ describe('MarkSupplierOrderShipped', () => {
     const supplierOrders = makeFakeSupplierOrders({ markShippedResult: true, allShipped: true });
     const { repo: orders, getFulfillment } = makeFakeOrderFulfillment('paid', 'shipped');
 
-    const result = await new MarkSupplierOrderShipped(supplierOrders, orders).execute({
+    const result = await new MarkSupplierOrderShipped(supplierOrders, orders, makeFakeNotifier().notifier).execute({
       supplierOrderId: 'so-1',
       orderId: 'order-1',
       trackingNumber: 'TRACK1',
@@ -94,7 +100,7 @@ describe('MarkSupplierOrderShipped', () => {
     const supplierOrders = makeFakeSupplierOrders({ markShippedResult: true, allShipped: true });
     const { repo: orders, getFulfillment } = makeFakeOrderFulfillment(null, null);
 
-    const result = await new MarkSupplierOrderShipped(supplierOrders, orders).execute({
+    const result = await new MarkSupplierOrderShipped(supplierOrders, orders, makeFakeNotifier().notifier).execute({
       supplierOrderId: 'so-1',
       orderId: 'order-1',
       trackingNumber: 'TRACK1',
@@ -102,5 +108,35 @@ describe('MarkSupplierOrderShipped', () => {
 
     expect(result).toBe(true);
     expect(getFulfillment()).toBeNull();
+  });
+});
+
+describe('MarkSupplierOrderShipped notifications', () => {
+  it('emails the customer as soon as one parcel ships, not once the last does', async () => {
+    const supplierOrders = makeFakeSupplierOrders({ markShippedResult: true, allShipped: false });
+    const { repo: orders } = makeFakeOrderFulfillment('paid', 'processing');
+    const { notifier, notified } = makeFakeNotifier();
+
+    await new MarkSupplierOrderShipped(supplierOrders, orders, notifier).execute({
+      supplierOrderId: 'so-1',
+      orderId: 'order-1',
+      trackingNumber: 'TRACK-1',
+    });
+
+    expect(notified).toEqual(['order-1']);
+  });
+
+  it('says nothing when the supplier order was not actually marked shipped', async () => {
+    const supplierOrders = makeFakeSupplierOrders({ markShippedResult: false, allShipped: false });
+    const { repo: orders } = makeFakeOrderFulfillment('paid', 'processing');
+    const { notifier, notified } = makeFakeNotifier();
+
+    await new MarkSupplierOrderShipped(supplierOrders, orders, notifier).execute({
+      supplierOrderId: 'so-1',
+      orderId: 'order-1',
+      trackingNumber: 'TRACK-1',
+    });
+
+    expect(notified).toEqual([]);
   });
 });

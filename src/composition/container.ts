@@ -69,6 +69,7 @@ import { DrizzleSupplierOrderRepository } from '@/modules/orders/infrastructure/
 import { RedisProcessedEventStore } from '@/modules/orders/infrastructure/redis-processed-event-store';
 import { SupplierOrderFulfillmentQueue } from '@/modules/orders/infrastructure/supplier-order-fulfillment-queue';
 import { EmailPaymentConfirmationNotifier } from '@/modules/orders/infrastructure/email-payment-confirmation-notifier';
+import { EmailShipmentNotifier } from '@/modules/orders/infrastructure/email-shipment-notifier';
 
 import { DrizzleProductRepository } from '@/modules/catalog/infrastructure/drizzle-product-repository';
 import { DrizzleCategoryRepository } from '@/modules/catalog/infrastructure/drizzle-category-repository';
@@ -587,9 +588,16 @@ function build(): Container {
     orders,
     emailSender,
     env.APP_URL,
+    env.SUPPORT_EMAIL,
   );
   const markSupplierOrderOrdered = new MarkSupplierOrderOrdered(supplierOrders);
-  const markSupplierOrderShipped = new MarkSupplierOrderShipped(supplierOrders, orders);
+  // Bulk marking delegates to this same use case per id, so the shipment
+  // email is wired once and can't be forgotten on the bulk path.
+  const markSupplierOrderShipped = new MarkSupplierOrderShipped(
+    supplierOrders,
+    orders,
+    new EmailShipmentNotifier(orders, supplierOrders, emailSender, env.APP_URL),
+  );
   const cancelSupplierOrder = new CancelSupplierOrder(supplierOrders, orders);
   const bulkMarkSupplierOrdersOrdered = new BulkMarkSupplierOrdersOrdered(markSupplierOrderOrdered);
   const bulkMarkSupplierOrdersShipped = new BulkMarkSupplierOrdersShipped(markSupplierOrderShipped);

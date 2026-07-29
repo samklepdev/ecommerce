@@ -48,7 +48,7 @@ describe('EmailPaymentConfirmationNotifier', () => {
     const orderHistory = makeFakeOrderHistory(makeOrder());
     const { sender, sent } = makeFakeEmailSender();
 
-    await new EmailPaymentConfirmationNotifier(orderHistory, sender, 'https://shop.example.com').notifyPaymentConfirmed(
+    await new EmailPaymentConfirmationNotifier(orderHistory, sender, 'https://shop.example.com', 'help@shop.example.com').notifyPaymentConfirmed(
       'order-1',
     );
 
@@ -73,7 +73,7 @@ describe('EmailPaymentConfirmationNotifier', () => {
     );
     const { sender, sent } = makeFakeEmailSender();
 
-    await new EmailPaymentConfirmationNotifier(orderHistory, sender, 'https://shop.example.com').notifyPaymentConfirmed(
+    await new EmailPaymentConfirmationNotifier(orderHistory, sender, 'https://shop.example.com', 'help@shop.example.com').notifyPaymentConfirmed(
       'order-1',
     );
 
@@ -85,7 +85,7 @@ describe('EmailPaymentConfirmationNotifier', () => {
     const orderHistory = makeFakeOrderHistory(null);
     const { sender, sent } = makeFakeEmailSender();
 
-    await new EmailPaymentConfirmationNotifier(orderHistory, sender, 'https://shop.example.com').notifyPaymentConfirmed(
+    await new EmailPaymentConfirmationNotifier(orderHistory, sender, 'https://shop.example.com', 'help@shop.example.com').notifyPaymentConfirmed(
       'missing',
     );
 

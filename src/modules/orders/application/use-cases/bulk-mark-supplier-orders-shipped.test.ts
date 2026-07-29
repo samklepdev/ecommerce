@@ -20,10 +20,7 @@ function makeMarkShipped(failingIds: Set<string>, guardedFalseIds: Set<string> =
   };
   const orders: Partial<OrderFulfillmentRepository> = {};
   return {
-    markShipped: new MarkSupplierOrderShipped(
-      supplierOrders as SupplierOrderRepository,
-      orders as OrderFulfillmentRepository,
-    ),
+    markShipped: new MarkSupplierOrderShipped(supplierOrders as SupplierOrderRepository, orders as OrderFulfillmentRepository, { async notifyShipped() {} }),
     shipped,
   };
 }
