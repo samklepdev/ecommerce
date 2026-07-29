@@ -15,6 +15,7 @@ export class EmailPaymentConfirmationNotifier implements PaymentConfirmationNoti
     private readonly orderHistory: OrderHistoryRepository,
     private readonly emailSender: EmailSender,
     private readonly appUrl: string,
+    private readonly supportEmail: string,
   ) {}
 
   async notifyPaymentConfirmed(orderId: string): Promise<void> {
@@ -32,6 +33,7 @@ export class EmailPaymentConfirmationNotifier implements PaymentConfirmationNoti
       orderId: order.id,
       totalDisplay: total.toString(),
       orderUrl: `${this.appUrl}/orders/${order.id}`,
+      supportEmail: this.supportEmail,
     });
 
     await this.emailSender.send(order.customerEmail, 'Payment confirmed', html);
