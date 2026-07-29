@@ -105,6 +105,11 @@ export default async function AccountPage() {
         </Card>
 
         <Card className={styles.section}>
+          <h2 className={styles.sectionTitle}>Saved products</h2>
+          <Link href="/account/wishlist">View saved products →</Link>
+        </Card>
+
+        <Card className={styles.section}>
           <h2 className={styles.sectionTitle}>Delete account</h2>
           <p className={styles.meta}>
             This permanently deletes your account. Your past orders are kept for records but are no

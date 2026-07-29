@@ -213,3 +213,12 @@
 .section {
   margin-top: 56px;
 }
+
+/* Sits above the form on the product page, explaining who actually answers. */
+.askNote {
+  margin: 0 0 var(--space-4);
+  max-width: 62ch;
+  color: var(--color-muted);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}

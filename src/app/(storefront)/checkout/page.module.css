@@ -1,15 +1,111 @@
+/* Two columns from tablet up: the form is the work, the summary is the
+   reassurance. Stacked below that, summary first, so a phone shows what's
+   being bought before it asks for an address. */
+.layout {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .layout {
+    /* The form gets the room — it's eleven fields, and at the old shared
+       width most of them wrapped. */
+    grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+  }
+
+  .summaryColumn {
+    position: sticky;
+    top: var(--space-5);
+  }
+}
+
 .summary {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-3);
+}
+
+.summaryTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Same 56px thumbnail as the cart — checkout should look like the page the
+   customer just came from, not a different application. */
+.line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.lineImage {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.lineImagePlaceholder {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  background: var(--color-border);
+  flex-shrink: 0;
+}
+
+.lineText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.lineName {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.lineMeta {
+  font-size: 0.8125rem;
+  color: var(--color-muted);
+}
+
+.lineAmount {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.divider {
+  height: 1px;
+  background: var(--color-border);
 }
 
 .priceLine {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
   color: var(--color-muted);
   font-size: 0.875rem;
 }
 
 .total {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
   font-weight: 600;
   font-size: 1.0625rem;
 }

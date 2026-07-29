@@ -244,6 +244,73 @@ export const categoriesRelations = relations(categories, ({ many }) => ({
   products: many(products),
 }));
 
+/**
+ * A saved product, per customer.
+ *
+ * Logged-in only, deliberately: a wishlist that evaporates when a cookie
+ * expires isn't one. The cart is the opposite case — it has to work for a
+ * guest, so it lives in Redis by session id — and the two shouldn't be
+ * confused for each other.
+ *
+ * Deleting a product removes it from every wishlist (cascade); nothing here
+ * is worth keeping once the thing it points at is gone.
+ */
+export const wishlistItems = pgTable(
+  'wishlist_items',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    productId: text('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    // Saving the same product twice is the same wish, not two.
+    userProductUnique: uniqueIndex('wishlist_items_user_product_unique').on(t.userId, t.productId),
+    userIdx: index('wishlist_items_user_id_idx').on(t.userId),
+  }),
+);
+
+/**
+ * A customer writing in about a product — either a question about one we
+ * stock, or a request to source something we don't.
+ *
+ * Kept as rows rather than only as email, because email is where these go to
+ * die: an inbox has no notion of "answered", no link to the product, and no
+ * way for a second admin to see one has already been picked up. The email
+ * still goes out; this is the record it refers to.
+ *
+ * `productId` is null for a sourcing request (there is no product yet) and
+ * set for a question about an existing one. ON DELETE SET NULL, so removing
+ * a product doesn't erase the conversation about it.
+ */
+export const productInquiries = pgTable(
+  'product_inquiries',
+  {
+    id: text('id').primaryKey(),
+    kind: text('kind').notNull(), // question | sourcing
+    productId: text('product_id').references(() => products.id, { onDelete: 'set null' }),
+    /** Snapshotted: a sourcing request names something we don't stock, and
+     * for a question it keeps the subject readable after the product goes. */
+    subject: text('subject').notNull(),
+    message: text('message').notNull(),
+    customerEmail: text('customer_email').notNull(),
+    /** Set when the sender was signed in — lets an admin see their orders. */
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    status: text('status').notNull().default('new'), // new | in_progress | closed
+    adminNotes: text('admin_notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    // The queue is "what's open, oldest first" — this is the index it reads.
+    statusCreatedIdx: index('product_inquiries_status_created_at_idx').on(t.status, t.createdAt),
+  }),
+);
+
 /** Images beyond a product's primary `products.image_url` — e.g. a
  * hover/alternate shot. `position` starts at 1 (0 is reserved for the
  * primary image, which lives on the `products` row itself). */

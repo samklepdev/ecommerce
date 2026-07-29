@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useRef, useState } from 'react';
+import Link from 'next/link';
 
 import { startCheckoutAction, type StartCheckoutActionResult } from '@/app/actions/checkout';
 import { US_STATES, COMMON_COUNTRIES } from '@/shared/domain/address-options';
@@ -65,9 +66,29 @@ export function CheckoutForm({ isLoggedIn, savedAddresses, userEmail }: Checkout
   return (
     <Card className={styles.card}>
       <form action={formAction}>
-        <Field label="Email for order updates" htmlFor="customerEmail">
-          <Input type="email" id="customerEmail" name="customerEmail" defaultValue={userEmail} required />
-        </Field>
+        {/* A signed-in customer doesn't retype an address the account
+            already holds — the field only exists for guests, who have
+            nowhere else to put one. The value still travels with the form
+            either way, because the order needs an email to confirm to. */}
+        {isLoggedIn && userEmail ? (
+          <>
+            <input type="hidden" name="customerEmail" value={userEmail} />
+            <p className={styles.emailNote}>
+              Confirmation goes to <strong>{userEmail}</strong> ·{' '}
+              <Link href="/account">change in your account</Link>
+            </p>
+          </>
+        ) : (
+          <Field label="Email" htmlFor="customerEmail" hint="Where your confirmation and order link go">
+            <Input
+              type="email"
+              id="customerEmail"
+              name="customerEmail"
+              defaultValue={userEmail}
+              required
+            />
+          </Field>
+        )}
 
         <fieldset className={styles.fieldset}>
           <legend className={styles.legend}>Shipping address</legend>

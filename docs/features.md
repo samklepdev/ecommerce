@@ -61,6 +61,20 @@ feature" checklist).
   order (not per item). Shown on product pages, the cart, and checkout, and
   snapshotted onto the order at placement so a later rate change never
   alters an existing order's total or the BTC amount already quoted for it.
+- **Saved products** (`/account/wishlist`) — a heart on any product card or
+  product page keeps it here, and it moves into the cart from the list in one
+  click (staying saved: "I bought one" and "I'm no longer interested" are
+  different things, and only the customer knows which). Signed-in only, on
+  purpose — a wishlist keyed to a guest cookie would quietly empty itself when
+  the cookie expired. A saved product that's later unpublished drops out of
+  the list but keeps its row, since it may come back.
+- **Ask about a product / ask us to source one** (`/sourcing`, and a form on
+  every product page) — a customer can ask a question about something in the
+  catalog, or ask for something that isn't in it at all. Both land in the
+  admin's inquiry queue *and* send mail to `SUPPORT_EMAIL`; the record is
+  what makes it trackable, since an inbox has no notion of "answered" and no
+  link back to the product. Rate-limited to five an hour per IP, because an
+  unauthenticated form that sends mail is a spam relay otherwise.
 - **Order status / confirmation** (`/orders/[id]`) — works for guests too
   (the order ID itself is the access key, same as the polling API). Shows
   payment/fulfillment status, line items, shipping address, tracking
@@ -178,6 +192,13 @@ feature" checklist).
   queue. Safe to press more than once — lines a supplier order already
   covers are never ordered again, and an order that is no longer paid is
   refused. Filter by status.
+- **Inquiries** (`/admin/inquiries`) — the queue of customer questions and
+  sourcing requests, oldest first (the oldest unanswered message is the one
+  costing the most goodwill). Read the message, mark it in progress or
+  closed, reopen it, and keep internal notes against it. Replies go through a
+  normal mail client via a `mailto:` link — outbound mail here has no
+  threading, so pretending to be an inbox would be worse than linking to one.
+  Open inquiries appear in the dashboard's attention queue.
 - **Orders** (`/admin/orders`) — every order in the store, searchable by
   customer email; (`/admin/orders/[id]`) — full detail (same view
   customers see) plus a "Mark refunded" action for orders that have

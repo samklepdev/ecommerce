@@ -24,9 +24,18 @@ export default async function AdminDashboardPage() {
     getAdminOrderCounts,
     getRevenueSummary,
     getWebAnalyticsSummary,
+    countOpenInquiries,
   } = getContainer();
 
-  const [unfulfillableLines, supplierOrdersNeedingAction, orderCounts, latestOrders, revenue, web] =
+  const [
+    unfulfillableLines,
+    supplierOrdersNeedingAction,
+    orderCounts,
+    latestOrders,
+    revenue,
+    web,
+    openInquiries,
+  ] =
     await Promise.all([
       listUnfulfillableOrderLines.execute(),
       listSupplierOrdersNeedingAction.execute(),
@@ -36,6 +45,7 @@ export default async function AdminDashboardPage() {
       listAllOrdersForAdmin.execute({ page: 1, pageSize: RECENT_ORDER_LIMIT }),
       getRevenueSummary.execute({ since, until }),
       getWebAnalyticsSummary.execute({ since, until }),
+      countOpenInquiries.execute(),
     ]);
 
   const { awaitingConfirmation, recovered } = orderCounts;
@@ -48,6 +58,12 @@ export default async function AdminDashboardPage() {
       count: awaitingConfirmation,
       href: '/admin/orders',
       hint: 'Seen on-chain but not yet deep enough to fulfil',
+    },
+    {
+      label: 'Open inquiries',
+      count: openInquiries,
+      href: '/admin/inquiries',
+      hint: 'Customers waiting on an answer',
     },
     {
       label: 'Unsourced order lines',
