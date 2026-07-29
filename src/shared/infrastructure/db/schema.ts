@@ -141,6 +141,12 @@ export const auditLog = pgTable(
     targetType: text('target_type').notNull(), // e.g. 'order'
     targetId: text('target_id').notNull(),
     metadata: jsonb('metadata'),
+    // Where the action came from. Null for anything not driven by a request
+    // (a script, the worker) rather than pretending to know.
+    ipAddress: text('ip_address'),
+    // Stored raw; browser and OS are derived at read time, so a better
+    // parser later can re-read old entries.
+    userAgent: text('user_agent'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({

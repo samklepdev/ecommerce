@@ -4,6 +4,7 @@ import { useActionState } from 'react';
 
 import { submitInquiryAction, type SubmitInquiryActionResult } from '@/app/actions/inquiries';
 import { Card } from '@/components/ui/Card';
+import { HoneypotField } from '@/components/ui/HoneypotField';
 import { Field } from '@/components/ui/Field';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -32,6 +33,7 @@ export function InquiryForm({ defaultEmail }: InquiryFormProps) {
   return (
     <Card className={styles.card}>
       <form action={formAction} className={styles.form}>
+        <HoneypotField />
         <Field label="Your email" htmlFor="inquiryEmail" hint="Where we reply">
           <Input
             type="email"

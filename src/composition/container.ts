@@ -105,6 +105,7 @@ import { ApplyMarkupToProducts } from '@/modules/catalog/application/use-cases/a
 import { BulkAssignCategory } from '@/modules/catalog/application/use-cases/bulk-assign-category';
 import { DrizzleAuditLogRepository } from '@/modules/audit/infrastructure/drizzle-audit-log-repository';
 import { RecordAuditLogEntry } from '@/modules/audit/application/use-cases/record-audit-log-entry';
+import { NextRequestContext } from '@/modules/audit/infrastructure/next-request-context';
 import { ListAuditLogEntries } from '@/modules/audit/application/use-cases/list-audit-log-entries';
 import { DrizzleAnalyticsEventRepository } from '@/modules/analytics/infrastructure/drizzle-analytics-event-repository';
 import { RecordAnalyticsEvent } from '@/modules/analytics/application/use-cases/record-analytics-event';
@@ -417,7 +418,7 @@ function build(): Container {
   const applyMarkupToProducts = new ApplyMarkupToProducts(products);
   const bulkAssignCategory = new BulkAssignCategory(products);
   const auditLogRepository = new DrizzleAuditLogRepository(db);
-  const recordAuditLogEntry = new RecordAuditLogEntry(auditLogRepository);
+  const recordAuditLogEntry = new RecordAuditLogEntry(auditLogRepository, new NextRequestContext());
   const analyticsEventRepository = new DrizzleAnalyticsEventRepository(db);
   // Local database read, no per-request network call — see the README in
   // modules/analytics/infrastructure/geo for licence, refresh and why a

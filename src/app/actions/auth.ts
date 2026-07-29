@@ -12,6 +12,7 @@ import { newPasswordSchema } from '@/app/lib/password-schema';
 import { PASSWORD_RULE_TEXT } from '@/shared/domain/password-policy';
 import { GUEST_SESSION_COOKIE, SESSION_COOKIE } from '@/app/lib/session';
 import { checkRateLimit, getClientIp, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
+import { isHoneypotTripped } from '@/app/lib/honeypot';
 
 /** Sign-in, not sign-up: the password policy is deliberately NOT applied
  * here. Accounts created under the old rule must still be able to log in,
@@ -69,6 +70,11 @@ export async function signUpAction(
   _prevState: AuthActionResult | undefined,
   formData: FormData,
 ): Promise<AuthActionResult> {
+  // Silently discarded. A bot told it was caught is a bot that gets fixed;
+  // and no real visitor can reach this branch, since the field is off-screen
+  // and out of the accessibility tree.
+  if (isHoneypotTripped(formData)) return { error: 'Could not create that account.' };
+
   const parsed = SignUpSchema.safeParse({
     email: formData.get('email'),
     password: formData.get('password'),

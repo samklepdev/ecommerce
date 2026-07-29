@@ -258,3 +258,10 @@
     gap: 18px 28px;
   }
 }
+
+/* Two links share the section head now, so they need spacing between them. */
+.sectionLinks {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 18px;
+}

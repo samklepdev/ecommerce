@@ -200,6 +200,11 @@ feature" checklist).
   normal mail client via a `mailto:` link — outbound mail here has no
   threading, so pretending to be an inbox would be worse than linking to one.
   Open inquiries appear in the dashboard's attention queue.
+- **Activity by visitor** (`/admin/analytics/identity`) — everything one
+  person did in a window, looked up by account email or by a session id
+  pasted from any other analytics table (which is how you follow a visitor
+  who never signed in). The other drill-downs slice by event type across
+  everyone; this slices by person across every type.
 - **Orders** (`/admin/orders`) — every order in the store, searchable by
   customer email; (`/admin/orders/[id]`) — full detail (same view
   customers see) plus a "Mark refunded" action for orders that have
@@ -230,7 +235,11 @@ feature" checklist).
 - **Settings** (`/admin/settings`) — the single global flat-rate shipping
   fee. Changing it only affects orders placed after the change; existing
   orders keep the rate they were placed under.
-- **Audit log** (`/admin/audit-log`) — a durable, searchable-by-scrolling
+- **Audit log** (`/admin/audit-log`) — records where each action came from
+  as well as who did it: the actor's IP and their browser/OS, derived from
+  the user agent (stored raw, so a better parser later can re-read old
+  entries). Filled in centrally rather than by each caller, so an entry
+  can't be written without it. A durable, searchable-by-scrolling
   record of who did what and when, for the sensitive/destructive admin
   actions: refunds, admin promotions and demotions, product price
   changes, bulk markup, supplier-order cancellations and mark-ordered/
