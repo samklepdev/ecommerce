@@ -123,6 +123,16 @@ export async function Header() {
               {itemCount > 0 && <span className={styles.cartBadge}>{itemCount}</span>}
             </Link>
 
+            {user && (
+              /* Mobile keeps the avatar — it's the "you're signed in, as
+                 this person" cue — but as a plain link to the account page.
+                 The menu behind it lives in the drawer, and two menus in one
+                 header is what this replaced. */
+              <Link href="/account" className={styles.avatarLink} aria-label="Account">
+                <Avatar avatarUrl={user.avatarUrl} label={user.email} size="sm" />
+              </Link>
+            )}
+
             {user ? (
               <Dropdown
                 align="right"
