@@ -16,6 +16,25 @@ import styles from './Header.module.css';
  * is worse than no link. Add them here when those pages land. */
 const NAV: NavLink[] = [{ label: 'Products', href: '/products' }];
 
+/** Outline only in the header — the filled version means "saved" on a
+ * product card, and the two shouldn't be confused. */
+function HeartIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={styles.icon}
+      aria-hidden="true"
+    >
+      <path d="M10 17 3.5 10.7a3.9 3.9 0 0 1 0-5.6 3.9 3.9 0 0 1 5.5 0l1 1 1-1a3.9 3.9 0 0 1 5.5 0 3.9 3.9 0 0 1 0 5.6Z" />
+    </svg>
+  );
+}
+
 function CartIcon() {
   return (
     <svg
@@ -53,6 +72,7 @@ export async function Header() {
       <span className={styles.drawerEmail}>{user.email}</span>
       <Link href="/account">Account</Link>
       <Link href="/account/orders">My orders</Link>
+      <Link href="/account/wishlist">Saved products</Link>
       {user.isAdmin && <Link href="/admin">Admin console</Link>}
       <form action={logOutAction}>
         <button type="submit" className={styles.drawerLogout}>
@@ -78,6 +98,17 @@ export async function Header() {
           <StorefrontNav links={NAV} itemCount={itemCount} drawerAccount={accountLinks} />
 
           <div className={styles.right}>
+            {user && (
+              <Link
+                href="/account/wishlist"
+                className={styles.cartLink}
+                aria-label="Saved products"
+              >
+                <HeartIcon />
+                <span className={styles.cartText}>Saved</span>
+              </Link>
+            )}
+
             <Link
               href="/cart"
               className={styles.cartLink}
@@ -97,6 +128,7 @@ export async function Header() {
                 <DropdownDivider />
                 <DropdownItem href="/account">Account</DropdownItem>
                 <DropdownItem href="/account/orders">My orders</DropdownItem>
+                <DropdownItem href="/account/wishlist">Saved products</DropdownItem>
                 {user.isAdmin && (
                   <>
                     <DropdownDivider />
