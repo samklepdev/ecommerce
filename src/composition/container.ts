@@ -69,6 +69,14 @@ import { SupplierOrderFulfillmentQueue } from '@/modules/orders/infrastructure/s
 import { EmailPaymentConfirmationNotifier } from '@/modules/orders/infrastructure/email-payment-confirmation-notifier';
 
 import { DrizzleProductRepository } from '@/modules/catalog/infrastructure/drizzle-product-repository';
+import { DrizzleCategoryRepository } from '@/modules/catalog/infrastructure/drizzle-category-repository';
+import {
+  ListCategories,
+  CreateCategory,
+  UpdateCategory,
+  DeleteCategory,
+  MergeCategories,
+} from '@/modules/catalog/application/use-cases/manage-categories';
 import { ListProducts } from '@/modules/catalog/application/use-cases/list-products';
 import { ListProductCategories } from '@/modules/catalog/application/use-cases/list-product-categories';
 import { GetProductBySlug } from '@/modules/catalog/application/use-cases/get-product-by-slug';
@@ -188,6 +196,11 @@ export interface Container {
 
   listProducts: ListProducts;
   listProductCategories: ListProductCategories;
+  listCategories: ListCategories;
+  createCategory: CreateCategory;
+  updateCategory: UpdateCategory;
+  deleteCategory: DeleteCategory;
+  mergeCategories: MergeCategories;
   getProductBySlug: GetProductBySlug;
   getProduct: GetProduct;
   getProductsByIds: GetProductsByIds;
@@ -355,6 +368,14 @@ function build(): Container {
   const products = new DrizzleProductRepository(db);
   const listProducts = new ListProducts(products);
   const listProductCategories = new ListProductCategories(products);
+
+  // --- categories ---
+  const categoryRepository = new DrizzleCategoryRepository(db);
+  const listCategories = new ListCategories(categoryRepository);
+  const createCategory = new CreateCategory(categoryRepository);
+  const updateCategory = new UpdateCategory(categoryRepository);
+  const deleteCategory = new DeleteCategory(categoryRepository);
+  const mergeCategories = new MergeCategories(categoryRepository);
   const getProductBySlug = new GetProductBySlug(products);
   const getProduct = new GetProduct(products);
   const getProductsByIds = new GetProductsByIds(products);
@@ -579,6 +600,11 @@ function build(): Container {
     btcRates: rates,
     listProducts,
     listProductCategories,
+    listCategories,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    mergeCategories,
     getProductBySlug,
     getProduct,
     getProductsByIds,

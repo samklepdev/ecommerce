@@ -22,6 +22,11 @@ export interface ProductProps {
   additionalImages?: ProductImage[];
   status: ProductStatus;
   source?: ProductSource;
+  /** The category's id — what the row actually stores. */
+  categoryId?: string | null;
+  /** The category's display name, hydrated on read. Null when the product is
+   * uncategorized. Nothing downstream wants the id, so this is what the UI
+   * and the storefront filter use. */
   category?: string | null;
   /** The product *is* the sellable unit — there is no variant beneath it, so
    * the stock-keeping identity and the price live here. */
@@ -37,6 +42,7 @@ export class Product extends AggregateRoot<string> {
   readonly additionalImages: ProductImage[];
   readonly status: ProductStatus;
   readonly source: ProductSource;
+  readonly categoryId: string | null;
   readonly category: string | null;
   readonly sku: string;
   readonly price: Money;
@@ -50,6 +56,7 @@ export class Product extends AggregateRoot<string> {
     this.additionalImages = props.additionalImages ?? [];
     this.status = props.status;
     this.source = props.source ?? 'manual';
+    this.categoryId = props.categoryId ?? null;
     this.category = props.category ?? null;
     this.sku = props.sku;
     this.price = props.price;

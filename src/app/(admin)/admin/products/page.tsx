@@ -25,14 +25,19 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
   await requireAdmin();
   const { supplierId, page: pageParam } = await searchParams;
 
-  const { listAllProductsForAdmin, listSuppliers, listSupplierOffersForProducts, getAdminCatalogCounts } =
-    getContainer();
+  const {
+    listAllProductsForAdmin,
+    listSuppliers,
+    listSupplierOffersForProducts,
+    getAdminCatalogCounts,
+    listCategories,
+  } = getContainer();
 
   // One page of products, filtered and counted in SQL; then a single query
   // for that page's offers. This page used to load the whole catalog, run an
   // offers query per product, filter by supplier in memory, and slice in
   // JavaScript.
-  const [pageResult, suppliers, catalogCounts] = await Promise.all([
+  const [pageResult, suppliers, catalogCounts, categories] = await Promise.all([
     listAllProductsForAdmin.execute({
       supplierId,
       page: parsePage(pageParam),
@@ -40,6 +45,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
     }),
     listSuppliers.execute(),
     getAdminCatalogCounts.execute(),
+    listCategories.execute(),
   ]);
 
   const { items: pagedProducts, page, totalPages, totalItems } = pageResult;
@@ -58,6 +64,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
   });
 
   const { total: catalogTotal, active: activeCount } = catalogCounts;
+  const categoryOptions = categories.map((c) => ({ id: c.category.id, name: c.category.name }));
 
   const rows: AdminProductRow[] = pagedProducts.map((p) => {
     const offers = offersByProduct.get(p.id) ?? [];
@@ -68,6 +75,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
       slug: p.slug.value,
       status: p.status,
       category: p.category,
+      categoryId: p.categoryId,
       imageUrl: p.imageUrl,
       additionalImages: p.additionalImages,
       sku: p.sku,
@@ -100,7 +108,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
       </header>
 
       <div className={styles.toolbar}>
-        <ProductActionsBar suppliers={activeSupplierOptions} />
+        <ProductActionsBar suppliers={activeSupplierOptions} categories={categoryOptions} />
         <div className={styles.filterRow}>
           <SupplierFilterSelect suppliers={supplierOptions} selectedSupplierId={supplierId} />
         </div>
@@ -122,6 +130,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
           products={rows}
           emptyMessage={supplierId ? 'No products from this supplier.' : 'No products yet.'}
           suppliers={activeSupplierOptions}
+          categories={categoryOptions}
         />
 
         <Pagination

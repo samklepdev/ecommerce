@@ -6,7 +6,7 @@ import { updateProductAction, type UpdateProductActionResult } from '@/app/actio
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
-import { Input, Textarea } from '@/components/ui/Input';
+import { Input, Textarea, Select } from '@/components/ui/Input';
 import { ProductImagesManager } from './ProductImagesManager';
 import { SupplierOfferCostEditor } from './SupplierOfferCostEditor';
 import { AddSupplierOfferForm } from './AddSupplierOfferForm';
@@ -19,9 +19,17 @@ interface Supplier {
   name: string;
 }
 
+/** Categories are rows now, so the UI picks from them rather than typing a
+ * name and hoping it matches. */
+interface CategoryOption {
+  id: string;
+  name: string;
+}
+
 interface ProductEditPanelProps {
   product: AdminProductRow;
   suppliers: Supplier[];
+  categories: CategoryOption[];
   /** Rendered into the panel's footer beside Save — publishing and deleting
    * belong to the table's bulk forms, so they're passed in rather than
    * re-implemented here. */
@@ -40,7 +48,7 @@ const initialState: UpdateProductActionResult = {};
  * other records — an image upload and a supplier offer aren't fields of the
  * product, and pretending they save together would be a lie.
  */
-export function ProductEditPanel({ product, suppliers, actions }: ProductEditPanelProps) {
+export function ProductEditPanel({ product, suppliers, categories, actions }: ProductEditPanelProps) {
   const [state, formAction, isPending] = useActionState(updateProductAction, initialState);
 
   return (
@@ -69,12 +77,16 @@ export function ProductEditPanel({ product, suppliers, actions }: ProductEditPan
 
           <label className={styles.field}>
             <span className={styles.label}>Category</span>
-            <Input
-              type="text"
-              name="category"
-              defaultValue={product.category ?? ''}
-              placeholder="Uncategorized"
-            />
+            {/* A picker, not free text: a typo used to create a second
+                category that looked identical in the table. */}
+            <Select name="categoryId" defaultValue={product.categoryId ?? ''}>
+              <option value="">Uncategorized</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
           </label>
 
           <label className={styles.field}>
