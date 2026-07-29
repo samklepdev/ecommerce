@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
   bigint,
   boolean,
@@ -174,6 +174,33 @@ export const analyticsEvents = pgTable(
   }),
 );
 
+/**
+ * A catalog category. Was a free-text column on `products` until 0022, which
+ * made "rename a category" an UPDATE across every product holding the old
+ * string, and made a typo a second category. It's a row now, so a rename is
+ * one write and the products follow.
+ *
+ * Deleting one leaves its products uncategorized (ON DELETE SET NULL) rather
+ * than taking them with it — a category is a label, and losing the label
+ * should never lose the thing labelled.
+ */
+export const categories = pgTable(
+  'categories',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    /** URL form, used by the storefront's ?category= filter. */
+    slug: text('slug').notNull(),
+    description: text('description'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    nameUnique: uniqueIndex('categories_name_unique').on(t.name),
+    slugUnique: uniqueIndex('categories_slug_unique').on(t.slug),
+  }),
+);
+
 export const products = pgTable(
   'products',
   {
@@ -182,7 +209,7 @@ export const products = pgTable(
     name: text('name').notNull(),
     description: text('description'),
     imageUrl: text('image_url'),
-    category: text('category'), // free-text tag; null means uncategorized
+    categoryId: text('category_id').references(() => categories.id, { onDelete: 'set null' }),
     status: text('status').notNull().default('draft'), // draft | active | archived
     source: text('source').notNull().default('manual'), // manual | feed_import
     // The product is the sellable unit — these came off `product_variants`
@@ -197,6 +224,86 @@ export const products = pgTable(
   (t) => ({
     slugUnique: uniqueIndex('products_slug_unique').on(t.slug),
     skuUnique: uniqueIndex('products_sku_unique').on(t.sku),
+    // The storefront filters by category on every catalog page.
+    categoryIdx: index('products_category_id_idx').on(t.categoryId),
+  }),
+);
+
+/** The only relation declared so far. Products carry their category's *name*
+ * through the domain (nothing downstream wants an id), and this is what lets
+ * `with: { category: true }` hydrate it without every query restating the
+ * join. */
+export const productsRelations = relations(products, ({ one }) => ({
+  category: one(categories, {
+    fields: [products.categoryId],
+    references: [categories.id],
+  }),
+}));
+
+export const categoriesRelations = relations(categories, ({ many }) => ({
+  products: many(products),
+}));
+
+/**
+ * A saved product, per customer.
+ *
+ * Logged-in only, deliberately: a wishlist that evaporates when a cookie
+ * expires isn't one. The cart is the opposite case — it has to work for a
+ * guest, so it lives in Redis by session id — and the two shouldn't be
+ * confused for each other.
+ *
+ * Deleting a product removes it from every wishlist (cascade); nothing here
+ * is worth keeping once the thing it points at is gone.
+ */
+export const wishlistItems = pgTable(
+  'wishlist_items',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    productId: text('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    // Saving the same product twice is the same wish, not two.
+    userProductUnique: uniqueIndex('wishlist_items_user_product_unique').on(t.userId, t.productId),
+    userIdx: index('wishlist_items_user_id_idx').on(t.userId),
+  }),
+);
+
+/**
+ * A customer asking us to source something the catalog doesn't carry.
+ *
+ * Kept as rows rather than only as email, because email is where these go to
+ * die: an inbox has no notion of "answered", no link to the product, and no
+ * way for a second admin to see one has already been picked up. The email
+ * still goes out; this is the record it refers to.
+ *
+ * There's no product link, by definition: the request is for something that
+ * isn't a product here yet. Questions about things we do stock go to the
+ * support address in the footer, where a mail client beats a form.
+ */
+export const productInquiries = pgTable(
+  'product_inquiries',
+  {
+    id: text('id').primaryKey(),
+    /** What they're after, in their words. */
+    subject: text('subject').notNull(),
+    message: text('message').notNull(),
+    customerEmail: text('customer_email').notNull(),
+    /** Set when the sender was signed in — lets an admin see their orders. */
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    status: text('status').notNull().default('new'), // new | in_progress | closed
+    adminNotes: text('admin_notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    // The queue is "what's open, oldest first" — this is the index it reads.
+    statusCreatedIdx: index('product_inquiries_status_created_at_idx').on(t.status, t.createdAt),
   }),
 );
 

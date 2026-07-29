@@ -6,16 +6,16 @@ import type { ProductRepository } from '@/modules/catalog/application/ports/prod
 function makeFakeProducts() {
   const calls: string[] = [];
   const details: { productId: string; name: string; description: string | null }[] = [];
-  const categories: { productId: string; category: string | null }[] = [];
+  const categories: { productId: string; categoryId: string | null }[] = [];
   const prices: { productId: string; amountMinor: number; currency: string }[] = [];
   const repo: Partial<ProductRepository> = {
     async updateDetails(productId, d) {
       calls.push('details');
       details.push({ productId, ...d });
     },
-    async updateCategory(productId, category) {
+    async updateCategory(productId, categoryId) {
       calls.push('category');
-      categories.push({ productId, category });
+      categories.push({ productId, categoryId });
     },
     async updatePrice(productId, amountMinor, currency) {
       calls.push('price');
@@ -29,7 +29,7 @@ const input = {
   productId: 'p1',
   name: 'Widget X',
   description: 'A widget.',
-  category: 'Widgets',
+  categoryId: 'Widgets',
   amountMinor: 2499,
   currency: 'USD',
 };
@@ -41,17 +41,17 @@ describe('UpdateProduct', () => {
     await new UpdateProduct(repo).execute(input);
 
     expect(details).toEqual([{ productId: 'p1', name: 'Widget X', description: 'A widget.' }]);
-    expect(categories).toEqual([{ productId: 'p1', category: 'Widgets' }]);
+    expect(categories).toEqual([{ productId: 'p1', categoryId: 'Widgets' }]);
     expect(prices).toEqual([{ productId: 'p1', amountMinor: 2499, currency: 'USD' }]);
   });
 
   it('accepts a cleared description and category as null', async () => {
     const { repo, details, categories } = makeFakeProducts();
 
-    await new UpdateProduct(repo).execute({ ...input, description: null, category: null });
+    await new UpdateProduct(repo).execute({ ...input, description: null, categoryId: null });
 
     expect(details[0]?.description).toBeNull();
-    expect(categories[0]?.category).toBeNull();
+    expect(categories[0]?.categoryId).toBeNull();
   });
 
   // The whole point of one Save button is that it's one save. A price that

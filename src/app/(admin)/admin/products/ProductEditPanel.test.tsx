@@ -24,6 +24,7 @@ function makeProduct(overrides: Partial<AdminProductRow> = {}): AdminProductRow 
     slug: 'widget-x',
     status: 'active',
     category: 'Widgets',
+    categoryId: 'cat-1',
     imageUrl: null,
     additionalImages: [],
     sku: 'SKU-1',
@@ -48,6 +49,7 @@ function render(product = makeProduct()) {
   return renderToStaticMarkup(
     <ProductEditPanel
       product={product}
+      categories={[{ id: 'cat-1', name: 'Widgets' }]}
       suppliers={[{ id: 's1', name: 'Acme' }]}
       actions={null}
     />,
@@ -61,7 +63,7 @@ describe('ProductEditPanel', () => {
     const html = render();
 
     expect(html).toContain('Save changes');
-    for (const field of ['name="name"', 'name="price"', 'name="category"', 'name="description"']) {
+    for (const field of ['name="name"', 'name="price"', 'name="categoryId"', 'name="description"']) {
       expect(html).toContain(field);
     }
   });
@@ -71,7 +73,9 @@ describe('ProductEditPanel', () => {
 
     expect(html).toContain('value="Widget X"');
     expect(html).toContain('value="24.99"'); // minor units shown as decimal
-    expect(html).toContain('value="Widgets"');
+    // A picker now, not free text: the product's category is the selected
+    // option rather than an input value.
+    expect(html).toContain('<option value="cat-1" selected="">Widgets</option>');
     expect(html).toContain('A widget.');
   });
 

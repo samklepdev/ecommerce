@@ -256,6 +256,51 @@
   margin: 0;
 }
 
+/* Desktop reaches the account through the dropdown, so the standalone
+   avatar link is mobile-only. */
+.avatarLink {
+  display: none;
+  align-items: center;
+}
+
+/* The <noscript> element is the flex item, so it takes the row — the nav
+   inside it can't claim one for itself. */
+.inner noscript {
+  flex-basis: 100%;
+}
+
+/* A burger that opens nothing is worse than no burger. `noscript nav` only
+   exists in the DOM when scripting is off, which makes it an exact test for
+   "the fallback below is the live menu". */
+.inner:has(noscript nav) .burger {
+  display: none;
+}
+
+/* Only ever painted inside <noscript>. Wraps rather than scrolls, because a
+   fallback that needs horizontal scrolling isn't one. */
+.noscriptNav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 18px;
+  padding: 10px 0 2px;
+  font-size: 13.5px;
+}
+
+.noscriptNav a,
+.noscriptLogout {
+  color: var(--muted);
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.noscriptLogout {
+  color: var(--rose);
+}
+
 @media (max-width: 860px) {
   .nav {
     display: none;
@@ -267,6 +312,20 @@
 
   .burger {
     display: flex;
+  }
+
+  /* The drawer already carries Account, My orders, Saved products and Log
+     out. Leaving the avatar *menu* up as well put two controls 145px apart
+     in the same header opening the same four links — and a dropdown pinned
+     to the right edge of a 390px screen is the worse of the two. Same
+     reason for the logged-out Log in link, which the drawer also holds.
+     The avatar itself stays, as a link — see .avatarLink. */
+  .accountMenu {
+    display: none;
+  }
+
+  .avatarLink {
+    display: inline-flex;
   }
 
   .inner {

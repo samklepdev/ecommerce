@@ -20,15 +20,23 @@ interface Supplier {
   name: string;
 }
 
+/** Categories are rows now, so the UI picks from them rather than typing a
+ * name and hoping it matches. */
+interface CategoryOption {
+  id: string;
+  name: string;
+}
+
 interface AddProductFormProps {
   suppliers: Supplier[];
+  categories: CategoryOption[];
   onSuccess?: () => void;
 }
 
 const initialState: CreateProductActionResult = {};
 const extractInitialState: ExtractProductFromUrlActionResult = {};
 
-export function AddProductForm({ suppliers, onSuccess }: AddProductFormProps) {
+export function AddProductForm({ suppliers, categories, onSuccess }: AddProductFormProps) {
   const [state, formAction, isPending] = useActionState(createProductWithOfferAction, initialState);
   const [extractState, extractFormAction, isExtractPending] = useActionState(
     extractProductFromUrlAction,
@@ -125,7 +133,14 @@ export function AddProductForm({ suppliers, onSuccess }: AddProductFormProps) {
           <Input type="text" id="description" name="description" ref={descriptionRef} />
         </Field>
         <Field label="Category" htmlFor="category" hint="Optional — used for the storefront filter">
-          <Input type="text" id="category" name="category" />
+          <Select id="category" name="categoryId" defaultValue="">
+            <option value="">Uncategorized</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
         </Field>
 
         <div className={styles.row}>

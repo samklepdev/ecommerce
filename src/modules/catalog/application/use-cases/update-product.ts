@@ -6,7 +6,7 @@ export interface UpdateProductInput {
   productId: string;
   name: string;
   description: string | null;
-  category: string | null;
+  categoryId: string | null;
   amountMinor: number;
   currency: string;
 }
@@ -36,7 +36,7 @@ export class UpdateProduct implements UseCase<UpdateProductInput, void> {
       name: input.name,
       description: input.description,
     });
-    await this.products.updateCategory(input.productId, input.category);
+    await this.products.updateCategory(input.productId, input.categoryId);
     await this.products.updatePrice(input.productId, input.amountMinor, input.currency);
   }
 }

@@ -49,7 +49,7 @@ const CreateProductSchema = z.object({
   slug: z.string().min(1),
   name: z.string().min(1),
   description: z.string().optional(),
-  category: z.string().optional(),
+  categoryId: z.string().optional(),
   sku: z.string().min(1),
   unitAmountMinor: z.coerce.number().int().positive(),
   currency: z.string().length(3),
@@ -74,7 +74,7 @@ export async function createProductWithOfferAction(
     slug: formData.get('slug'),
     name: formData.get('name'),
     description: formData.get('description') || undefined,
-    category: formData.get('category') || undefined,
+    categoryId: formData.get('categoryId') || undefined,
     sku: formData.get('sku'),
     unitAmountMinor: formData.get('unitAmountMinor'),
     currency: formData.get('currency') || 'USD',
@@ -93,7 +93,7 @@ export async function createProductWithOfferAction(
     slug: parsed.data.slug,
     name: parsed.data.name,
     description: parsed.data.description ?? null,
-    category: parsed.data.category ?? null,
+    categoryId: parsed.data.categoryId ?? null,
     sku: parsed.data.sku,
     unitAmountMinor: parsed.data.unitAmountMinor,
     currency: parsed.data.currency,
@@ -519,7 +519,7 @@ const UpdateProductSchema = z.object({
   productId: z.string().min(1),
   name: z.string().min(1, 'Enter a product name.'),
   description: z.string().optional(),
-  category: z.string().optional(),
+  categoryId: z.string().optional(),
   price: z.string().min(1, 'Enter a price.'),
   currency: z.string().length(3),
 });
@@ -540,7 +540,7 @@ export async function updateProductAction(
     productId: formData.get('productId'),
     name: formData.get('name'),
     description: formData.get('description') || undefined,
-    category: formData.get('category') || undefined,
+    categoryId: formData.get('categoryId') || undefined,
     price: formData.get('price'),
     currency: formData.get('currency'),
   });
@@ -557,7 +557,7 @@ export async function updateProductAction(
     name: parsed.data.name,
     // An emptied field means "clear it", not "leave it".
     description: parsed.data.description ?? null,
-    category: parsed.data.category ?? null,
+    categoryId: parsed.data.categoryId ?? null,
     amountMinor,
     currency: parsed.data.currency,
   });
@@ -573,7 +573,7 @@ export async function updateProductAction(
     targetId: parsed.data.productId,
     metadata: {
       name: parsed.data.name,
-      category: parsed.data.category ?? null,
+      categoryId: parsed.data.categoryId ?? null,
       amountMinor,
       currency: parsed.data.currency,
     },
@@ -637,7 +637,7 @@ export async function applyMarkupToProductsAction(
 
 const AssignCategorySchema = z.object({
   productIds: z.array(z.string().min(1)).min(1),
-  category: z.string().optional(),
+  categoryId: z.string().optional(),
 });
 
 export interface AssignCategoryActionResult {
@@ -652,14 +652,14 @@ export async function assignCategoryToProductsAction(
   await requireAdmin();
   const parsed = AssignCategorySchema.safeParse({
     productIds: formData.getAll('productIds'),
-    category: formData.get('category') || undefined,
+    categoryId: formData.get('categoryId') || undefined,
   });
   if (!parsed.success) return { error: 'Select at least one product.' };
 
   const { bulkAssignCategory } = getContainer();
   const result = await bulkAssignCategory.execute({
     productIds: parsed.data.productIds,
-    category: parsed.data.category ?? null,
+    categoryId: parsed.data.categoryId ?? null,
   });
 
   revalidatePath('/admin/products');

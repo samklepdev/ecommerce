@@ -15,13 +15,14 @@ interface Supplier {
 
 interface ProductActionsBarProps {
   suppliers: Supplier[];
+  categories: { id: string; name: string }[];
 }
 
 /** The "create new" actions (add supplier / import feed / add product), each
  * behind its own modal. Has to be a client component because `Modal`'s
  * trigger/body are function props — those can't cross the server→client
  * boundary, so this is the boundary itself. */
-export function ProductActionsBar({ suppliers }: ProductActionsBarProps) {
+export function ProductActionsBar({ suppliers, categories }: ProductActionsBarProps) {
   return (
     <div className={styles.actionsRow}>
       <Modal
@@ -61,7 +62,7 @@ export function ProductActionsBar({ suppliers }: ProductActionsBarProps) {
           suppliers.length === 0 ? (
             <p className={styles.empty}>Add a supplier first.</p>
           ) : (
-            <AddProductForm suppliers={suppliers} onSuccess={close} />
+            <AddProductForm suppliers={suppliers} categories={categories} onSuccess={close} />
           )
         }
       </Modal>

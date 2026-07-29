@@ -4,7 +4,7 @@ import type { ProductRepository } from '@/modules/catalog/application/ports/prod
 
 export interface BulkAssignCategoryInput {
   productIds: string[];
-  category: string | null;
+  categoryId: string | null;
 }
 
 export interface BulkAssignCategoryResult {
@@ -22,7 +22,7 @@ export class BulkAssignCategory implements UseCase<BulkAssignCategoryInput, Bulk
 
     for (const productId of input.productIds) {
       try {
-        await this.products.updateCategory(productId, input.category);
+        await this.products.updateCategory(productId, input.categoryId);
         updated += 1;
       } catch (e) {
         failed += 1;

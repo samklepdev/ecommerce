@@ -61,6 +61,21 @@ feature" checklist).
   order (not per item). Shown on product pages, the cart, and checkout, and
   snapshotted onto the order at placement so a later rate change never
   alters an existing order's total or the BTC amount already quoted for it.
+- **Saved products** (`/account/wishlist`) — a heart on any product card or
+  product page keeps it here, and it moves into the cart from the list in one
+  click (staying saved: "I bought one" and "I'm no longer interested" are
+  different things, and only the customer knows which). Signed-in only, on
+  purpose — a wishlist keyed to a guest cookie would quietly empty itself when
+  the cookie expired. A saved product that's later unpublished drops out of
+  the list but keeps its row, since it may come back.
+- **Ask us to source a product** (`/sourcing`, linked from the footer) — one
+  page for "you don't stock this, can you get it?". It lands in the admin's
+  inquiry queue *and* sends mail to `SUPPORT_EMAIL`; the record is what makes
+  it trackable, since an inbox has no notion of "answered". There is
+  deliberately no per-product question form: questions about things already
+  in the catalog go to the support address in the footer, where a mail client
+  is a better tool than a form. Rate-limited to five an hour per IP, because
+  an unauthenticated form that sends mail is a spam relay otherwise.
 - **Order status / confirmation** (`/orders/[id]`) — works for guests too
   (the order ID itself is the access key, same as the polling API). Shows
   payment/fulfillment status, line items, shipping address, tracking
@@ -132,6 +147,17 @@ feature" checklist).
   offer or supplier order holding it makes the row say so (and how many)
   where the Delete button would be, since supplier orders are purchase
   history and are never deletable. Deactivating is the reversible option.
+- **Categories** (`/admin/categories`) — categories are their own records,
+  not a free-text field on the product. Create one, rename it, give it a
+  description, merge one into another (every product moves, then the source
+  is deleted, in one transaction), or delete it (its products become
+  uncategorized — deleting a label never deletes what it labelled). A rename
+  is a single write and every product in the category follows it; as a text
+  column that was an update across the catalog that silently missed any row
+  spelled differently, and a typo created a second category that looked
+  identical in the table. The slug survives a rename on purpose, so existing
+  `/products?category=…` links keep resolving — and that filter accepts
+  either the slug or the display name.
 - **Products** (`/admin/products`) — create a product and its preferred
   supplier offer in one form; import a batch of products from a supplier feed (URL, pasted
   JSON, or an uploaded spreadsheet); a "paste a product URL" helper that
@@ -167,6 +193,13 @@ feature" checklist).
   queue. Safe to press more than once — lines a supplier order already
   covers are never ordered again, and an order that is no longer paid is
   refused. Filter by status.
+- **Inquiries** (`/admin/inquiries`) — the queue of sourcing requests,
+  oldest first (the oldest unanswered message is the one
+  costing the most goodwill). Read the message, mark it in progress or
+  closed, reopen it, and keep internal notes against it. Replies go through a
+  normal mail client via a `mailto:` link — outbound mail here has no
+  threading, so pretending to be an inbox would be worse than linking to one.
+  Open inquiries appear in the dashboard's attention queue.
 - **Orders** (`/admin/orders`) — every order in the store, searchable by
   customer email; (`/admin/orders/[id]`) — full detail (same view
   customers see) plus a "Mark refunded" action for orders that have

@@ -62,18 +62,19 @@ describe('CreateProduct', () => {
     expect(product.source).toBe('feed_import');
   });
 
-  it('accepts an optional category, defaulting to null', async () => {
+  it('accepts an optional category id, defaulting to null', async () => {
     const { repo } = makeFakeProducts();
 
     const withCategory = await new CreateProduct(repo).execute(
-      makeInput({ slug: 'widget-z', name: 'Widget Z', category: 'Widgets' }),
+      makeInput({ slug: 'widget-z', name: 'Widget Z', categoryId: 'cat-widgets' }),
     );
-    expect(withCategory.category).toBe('Widgets');
+    // The id is what's stored; the display name is hydrated on read.
+    expect(withCategory.categoryId).toBe('cat-widgets');
 
     const withoutCategory = await new CreateProduct(repo).execute(
       makeInput({ slug: 'widget-w', name: 'Widget W' }),
     );
-    expect(withoutCategory.category).toBeNull();
+    expect(withoutCategory.categoryId).toBeNull();
   });
 
   it('throws on an invalid slug', async () => {

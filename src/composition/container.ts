@@ -71,6 +71,29 @@ import { SupplierOrderFulfillmentQueue } from '@/modules/orders/infrastructure/s
 import { EmailPaymentConfirmationNotifier } from '@/modules/orders/infrastructure/email-payment-confirmation-notifier';
 
 import { DrizzleProductRepository } from '@/modules/catalog/infrastructure/drizzle-product-repository';
+import { DrizzleCategoryRepository } from '@/modules/catalog/infrastructure/drizzle-category-repository';
+import { DrizzleWishlistRepository } from '@/modules/wishlist/infrastructure/drizzle-wishlist-repository';
+import { DrizzleInquiryRepository } from '@/modules/inquiries/infrastructure/drizzle-inquiry-repository';
+import { EmailInquiryNotifier } from '@/modules/inquiries/infrastructure/email-inquiry-notifier';
+import { SubmitInquiry } from '@/modules/inquiries/application/use-cases/submit-inquiry';
+import {
+  ListInquiries,
+  CountOpenInquiries,
+  SetInquiryStatus,
+  SetInquiryNotes,
+} from '@/modules/inquiries/application/use-cases/manage-inquiries';
+import {
+  ListWishlist,
+  ToggleWishlistItem,
+  GetSavedProductIds,
+} from '@/modules/wishlist/application/use-cases/manage-wishlist';
+import {
+  ListCategories,
+  CreateCategory,
+  UpdateCategory,
+  DeleteCategory,
+  MergeCategories,
+} from '@/modules/catalog/application/use-cases/manage-categories';
 import { ListProducts } from '@/modules/catalog/application/use-cases/list-products';
 import { ListProductCategories } from '@/modules/catalog/application/use-cases/list-product-categories';
 import { GetProductBySlug } from '@/modules/catalog/application/use-cases/get-product-by-slug';
@@ -190,6 +213,19 @@ export interface Container {
 
   listProducts: ListProducts;
   listProductCategories: ListProductCategories;
+  listCategories: ListCategories;
+  submitInquiry: SubmitInquiry;
+  listInquiries: ListInquiries;
+  countOpenInquiries: CountOpenInquiries;
+  setInquiryStatus: SetInquiryStatus;
+  setInquiryNotes: SetInquiryNotes;
+  listWishlist: ListWishlist;
+  toggleWishlistItem: ToggleWishlistItem;
+  getSavedProductIds: GetSavedProductIds;
+  createCategory: CreateCategory;
+  updateCategory: UpdateCategory;
+  deleteCategory: DeleteCategory;
+  mergeCategories: MergeCategories;
   getProductBySlug: GetProductBySlug;
   getProduct: GetProduct;
   getProductsByIds: GetProductsByIds;
@@ -359,6 +395,20 @@ function build(): Container {
   const products = new DrizzleProductRepository(db);
   const listProducts = new ListProducts(products);
   const listProductCategories = new ListProductCategories(products);
+
+  // --- categories ---
+  const categoryRepository = new DrizzleCategoryRepository(db);
+  const listCategories = new ListCategories(categoryRepository);
+
+  // --- wishlist ---
+  const wishlistRepository = new DrizzleWishlistRepository(db);
+  const listWishlist = new ListWishlist(wishlistRepository, products);
+  const toggleWishlistItem = new ToggleWishlistItem(wishlistRepository);
+  const getSavedProductIds = new GetSavedProductIds(wishlistRepository);
+  const createCategory = new CreateCategory(categoryRepository);
+  const updateCategory = new UpdateCategory(categoryRepository);
+  const deleteCategory = new DeleteCategory(categoryRepository);
+  const mergeCategories = new MergeCategories(categoryRepository);
   const getProductBySlug = new GetProductBySlug(products);
   const getProduct = new GetProduct(products);
   const getProductsByIds = new GetProductsByIds(products);
@@ -427,6 +477,17 @@ function build(): Container {
       : new ConsoleEmailSender();
   const sendWelcomeEmail = new SendWelcomeEmail(welcomeEmails, emailSender, env.APP_URL);
   const sendOrderConfirmationEmail = new SendOrderConfirmationEmail(emailSender);
+  // --- inquiries ---
+  const inquiryRepository = new DrizzleInquiryRepository(db);
+  const submitInquiry = new SubmitInquiry(
+    inquiryRepository,
+    new EmailInquiryNotifier(emailSender, env.SUPPORT_EMAIL, env.APP_URL),
+  );
+  const listInquiries = new ListInquiries(inquiryRepository);
+  const countOpenInquiries = new CountOpenInquiries(inquiryRepository);
+  const setInquiryStatus = new SetInquiryStatus(inquiryRepository);
+  const setInquiryNotes = new SetInquiryNotes(inquiryRepository);
+
   const markWelcomeEmailOpened = new MarkWelcomeEmailOpened(welcomeEmails);
   const getWelcomeEmailStatus = new GetWelcomeEmailStatus(welcomeEmails);
 
@@ -587,6 +648,19 @@ function build(): Container {
     btcRates: rates,
     listProducts,
     listProductCategories,
+    listCategories,
+    submitInquiry,
+    listInquiries,
+    countOpenInquiries,
+    setInquiryStatus,
+    setInquiryNotes,
+    listWishlist,
+    toggleWishlistItem,
+    getSavedProductIds,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    mergeCategories,
     getProductBySlug,
     getProduct,
     getProductsByIds,

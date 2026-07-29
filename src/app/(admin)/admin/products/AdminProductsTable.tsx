@@ -17,7 +17,7 @@ import {
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
-import { Input } from '@/components/ui/Input';
+import { Input, Select } from '@/components/ui/Input';
 import { cx } from '@/components/ui/cx';
 import { ProductEditPanel } from './ProductEditPanel';
 import styles from './page.module.css';
@@ -40,6 +40,7 @@ export interface AdminProductRow {
   slug: string;
   status: string;
   category: string | null;
+  categoryId: string | null;
   imageUrl: string | null;
   additionalImages: { id: string; url: string }[];
   sku: string;
@@ -54,10 +55,18 @@ interface Supplier {
   name: string;
 }
 
+/** Categories are rows now, so the UI picks from them rather than typing a
+ * name and hoping it matches. */
+interface CategoryOption {
+  id: string;
+  name: string;
+}
+
 interface AdminProductsTableProps {
   products: AdminProductRow[];
   emptyMessage: string;
   suppliers: Supplier[];
+  categories: CategoryOption[];
 }
 
 const deleteInitialState: DeleteProductsActionResult = {};
@@ -71,7 +80,12 @@ function formatMoney(minor: number, currency: string): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(minor / 100);
 }
 
-export function AdminProductsTable({ products, emptyMessage, suppliers }: AdminProductsTableProps) {
+export function AdminProductsTable({
+  products,
+  emptyMessage,
+  suppliers,
+  categories,
+}: AdminProductsTableProps) {
   const [deleteState, deleteFormAction, isDeletePending] = useActionState(
     deleteProductsAction,
     deleteInitialState,
@@ -196,6 +210,7 @@ export function AdminProductsTable({ products, emptyMessage, suppliers }: AdminP
                         <ProductEditPanel
                           product={p}
                           suppliers={suppliers}
+                          categories={categories}
                           actions={
                             <form action={deleteFormAction}>
                               <input type="hidden" name="productIds" value={p.id} />
@@ -278,14 +293,20 @@ export function AdminProductsTable({ products, emptyMessage, suppliers }: AdminP
           </Button>
         </div>
         <div className={styles.markupGroup}>
-          <Input
-            type="text"
-            name="category"
-            placeholder="Category"
+          <Select
+            name="categoryId"
             form={BULK_FORM_ID}
             className={styles.markupInput}
             aria-label="Category"
-          />
+            defaultValue=""
+          >
+            <option value="">Uncategorized</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
           <Button
             type="submit"
             form={BULK_FORM_ID}

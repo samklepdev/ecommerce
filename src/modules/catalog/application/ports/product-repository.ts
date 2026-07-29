@@ -4,6 +4,7 @@ export type ProductSort = 'newest' | 'name_asc' | 'name_desc' | 'price_asc' | 'p
 
 export interface ListProductsParams {
   search?: string;
+  /** A category slug or display name — both resolve to the same category. */
   category?: string;
   sort?: ProductSort;
   limit?: number;
@@ -63,7 +64,9 @@ export interface ProductRepository {
   getAdminCatalogCounts(): Promise<AdminCatalogCounts>;
   createProduct(product: Product): Promise<void>;
   updatePrice(productId: string, amountMinor: number, currency: string): Promise<void>;
-  updateCategory(productId: string, category: string | null): Promise<void>;
+  /** Null uncategorizes the product. Takes the category's **id** — names
+   * stopped being the identity when categories became a table. */
+  updateCategory(productId: string, categoryId: string | null): Promise<void>;
   /** Slug is intentionally not editable here — it's permanent once created
    * so existing bookmarked/shared product URLs never break. */
   updateDetails(productId: string, details: { name: string; description: string | null }): Promise<void>;

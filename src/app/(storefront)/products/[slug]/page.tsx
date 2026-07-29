@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 
 import { getContainer } from '@/composition/container';
+import { getSessionUser } from '@/app/lib/session';
 import type { Product } from '@/modules/catalog/domain/product';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -69,14 +70,27 @@ async function resolveRelatedProducts(
 
 export default async function ProductPage({ params }: ProductPageProps) {
   const { slug } = await params;
-  const { getProductBySlug, getPreferredOfferForProduct, getShippingRate, listProducts, btcRates } =
-    getContainer();
+  const {
+    getProductBySlug,
+    getPreferredOfferForProduct,
+    getShippingRate,
+    listProducts,
+    btcRates,
+    getSavedProductIds,
+  } = getContainer();
 
   const product = await getProductBySlug.execute({ slug });
   if (!product) notFound();
 
   const shippingRate = await getShippingRate.execute();
   const relatedProducts = await resolveRelatedProducts(product, listProducts);
+
+  // Only a signed-in visitor can have saved anything, so this is skipped
+  // entirely for the anonymous case rather than querying for an empty set.
+  const user = await getSessionUser();
+  const savedProductIds = user
+    ? await getSavedProductIds.execute({ userId: user.id, productIds: [product.id] })
+    : new Set<string>();
 
   const preferredOffer = await getPreferredOfferForProduct.execute({ productId: product.id });
   // No supplier offer at all means nothing to check against — default to available.
@@ -129,6 +143,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
             <BuyBox
               productId={product.id}
+              productName={product.name}
+              initialSaved={savedProductIds.has(product.id)}
+              isLoggedIn={Boolean(user)}
               priceDisplay={product.price.toDisplayString()}
               satsDisplay={
                 satsPerUnit === null ? null : formatSats(product.price.amountMinor, satsPerUnit)
