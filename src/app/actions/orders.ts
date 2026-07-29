@@ -143,3 +143,46 @@ export async function findOrderAction(
 
   return { message: 'If that email has any orders, we’ve resent the confirmation email(s).' };
 }
+
+const RefreshQuoteSchema = z.object({ orderId: z.string().min(1) });
+
+export interface RefreshQuoteActionResult {
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Gives a lapsed rate lock a fresh price, on the same address.
+ *
+ * Unauthenticated for the same reason the order page is: the order id is the
+ * capability. Rate-limited anyway — each call hits the rate feed, and a
+ * refresh button is trivially hammerable.
+ */
+export async function refreshPaymentQuoteAction(
+  _prevState: RefreshQuoteActionResult | undefined,
+  formData: FormData,
+): Promise<RefreshQuoteActionResult> {
+  const parsed = RefreshQuoteSchema.safeParse({ orderId: formData.get('orderId') });
+  if (!parsed.success) return { error: 'Missing order.' };
+
+  const ip = await getClientIp();
+  const limit = await checkRateLimit(`refresh-quote:${ip}:${parsed.data.orderId}`, 10, 15 * 60);
+  if (!limit.allowed) return { error: tooManyAttemptsMessage(limit.retryAfterSeconds) };
+
+  const { refreshPaymentQuote } = getContainer();
+  const result = await refreshPaymentQuote.execute({ orderId: parsed.data.orderId });
+
+  if (isErr(result)) {
+    switch (result.error.code) {
+      case 'window_closed':
+        return { error: 'This order has expired. Please start checkout again.' };
+      case 'not_awaiting_payment':
+        return { error: 'This order is no longer waiting for payment.' };
+      default:
+        return { error: "Couldn't refresh the price just now. Try again in a moment." };
+    }
+  }
+
+  revalidatePath(`/orders/${parsed.data.orderId}`);
+  return { message: 'Price updated.' };
+}

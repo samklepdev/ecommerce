@@ -80,7 +80,10 @@ feature" checklist).
   (the order ID itself is the access key, same as the polling API). Shows
   payment/fulfillment status, line items, shipping address, tracking
   numbers, and a live-updating BTC payment panel: QR code, BIP21 URI,
-  countdown to quote expiry, confirmation count, and clear messaging for
+  countdown to quote expiry (when it runs out the price is replaced by a
+  "get today's price" button — the order stays open for 24 hours and the
+  address never changes, so a customer who wandered off doesn't lose it),
+  confirmation count, and clear messaging for
   underpaid or overpaid amounts. The panel stays put once payment settles
   or the window expires — it's where "Payment confirmed" and "this window
   expired, start again" are said, so it has to still be on screen at the

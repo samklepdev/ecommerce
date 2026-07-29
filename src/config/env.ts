@@ -50,7 +50,13 @@ const envSchema = z.object({
   BTC_WATCH_INTERVAL_MS: z.coerce.number().int().positive().default(45_000),
 
   SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(2_592_000),
+  // The rate lock. Short on purpose: every minute of it is BTC/USD exposure
+  // on a price already quoted to a customer.
   QUOTE_TTL_SECONDS: z.coerce.number().int().positive().default(900),
+  // How long the order stays open for payment, re-quoting as needed. The
+  // customer-facing promise ("you have a day to pay"), decoupled from the
+  // rate lock so neither number has to compromise for the other.
+  ORDER_PAYMENT_WINDOW_HOURS: z.coerce.number().int().positive().default(24),
 
   // Base URL used to build absolute links in outgoing email (e.g. the
   // welcome-email tracking pixel) — never derived from a request header.

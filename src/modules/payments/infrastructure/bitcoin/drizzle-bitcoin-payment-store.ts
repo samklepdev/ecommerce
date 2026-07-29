@@ -63,16 +63,27 @@ export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore, OnChainA
 
   /** Awaiting intents whose quote hasn't expired — the watcher polls these. */
   async listWatchable(): Promise<BitcoinPaymentIntent[]> {
-    const rows = await this.db.query.bitcoinPaymentIntents.findMany({
-      where: and(
-        eq(bitcoinPaymentIntents.status, 'awaiting'),
-        // small grace window: keep polling briefly past expiry so a payment that
-        // landed right at the deadline is still detected before we expire it.
-        // Kept in sync with findExpiredAwaitingOrderIds's own grace period.
-        gt(bitcoinPaymentIntents.expiresAt, new Date(Date.now() - PAYMENT_EXPIRY_GRACE_MS)),
-      ),
-    });
-    return rows.map(toIntent);
+    // Keyed on the ORDER's deadline, not the quote's expiry — this is the
+    // whole reason the two clocks are separate. A customer whose 15-minute
+    // quote lapsed can still send to the address they were given, and if
+    // this stopped watching at quote expiry that payment would land on an
+    // address nobody is polling: real bitcoin, arriving silently, against an
+    // order that then expires underneath it.
+    //
+    // Same grace window as findExpiredAwaitingOrderIds, so an address is
+    // never dropped from watching before its order can be expired.
+    const cutoff = new Date(Date.now() - PAYMENT_EXPIRY_GRACE_MS);
+    const rows = await this.db
+      .select({ intent: bitcoinPaymentIntents })
+      .from(bitcoinPaymentIntents)
+      .innerJoin(orders, eq(orders.id, bitcoinPaymentIntents.orderId))
+      .where(
+        and(
+          eq(bitcoinPaymentIntents.status, 'awaiting'),
+          gt(orders.paymentDeadlineAt, cutoff),
+        ),
+      );
+    return rows.map((r) => toIntent(r.intent));
   }
 
   async highestAddressIndex(): Promise<number | null> {
