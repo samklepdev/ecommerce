@@ -105,7 +105,11 @@ feature" checklist).
   order split across suppliers ships in parts, and holding the first number
   back until the last one exists is how a customer ends up writing in to ask
   where their order is. Each email lists everything dispatched so far and
-  says plainly when more is still to come.
+  says plainly when more is still to come. Correcting a tracking number
+  afterwards re-sends it — the wrong one is already in the customer's inbox
+  and is the only thing they can act on — while fixing just the carrier
+  stays quiet, since a second email about a parcel they know is moving is
+  how people learn to ignore the ones that matter.
 - **Find my order** (`/orders/find`) — a guest who lost their order link
   enters the email used at checkout and gets the confirmation email(s)
   resent, each with a link back to the order. Doesn't reveal whether the

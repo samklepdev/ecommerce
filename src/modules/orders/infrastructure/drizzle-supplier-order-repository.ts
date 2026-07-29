@@ -164,7 +164,16 @@ export class DrizzleSupplierOrderRepository implements SupplierOrderRepository {
     supplierOrderId: string,
     trackingNumber: string,
     carrier?: string | null,
-  ): Promise<void> {
+  ): Promise<{ orderId: string; trackingNumberChanged: boolean } | null> {
+    // Read first so the caller can tell a corrected number from a carrier
+    // tweak. Read-then-write is fine here: this is one admin editing one
+    // row, not a contended path.
+    const before = await this.db.query.supplierOrders.findFirst({
+      where: eq(supplierOrders.id, supplierOrderId),
+      columns: { orderId: true, trackingNumber: true },
+    });
+    if (!before) return null;
+
     // `carrier` is only written when explicitly passed — omitting it (vs.
     // passing null) must not silently wipe a carrier set earlier.
     await this.db
@@ -175,6 +184,11 @@ export class DrizzleSupplierOrderRepository implements SupplierOrderRepository {
         ...(carrier !== undefined ? { carrier } : {}),
       })
       .where(eq(supplierOrders.id, supplierOrderId));
+
+    return {
+      orderId: before.orderId,
+      trackingNumberChanged: before.trackingNumber !== trackingNumber,
+    };
   }
 
   async cancel(supplierOrderId: string): Promise<boolean> {
