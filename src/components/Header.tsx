@@ -79,6 +79,39 @@ export async function Header() {
 
           <StorefrontNav links={NAV} itemCount={itemCount} drawerAccount={accountLinks} />
 
+          {/* Every menu in this header needs JavaScript: the drawer is
+              portaled on mount, and the avatar dropdown is a toggle. With
+              scripting off that leaves the brand and the cart, so the same
+              destinations are laid out here as plain links. Rendered only
+              when there's no JS, so it costs a logged-in visitor nothing. */}
+          <noscript>
+            <nav className={styles.noscriptNav} aria-label="Site">
+              {NAV.map((link) => (
+                <Link key={link.href} href={link.href}>
+                  {link.label}
+                </Link>
+              ))}
+              <Link href="/cart">Cart</Link>
+              {user ? (
+                <>
+                  <Link href="/account">Account</Link>
+                  <Link href="/account/orders">My orders</Link>
+                  <Link href="/account/wishlist">Saved products</Link>
+                  {user.isAdmin && <Link href="/admin">Admin console</Link>}
+                  {/* A server action bound to a form posts without JS, so
+                      logging out still works here. */}
+                  <form action={logOutAction}>
+                    <button type="submit" className={styles.noscriptLogout}>
+                      Log out
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <Link href="/login">Log in</Link>
+              )}
+            </nav>
+          </noscript>
+
           <div className={styles.right}>
             <Link
               href="/cart"
