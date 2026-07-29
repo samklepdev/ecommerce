@@ -10,7 +10,6 @@ import {
   StarIcon,
   TagIcon,
   FolderIcon,
-  TicketIcon,
   TruckIcon,
   MailIcon,
   UsersIcon,
@@ -47,7 +46,6 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: '/admin/products', label: 'Products', icon: TagIcon },
       { href: '/admin/categories', label: 'Categories', icon: FolderIcon },
       { href: '/admin/suppliers', label: 'Suppliers', icon: FactoryIcon },
-      { href: '/admin/coupons', label: 'Coupons', icon: TicketIcon },
     ],
   },
   {

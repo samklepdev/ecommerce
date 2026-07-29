@@ -222,19 +222,34 @@ feature" checklist).
 - **Reviews** (`/admin/reviews`) — moderation queue for storefront product
   reviews, defaulting to pending; approve (makes it public) or reject.
   Filter by status.
-- **Coupons** (`/admin/coupons`) — create a percentage or fixed-amount
-  discount code and activate/deactivate it. No editing an existing code's
-  discount — deactivate and create a new one instead, so past orders that
-  used it are never retroactively reinterpreted.
 - **Users** (`/admin/users`) — look up an account by its exact email, see
   their profile and order history, promote them to admin or revoke an
   existing admin's access (an admin can't revoke their own). (Promoting
   the very first admin, before any admin account exists, is a one-time
   CLI step: `npm run admin:promote -- <email>`.) There's no
   browsing/searching across all customers yet — only exact-email lookup.
-- **Settings** (`/admin/settings`) — the single global flat-rate shipping
-  fee. Changing it only affects orders placed after the change; existing
-  orders keep the rate they were placed under.
+- **Settings** (`/admin/settings`) — everything that governs how the store
+  behaves, split by what you can actually change:
+  - *Storefront* — the global flat-rate shipping fee (changing it only
+    affects orders placed after; existing orders keep the rate they were
+    placed under), and **coupons**, which used to be their own sidebar page.
+    Create a percentage or fixed-amount code and activate/deactivate it;
+    there's no editing an existing code's discount — deactivate and create a
+    new one, so past orders that used it are never retroactively
+    reinterpreted. `/admin/coupons` redirects here.
+  - *Payments* — read-only, and named as the environment variables they come
+    from: network, confirmations + settlement buffer, quote TTL, watcher
+    interval, and the chain/rate provider hosts. Deliberately not editable
+    from a browser session — these decide how money is taken. Testnet is
+    called out as "not real money".
+  - *System* — the same checks `/api/health` answers with (database, Redis,
+    and when the watcher last completed a pass), plus whether outbound email
+    is actually being sent or only logged, the support address, the public
+    URL and session lifetime.
+
+  Nothing secret is rendered: provider URLs show only their host (a
+  self-hosted node's URL can carry a token), the xpub isn't shown at all,
+  and the mail key is reported as configured or not.
 - **Audit log** (`/admin/audit-log`) — records where each action came from
   as well as who did it: the actor's IP and their browser/OS, derived from
   the user agent (stored raw, so a better parser later can re-read old
