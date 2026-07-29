@@ -13,7 +13,7 @@ function escapeHtml(value: string): string {
 }
 
 /**
- * Emails the shop when a customer writes in.
+ * Emails the shop when a customer asks us to source something.
  *
  * Every field here is customer-supplied and lands in an HTML email, so all
  * of it is escaped — this is the one place in the app where a stranger's
@@ -26,16 +26,9 @@ export class EmailInquiryNotifier implements InquiryNotifier {
     private readonly appUrl: string,
   ) {}
 
-  async notifyNewInquiry(inquiry: Inquiry & { productName: string | null }): Promise<void> {
-    const isSourcing = inquiry.kind === 'sourcing';
-    const heading = isSourcing ? 'Sourcing request' : 'Product question';
-    const about = inquiry.productName
-      ? `About: ${escapeHtml(inquiry.productName)}`
-      : 'About: something we don&rsquo;t stock yet';
-
+  async notifyNewInquiry(inquiry: Inquiry): Promise<void> {
     const html = `
-      <h2>${heading}</h2>
-      <p>${about}</p>
+      <h2>Sourcing request</h2>
       <p><strong>${escapeHtml(inquiry.subject)}</strong></p>
       <p style="white-space:pre-wrap">${escapeHtml(inquiry.message)}</p>
       <hr />
@@ -48,7 +41,7 @@ export class EmailInquiryNotifier implements InquiryNotifier {
     // if the port ever grows headers.
     await this.emailSender.send(
       this.supportEmail,
-      `${heading}: ${inquiry.subject}`,
+      `Sourcing request: ${inquiry.subject}`,
       html,
     );
   }

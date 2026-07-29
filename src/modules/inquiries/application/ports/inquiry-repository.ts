@@ -1,9 +1,15 @@
-import type { InquiryKind, InquiryStatus } from '@/modules/inquiries/domain/inquiry';
+import type { InquiryStatus } from '@/modules/inquiries/domain/inquiry';
 
+/**
+ * A customer asking us to source something the catalog doesn't carry.
+ *
+ * There is no product id and no kind: by definition this is about something
+ * that isn't a product here yet. Questions about things we *do* stock go to
+ * the support address in the footer, where a mail client is a better tool
+ * than a form.
+ */
 export interface Inquiry {
   id: string;
-  kind: InquiryKind;
-  productId: string | null;
   subject: string;
   message: string;
   customerEmail: string;
@@ -15,8 +21,6 @@ export interface Inquiry {
 
 export interface NewInquiry {
   id: string;
-  kind: InquiryKind;
-  productId: string | null;
   subject: string;
   message: string;
   customerEmail: string;
@@ -34,5 +38,5 @@ export interface InquiryRepository {
 
 /** Notifies whoever runs the shop that something came in. */
 export interface InquiryNotifier {
-  notifyNewInquiry(inquiry: Inquiry & { productName: string | null }): Promise<void>;
+  notifyNewInquiry(inquiry: Inquiry): Promise<void>;
 }

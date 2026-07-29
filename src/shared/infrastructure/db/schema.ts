@@ -275,26 +275,22 @@ export const wishlistItems = pgTable(
 );
 
 /**
- * A customer writing in about a product — either a question about one we
- * stock, or a request to source something we don't.
+ * A customer asking us to source something the catalog doesn't carry.
  *
  * Kept as rows rather than only as email, because email is where these go to
  * die: an inbox has no notion of "answered", no link to the product, and no
  * way for a second admin to see one has already been picked up. The email
  * still goes out; this is the record it refers to.
  *
- * `productId` is null for a sourcing request (there is no product yet) and
- * set for a question about an existing one. ON DELETE SET NULL, so removing
- * a product doesn't erase the conversation about it.
+ * There's no product link, by definition: the request is for something that
+ * isn't a product here yet. Questions about things we do stock go to the
+ * support address in the footer, where a mail client beats a form.
  */
 export const productInquiries = pgTable(
   'product_inquiries',
   {
     id: text('id').primaryKey(),
-    kind: text('kind').notNull(), // question | sourcing
-    productId: text('product_id').references(() => products.id, { onDelete: 'set null' }),
-    /** Snapshotted: a sourcing request names something we don't stock, and
-     * for a question it keeps the subject readable after the product goes. */
+    /** What they're after, in their words. */
     subject: text('subject').notNull(),
     message: text('message').notNull(),
     customerEmail: text('customer_email').notNull(),

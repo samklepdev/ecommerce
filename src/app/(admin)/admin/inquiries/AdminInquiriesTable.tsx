@@ -1,7 +1,6 @@
 'use client';
 
 import { Fragment, useActionState, useState } from 'react';
-import Link from 'next/link';
 
 import {
   setInquiryStatusAction,
@@ -17,13 +16,10 @@ import styles from './page.module.css';
 
 export interface AdminInquiryRow {
   id: string;
-  kind: 'question' | 'sourcing';
   subject: string;
   message: string;
   customerEmail: string;
   isFromAccount: boolean;
-  productName: string | null;
-  productSlug: string | null;
   status: 'new' | 'in_progress' | 'closed';
   adminNotes: string | null;
   receivedAt: string;
@@ -69,9 +65,7 @@ export function AdminInquiriesTable({ inquiries, emptyMessage }: AdminInquiriesT
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Subject</th>
-              <th>Kind</th>
-              <th>About</th>
+              <th>Looking for</th>
               <th>Received</th>
               <th>Status</th>
               <th className={styles.editCol}></th>
@@ -92,19 +86,6 @@ export function AdminInquiriesTable({ inquiries, emptyMessage }: AdminInquiriesT
                           {inquiry.isFromAccount ? ' · account' : ''}
                         </span>
                       </div>
-                    </td>
-                    <td>
-                      <Badge tone={inquiry.kind === 'sourcing' ? 'violet' : 'neutral'}>
-                        {inquiry.kind}
-                      </Badge>
-                    </td>
-                    <td className={styles.notesCell}>
-                      {inquiry.productSlug && inquiry.productName ? (
-                        <Link href={`/products/${inquiry.productSlug}`}>{inquiry.productName}</Link>
-                      ) : (
-                        // A sourcing request is about something we don't have.
-                        <span className={styles.usageNone}>not in the catalog</span>
-                      )}
                     </td>
                     <td className={styles.usageCell}>{inquiry.receivedAt}</td>
                     <td>
@@ -127,7 +108,7 @@ export function AdminInquiriesTable({ inquiries, emptyMessage }: AdminInquiriesT
 
                   {open && (
                     <tr className={styles.detailRow}>
-                      <td colSpan={6} id={`inquiry-${inquiry.id}`}>
+                      <td colSpan={4} id={`inquiry-${inquiry.id}`}>
                         <div className={styles.detailGrid}>
                           <div className={cx(styles.detailPanel, styles.detailWide)}>
                             <h3 className={styles.detailTitle}>Message</h3>

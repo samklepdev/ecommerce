@@ -68,13 +68,14 @@ feature" checklist).
   purpose — a wishlist keyed to a guest cookie would quietly empty itself when
   the cookie expired. A saved product that's later unpublished drops out of
   the list but keeps its row, since it may come back.
-- **Ask about a product / ask us to source one** (`/sourcing`, and a form on
-  every product page) — a customer can ask a question about something in the
-  catalog, or ask for something that isn't in it at all. Both land in the
-  admin's inquiry queue *and* send mail to `SUPPORT_EMAIL`; the record is
-  what makes it trackable, since an inbox has no notion of "answered" and no
-  link back to the product. Rate-limited to five an hour per IP, because an
-  unauthenticated form that sends mail is a spam relay otherwise.
+- **Ask us to source a product** (`/sourcing`, linked from the footer) — one
+  page for "you don't stock this, can you get it?". It lands in the admin's
+  inquiry queue *and* sends mail to `SUPPORT_EMAIL`; the record is what makes
+  it trackable, since an inbox has no notion of "answered". There is
+  deliberately no per-product question form: questions about things already
+  in the catalog go to the support address in the footer, where a mail client
+  is a better tool than a form. Rate-limited to five an hour per IP, because
+  an unauthenticated form that sends mail is a spam relay otherwise.
 - **Order status / confirmation** (`/orders/[id]`) — works for guests too
   (the order ID itself is the access key, same as the polling API). Shows
   payment/fulfillment status, line items, shipping address, tracking
@@ -192,8 +193,8 @@ feature" checklist).
   queue. Safe to press more than once — lines a supplier order already
   covers are never ordered again, and an order that is no longer paid is
   refused. Filter by status.
-- **Inquiries** (`/admin/inquiries`) — the queue of customer questions and
-  sourcing requests, oldest first (the oldest unanswered message is the one
+- **Inquiries** (`/admin/inquiries`) — the queue of sourcing requests,
+  oldest first (the oldest unanswered message is the one
   costing the most goodwill). Read the message, mark it in progress or
   closed, reopen it, and keep internal notes against it. Replies go through a
   normal mail client via a `mailto:` link — outbound mail here has no

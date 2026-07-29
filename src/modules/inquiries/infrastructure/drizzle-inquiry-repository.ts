@@ -2,7 +2,7 @@ import { count as countRows, eq, ne } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { productInquiries } from '@/shared/infrastructure/db/schema';
-import type { InquiryKind, InquiryStatus } from '@/modules/inquiries/domain/inquiry';
+import type { InquiryStatus } from '@/modules/inquiries/domain/inquiry';
 import type {
   Inquiry,
   InquiryRepository,
@@ -14,8 +14,6 @@ type Row = typeof productInquiries.$inferSelect;
 function toInquiry(row: Row): Inquiry {
   return {
     id: row.id,
-    kind: row.kind as InquiryKind,
-    productId: row.productId,
     subject: row.subject,
     message: row.message,
     customerEmail: row.customerEmail,

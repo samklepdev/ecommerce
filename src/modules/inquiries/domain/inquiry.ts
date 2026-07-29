@@ -1,6 +1,3 @@
-/** What the customer wrote in about. */
-export type InquiryKind = 'question' | 'sourcing';
-
 /**
  * Where it is in the admin's queue. Not a state machine with guarded
  * transitions like orders — nothing here touches money, and an admin

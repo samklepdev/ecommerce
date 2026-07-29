@@ -3,10 +3,7 @@ import { notFound } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 
 import { getContainer } from '@/composition/container';
-import Link from 'next/link';
-
 import { getSessionUser } from '@/app/lib/session';
-import { InquiryForm } from '../../sourcing/InquiryForm';
 import type { Product } from '@/modules/catalog/domain/product';
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -186,22 +183,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
             ) : null
           }
         />
-
-        <section className={styles.section}>
-          <SectionHeader title="Ask about this product" />
-          <p className={styles.askNote}>
-            Questions about fit, contents or lead time go straight to the people who pack the
-            orders. Looking for something we don&apos;t stock?{' '}
-            <Link href="/sourcing">Ask us to source it</Link>.
-          </p>
-          <InquiryForm
-            kind="question"
-            productId={product.id}
-            defaultEmail={user?.email}
-            defaultSubject={product.name}
-            submitLabel="Send question"
-          />
-        </section>
 
         <ReviewsSection productId={product.id} productSlug={product.slug.value} />
 

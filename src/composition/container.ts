@@ -477,7 +477,6 @@ function build(): Container {
   const inquiryRepository = new DrizzleInquiryRepository(db);
   const submitInquiry = new SubmitInquiry(
     inquiryRepository,
-    products,
     new EmailInquiryNotifier(emailSender, env.SUPPORT_EMAIL, env.APP_URL),
   );
   const listInquiries = new ListInquiries(inquiryRepository);

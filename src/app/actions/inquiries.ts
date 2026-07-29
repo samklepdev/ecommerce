@@ -3,13 +3,10 @@
 import { z } from 'zod';
 
 import { getContainer } from '@/composition/container';
-import { isErr } from '@/shared/domain/result';
 import { getSessionUser } from '@/app/lib/session';
 import { checkRateLimit, getClientIp, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
 
 const InquirySchema = z.object({
-  kind: z.enum(['question', 'sourcing']),
-  productId: z.string().min(1).optional(),
   subject: z.string().min(3).max(140),
   message: z.string().min(10).max(2000),
   customerEmail: z.string().email(),
@@ -30,8 +27,6 @@ export async function submitInquiryAction(
   formData: FormData,
 ): Promise<SubmitInquiryActionResult> {
   const parsed = InquirySchema.safeParse({
-    kind: formData.get('kind'),
-    productId: formData.get('productId') || undefined,
     subject: formData.get('subject'),
     message: formData.get('message'),
     customerEmail: formData.get('customerEmail'),
@@ -46,19 +41,7 @@ export async function submitInquiryAction(
 
   const user = await getSessionUser();
   const { submitInquiry } = getContainer();
-  const result = await submitInquiry.execute({
-    ...parsed.data,
-    userId: user?.id ?? null,
-  });
+  await submitInquiry.execute({ ...parsed.data, userId: user?.id ?? null });
 
-  if (isErr(result)) {
-    return { error: "That product isn't available to ask about any more." };
-  }
-
-  return {
-    message:
-      parsed.data.kind === 'sourcing'
-        ? "Thanks — we'll look into sourcing it and reply by email."
-        : "Thanks — we'll reply by email.",
-  };
+  return { message: "Thanks — we'll look into sourcing it and reply by email." };
 }

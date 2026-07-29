@@ -27,7 +27,7 @@ export default async function SourcingPage() {
           </p>
         </div>
 
-        <InquiryForm kind="sourcing" defaultEmail={user?.email} submitLabel="Send request" />
+        <InquiryForm defaultEmail={user?.email} />
       </Stack>
     </PageContainer>
   );

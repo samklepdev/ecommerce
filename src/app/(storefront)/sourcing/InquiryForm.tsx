@@ -13,21 +13,10 @@ import styles from './InquiryForm.module.css';
 const initialState: SubmitInquiryActionResult = {};
 
 export interface InquiryFormProps {
-  kind: 'question' | 'sourcing';
-  /** Required for a question, absent for a sourcing request. */
-  productId?: string;
   defaultEmail?: string;
-  defaultSubject?: string;
-  submitLabel?: string;
 }
 
-export function InquiryForm({
-  kind,
-  productId,
-  defaultEmail,
-  defaultSubject,
-  submitLabel,
-}: InquiryFormProps) {
+export function InquiryForm({ defaultEmail }: InquiryFormProps) {
   const [state, formAction, isPending] = useActionState(submitInquiryAction, initialState);
 
   // Once it's in, the form is replaced rather than left sitting there
@@ -43,9 +32,6 @@ export function InquiryForm({
   return (
     <Card className={styles.card}>
       <form action={formAction} className={styles.form}>
-        <input type="hidden" name="kind" value={kind} />
-        {productId && <input type="hidden" name="productId" value={productId} />}
-
         <Field label="Your email" htmlFor="inquiryEmail" hint="Where we reply">
           <Input
             type="email"
@@ -56,16 +42,12 @@ export function InquiryForm({
           />
         </Field>
 
-        <Field
-          label={kind === 'sourcing' ? 'What are you after?' : 'Subject'}
-          htmlFor="inquirySubject"
-        >
+        <Field label="What are you after?" htmlFor="inquirySubject">
           <Input
             type="text"
             id="inquirySubject"
             name="subject"
-            defaultValue={defaultSubject}
-            placeholder={kind === 'sourcing' ? 'e.g. Coldcard Q' : undefined}
+            placeholder="e.g. Coldcard Q"
             required
             minLength={3}
             maxLength={140}
@@ -75,11 +57,7 @@ export function InquiryForm({
         <Field
           label="Details"
           htmlFor="inquiryMessage"
-          hint={
-            kind === 'sourcing'
-              ? 'A link to the product helps — model, quantity, anything specific'
-              : 'The more specific, the better the answer'
-          }
+          hint="A link to the product helps — model, quantity, anything specific"
         >
           <textarea
             id="inquiryMessage"
@@ -96,7 +74,7 @@ export function InquiryForm({
 
         <div className={styles.actions}>
           <Button type="submit" disabled={isPending}>
-            {isPending ? 'Sending…' : (submitLabel ?? 'Send')}
+            {isPending ? 'Sending…' : 'Send request'}
           </Button>
         </div>
       </form>

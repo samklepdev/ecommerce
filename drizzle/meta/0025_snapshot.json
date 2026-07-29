@@ -1,5 +1,5 @@
 {
-  "id": "9768bf5b-2d73-4e9e-a9de-aed641c8101b",
+  "id": "d0edbefe-13a1-42f9-b148-ce4be55e32be",
   "prevId": "30007343-2399-4e9f-a18c-886c0603e315",
   "version": "7",
   "dialect": "postgresql",
@@ -1195,18 +1195,6 @@
           "primaryKey": true,
           "notNull": true
         },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "product_id": {
-          "name": "product_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "subject": {
           "name": "subject",
           "type": "text",
@@ -1283,19 +1271,6 @@
         }
       },
       "foreignKeys": {
-        "product_inquiries_product_id_products_id_fk": {
-          "name": "product_inquiries_product_id_products_id_fk",
-          "tableFrom": "product_inquiries",
-          "tableTo": "products",
-          "columnsFrom": [
-            "product_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "product_inquiries_user_id_users_id_fk": {
           "name": "product_inquiries_user_id_users_id_fk",
           "tableFrom": "product_inquiries",

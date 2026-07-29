@@ -21,29 +21,18 @@ export default async function AdminInquiriesPage({ searchParams }: AdminInquirie
   const { status: statusParam } = await searchParams;
   const status = parseStatus(statusParam);
 
-  const { listInquiries, countOpenInquiries, getAnyProductsByIds } = getContainer();
+  const { listInquiries, countOpenInquiries } = getContainer();
   const [inquiries, openCount] = await Promise.all([
     listInquiries.execute({ status }),
     countOpenInquiries.execute(),
   ]);
 
-  // Only the products these inquiries are actually about.
-  const products = await getAnyProductsByIds.execute({
-    productIds: [...new Set(inquiries.map((i) => i.productId).filter((id): id is string => !!id))],
-  });
-  const productById = new Map(products.map((p) => [p.id, p] as const));
-
   const rows: AdminInquiryRow[] = inquiries.map((inquiry) => ({
     id: inquiry.id,
-    kind: inquiry.kind,
     subject: inquiry.subject,
     message: inquiry.message,
     customerEmail: inquiry.customerEmail,
     isFromAccount: inquiry.userId !== null,
-    productName: inquiry.productId ? (productById.get(inquiry.productId)?.name ?? null) : null,
-    productSlug: inquiry.productId
-      ? (productById.get(inquiry.productId)?.slug.value ?? null)
-      : null,
     status: inquiry.status,
     adminNotes: inquiry.adminNotes,
     receivedAt: inquiry.createdAt.toLocaleString(),
