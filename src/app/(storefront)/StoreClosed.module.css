@@ -28,15 +28,27 @@
   animation: breathe 2.8s ease-in-out infinite;
 }
 
-/* A ring that swells out of the mark and fades. Slow and low-contrast on
-   purpose: this is the only thing on the page, so anything brisk reads as an
-   alert — and a closed shop is a resting state, not an emergency. */
+/* A soft amber glow that swells out of the mark and fades.
+
+   Feathered with a radial gradient rather than drawn as a border: a 1px
+   stroke stays perfectly crisp as it scales, so the eye reads a hard ring
+   travelling outwards instead of light spreading. The gradient has no edge
+   to sharpen.
+
+   Slow and low-contrast on purpose: this is the only thing on the page, so
+   anything brisk reads as an alert — and a closed shop is a resting state,
+   not an emergency. */
 .mark::after {
   content: '';
   position: absolute;
-  inset: -1px;
+  inset: -20%;
   border-radius: 50%;
-  border: 1px solid var(--amber);
+  background: radial-gradient(
+    circle closest-side,
+    color-mix(in srgb, var(--amber) 30%, transparent),
+    color-mix(in srgb, var(--amber) 8%, transparent) 65%,
+    transparent 100%
+  );
   animation: ping 2.8s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
@@ -52,12 +64,12 @@
 
 @keyframes ping {
   0% {
-    transform: scale(1);
-    opacity: 0.4;
+    transform: scale(0.85);
+    opacity: 0.9;
   }
   70%,
   100% {
-    transform: scale(2);
+    transform: scale(2.1);
     opacity: 0;
   }
 }
