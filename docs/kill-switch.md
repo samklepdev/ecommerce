@@ -1,8 +1,9 @@
 # The kill switch
 
-Closes the storefront on demand: no new orders, a paused notice on every
-customer-facing route, customer sign-in paused while admin sign-in keeps working,
-and orders already paid still settling and shipping.
+Closes the storefront on demand: no new orders, nothing but the logo on every
+customer-facing route — a single mark on an empty page — customer sign-in
+paused while admin sign-in keeps working, and orders already paid still settling
+and shipping.
 
 State is one Redis key (`store:closed`). Absent means open.
 
@@ -167,9 +168,9 @@ directions work: closing swaps to the notice, reopening swaps back.
   that exits can't restart itself.
 - **It does not reduce load.** Page components in the storefront group still execute;
   the visitor just sees the paused notice instead of the result.
-- **The notice carries no navigation.** No header, no footer, no links — every one of them
-  would lead back to another copy of this page. Just the brand mark, so a visitor can see
-  they're in the right place.
+- **The closed page says nothing.** No header, no footer, no links, no copy, no wordmark —
+  one mark, centred. Links would all lead back to another copy of the same page, and any
+  wording is either a promise the switch can't keep or an explanation nobody asked for.
 - **It does not cancel anything.** Existing orders, carts, and accounts are untouched, and
   reopening puts all of that back as it was. The one thing it does destroy is customer
   sessions — those people have to sign in again.

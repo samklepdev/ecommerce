@@ -149,8 +149,9 @@ feature" checklist).
 - **Kill switch** (`/admin/settings` → Store status) — closes the storefront on
   demand. Closing asks for an internal reason and takes a second click;
   reopening is one click, because the recovery path should never be the fiddly
-  one. While closed, every customer-facing route shows a "Ordering is paused"
-  notice, and checkout refuses even if a form is submitted directly. Orders
+  one. While closed, every customer-facing route shows a
+  single mark on an otherwise empty page — no message, no navigation, nothing
+  that goes stale or promises a return date — and checkout refuses even if a form is submitted directly. Orders
   already paid keep settling and shipping — the payment watcher is unaffected —
   and admin plus sign-in stay reachable. Also flippable outside the browser
   with `npm run store:close` / `store:open`, or from a phone via a secret ops

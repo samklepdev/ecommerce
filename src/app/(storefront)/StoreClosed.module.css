@@ -1,74 +1,27 @@
-/* Deliberately not the storefront chrome. A closed shop shows its name and
-   the reason, and nothing you can click — a header full of dead links to
-   pages that all say the same thing is worse than no header. */
+/* Deliberately not the storefront chrome, and deliberately empty. A closed
+   shop shows one mark and nothing else — no header of dead links, no copy
+   that goes stale the moment it's written. */
 .page {
   min-height: 100vh;
   display: grid;
-  grid-template-rows: 1fr auto 1.4fr;
-  justify-items: center;
+  place-items: center;
   padding: 2rem 1.5rem;
   background: var(--canvas);
   color: var(--ink);
 }
 
-/* Sits on the middle row, so the panel lands slightly above centre — where
-   the eye goes first, rather than dead centre. */
-.panel {
-  max-width: 27rem;
-  text-align: center;
+/* The mark the paused notice used to carry, kept as the whole page. Amber
+   rather than accent: this is a held state, the same colour the checkout
+   widget uses for waiting. */
+.mark {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--amber-wash);
   display: grid;
-  gap: 1.25rem;
-  justify-items: center;
-}
-
-/* The header's brand, minus the link. */
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-}
-
-.brandMark {
-  width: 9px;
-  height: 21px;
-  flex: none;
-  background: linear-gradient(180deg, var(--accent) 0 55%, var(--amber) 55% 100%);
-}
-
-.brandName {
-  font-size: 15.5px;
-  font-weight: 600;
-  letter-spacing: -0.018em;
-}
-
-.title {
-  margin: 0;
-  font-size: 1.5rem;
-  letter-spacing: -0.01em;
-  font-weight: 600;
-}
-
-.body {
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.65;
-}
-
-.note {
-  margin: 0;
-  color: var(--faint);
-  font-size: 0.875rem;
-  line-height: 1.6;
-  /* Keeps the address off a line of its own when the sentence wraps. */
-  text-wrap: pretty;
-}
-
-.note a {
-  color: inherit;
-}
-
-@media (max-width: 480px) {
-  .page {
-    grid-template-rows: 1fr auto 1fr;
-  }
+  place-items: center;
+  color: var(--amber);
+  font-size: 1.1rem;
+  line-height: 1;
 }
