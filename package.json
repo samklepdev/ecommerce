@@ -30,6 +30,7 @@
     "argon2": "^0.41.1",
     "bip32": "^4.0.0",
     "bitcoinjs-lib": "^6.1.7",
+    "bullmq": "^5.81.3",
     "cheerio": "^1.2.0",
     "drizzle-orm": "^0.45.2",
     "exceljs": "^4.4.0",

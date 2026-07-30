@@ -131,24 +131,25 @@ export async function signUpAction(
   const signupLimit = await checkRateLimit(`signup:${ip}`, 3, 60 * 60);
   if (!signupLimit.allowed) return { error: tooManyAttemptsMessage(signupLimit.retryAfterSeconds) };
 
-  const { signUp, sendWelcomeEmail, requestEmailVerification } = getContainer();
+  const { signUp, jobQueue } = getContainer();
   const result = await signUp.execute(parsed.data);
   if (isErr(result)) return { error: 'That email is already registered.' };
 
-  try {
-    await sendWelcomeEmail.execute({ userId: result.value.id, email: result.value.email });
-  } catch (e) {
-    logger.warn('signup: welcome email failed', {
-      error: e instanceof Error ? e.message : String(e),
-    });
-  }
-
-  try {
-    await requestEmailVerification.execute({ userId: result.value.id, email: result.value.email });
-  } catch (e) {
-    logger.warn('signup: verification email failed', {
-      error: e instanceof Error ? e.message : String(e),
-    });
+  // Both queued: signing up should not wait on a mail provider, and a
+  // verification link that fails to send now gets retried rather than lost.
+  for (const job of ['email.welcome', 'email.verification'] as const) {
+    try {
+      await jobQueue.enqueue(
+        job,
+        { userId: result.value.id, email: result.value.email },
+        { jobId: `${job.replace('.', '-')}-${result.value.id}` },
+      );
+    } catch (e) {
+      logger.error('signup: could not queue mail', {
+        job,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
   }
 
   const sessionResult = await establishSession(parsed.data.email, parsed.data.password);

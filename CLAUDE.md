@@ -229,11 +229,22 @@ Payment and fulfillment are **separate** machines that reference each other.
 
 ## Async / side effects
 
-- **What the code actually does today** — BullMQ is not installed. The BTC chain-watcher is a
-  standalone process (`src/workers/btc-watcher.ts`) running a plain interval loop; email and
-  supplier-order creation run **inline in the request path**. Treat the queue as the target
-  state, not the current one, and keep every worker idempotent so moving to it is a
-  transport change and nothing more.
+- **BullMQ runs the after-the-response work.** Order confirmation, welcome and verification
+  mail, the payment-confirmed email, and supplier-order creation are all jobs now
+  (`JobQueue` port, `BullMqJobQueue` adapter, handlers in `src/workers/job-worker.ts`).
+  Five attempts with exponential backoff; whatever exhausts them stays in BullMQ's failed set,
+  which is the dead-letter queue, and `/api/health` reports the depths.
+- **Job ids must not contain `:`** — BullMQ builds its own keys with colons and rejects a
+  custom id containing one *at enqueue time*. Deterministic ids (`fulfillment-<orderId>`) are
+  what make an enqueue idempotent, which matters because the watcher re-runs its pass over the
+  same orders every 45s.
+- **Payloads carry ids, not objects.** A job may run minutes later, after a deploy, on another
+  process; anything it carries is a snapshot that may already be stale, so handlers re-read.
+- **The chain watcher is still a loop**, not a repeatable job, and deliberately so: it is a
+  poller with a heartbeat that `/api/health` watches, and converting the one thing that
+  notices a customer paid buys visibility it already has. The job worker runs in the same
+  process (`src/workers/btc-watcher.ts`) — split them when queue volume starts competing with
+  the poll interval.
 - The watcher runs on a repeat schedule (~30–60s): `WatchBitcoinPayments.runOnce()`.
 - **Run exactly one watcher.** No lock, no leader election — a second replica only doubles
   load on the Esplora provider.

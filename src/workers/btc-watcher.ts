@@ -2,6 +2,7 @@ import { env } from '@/config/env';
 import { getContainer } from '@/composition/container';
 import { BTC_WATCHER_HEARTBEAT } from '@/shared/application/ports/health-ports';
 import { logger } from '@/shared/infrastructure/logger';
+import { createJobWorker } from '@/workers/job-worker';
 
 /**
  * Standalone worker: polls the chain for awaiting BTC payments and drives
@@ -27,19 +28,30 @@ const INTERVAL_MS = env.BTC_WATCH_INTERVAL_MS;
 const PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 async function main(): Promise<void> {
+  const container = getContainer();
   const {
     watchBitcoinPayments,
     expireStaleCheckouts,
     pruneAnalyticsEvents,
     failStuckAwaitingConfirmationOrders,
     heartbeats,
-  } = getContainer();
+  } = container;
   logger.info('btc-watcher starting', { intervalMs: INTERVAL_MS });
 
+  // Same process as the chain poll, on purpose: two long-running processes
+  // to deploy and monitor is worse than one for a shop this size, and the
+  // job worker is idle most of the time. Split them when the queue's volume
+  // starts competing with the poll for the interval.
+  const jobWorker = createJobWorker(env.REDIS_URL, container);
+  logger.info('job worker started');
+
   let running = true;
-  const shutdown = () => {
+  const shutdown = async () => {
     running = false;
     logger.info('btc-watcher shutting down');
+    // Closed before exit so an in-flight job finishes rather than being
+    // retried from scratch on the next boot.
+    await jobWorker.close();
     process.exit(0);
   };
   process.on('SIGINT', shutdown);
