@@ -131,7 +131,37 @@ const envSchema = z.object({
     message: 'EMAIL_FROM is required when RESEND_API_KEY is set — Resend rejects unverified senders.',
   });
 
-const parsed = envSchema.parse(process.env);
+/** Extra guidance for variables you're meant to generate rather than invent. */
+const HINTS: Record<string, string> = {
+  STORE_SWITCH_PATH: 'Generate both STORE_SWITCH_* values with: npm run store:switch-setup',
+  STORE_SWITCH_TOTP_SECRET:
+    'Generate both STORE_SWITCH_* values with: npm run store:switch-setup',
+};
+
+const result = envSchema.safeParse(process.env);
+
+if (!result.success) {
+  // Rethrown as a plain Error, never the ZodError itself. `ZodError.message`
+  // is a getter with no setter, and anything that decorates errors on their
+  // way to a log or an overlay — Next included — tries to assign to it. That
+  // assignment throws `TypeError: Cannot set property message`, which then
+  // *replaces* the diagnosis: you get a white screen and a complaint about a
+  // property setter instead of the name of the variable you typo'd.
+  const issues = result.error.issues.map((issue) => {
+    const name = issue.path.join('.') || '(schema)';
+    const hint = HINTS[name];
+    return `  ${name}: ${issue.message}${hint ? `\n      ${hint}` : ''}`;
+  });
+
+  const unique = [...new Set(issues)];
+  throw new Error(
+    `Invalid environment configuration — the app cannot start.\n\n${unique.join('\n')}\n\n` +
+      'Check your .env (or your host\'s environment) against .env.example.\n' +
+      'A variable you are not using should be absent or empty, not filled with a placeholder.\n',
+  );
+}
+
+const parsed = result.data;
 
 export const env: Env = {
   ...parsed,

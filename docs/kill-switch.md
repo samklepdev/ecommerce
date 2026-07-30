@@ -20,8 +20,18 @@ All three write the same key and record the same audit entries (`store.closed` /
 ## Setting up the ops URL
 
 ```bash
-npm run store:switch-setup
+npm run store:switch-setup            # generate and print the values
+npm run store:switch-setup -- --write # ...and write them straight into .env
+npm run store:switch-setup -- --show  # QR for whatever is already configured
 ```
+
+**Use `--write` locally.** The printout carries a 32-character secret *and* a 6-digit
+verification code, and pasting the code into `STORE_SWITCH_TOTP_SECRET` is an easy
+mistake that stops the app booting. `--write` refuses to overwrite values that are
+already set, so it can't silently break a switch your phone is paired with.
+
+**Env is read at boot** — restart the server after changing either value, or the
+route stays disabled and every request 404s.
 
 Prints two values to put in your production environment, plus a QR code to scan with
 your authenticator app and the current 6-digit code so you can confirm it took:
@@ -31,7 +41,9 @@ STORE_SWITCH_PATH=<32 random chars>          # the URL segment IS a secret
 STORE_SWITCH_TOTP_SECRET=<32 base32 chars>   # the 6-digit code's seed
 ```
 
-Unset either one and the route does not exist — it 404s exactly like a wrong path.
+Unset either one and the route does not exist — it 404s exactly like a wrong path. That
+is the first thing to check if the URL "doesn't work": an unconfigured route and a
+wrong secret are deliberately indistinguishable from outside.
 
 Everything stays in the terminal; no file is written, so there's no secret left on
 disk to remember to delete. If your terminal mangles the QR, the `otpauth://` URI is
@@ -45,8 +57,14 @@ URL has been through logs you don't control, or if a device holding it is lost.
 
 A URL you hit from a phone ends up in access logs, proxy logs, and browser history —
 that's unavoidable. A static token sitting in those places is a working kill switch
-forever. A TOTP code is worthless 30 seconds later, and a used one is burned
-immediately so it can't even be replayed inside its own window.
+forever. A TOTP code is worthless 30 seconds later.
+
+A used code is burned **per action**, not outright. Browsers re-request: a refresh, a
+back-navigation or an omnibox prefetch would otherwise spend the code and make the real
+attempt 404 — indistinguishable from a broken kill switch, at the moment you most need
+to trust it. So repeating the same code with the same action reports the current state
+and changes nothing, while the same code aimed at a *different* action is refused. A
+code lifted from a log still can't be turned into the opposite instruction.
 
 ### What it protects against, and what it doesn't
 

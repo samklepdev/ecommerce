@@ -108,22 +108,41 @@ export async function GET(
     return notFound();
   }
 
-  // Single-use: burn this step so a code observed in a log can't be replayed
-  // within its own window. Limit 1 over slightly more than the drift window.
-  const replay = await rateLimiter.consume(
-    `store-switch:step:${verification.step}`,
-    1,
-    TOTP_STEP_SECONDS * 3,
-  );
-  if (!replay.allowed) {
-    logger.warn('store switch: rejected a replayed code', { ip });
-    return notFound();
-  }
-
   const action = request.nextUrl.searchParams.get('action');
   if (action !== 'close' && action !== 'open' && action !== 'status') {
     return NextResponse.json({ error: 'action must be close, open, or status' }, { status: 400 });
   }
+
+  // Single-use, but idempotent for the *same* request.
+  //
+  // Burning the code outright was right for security and wrong in practice:
+  // this is a URL opened in a browser, and browsers re-request. A refresh, a
+  // back-navigation, or an omnibox prefetch would spend the code and the
+  // real attempt would 404 — indistinguishable from a broken kill switch, at
+  // the exact moment you need to trust it.
+  //
+  // So the step is burned per action. Repeating the same code with the same
+  // action is a no-op that reports the current state; using it for a
+  // *different* action is still refused, which is what replay protection is
+  // actually for — a code lifted from a log can't be turned into the
+  // opposite instruction.
+  const stepUnused = (
+    await rateLimiter.consume(`store-switch:step:${verification.step}`, 1, TOTP_STEP_SECONDS * 3)
+  ).allowed;
+  const actionUnused = (
+    await rateLimiter.consume(
+      `store-switch:step:${verification.step}:${action}`,
+      1,
+      TOTP_STEP_SECONDS * 3,
+    )
+  ).allowed;
+
+  if (!stepUnused && actionUnused) {
+    logger.warn('store switch: refused a used code re-aimed at a different action', { ip, action });
+    return notFound();
+  }
+
+  const isRepeat = !actionUnused;
 
   if (action === 'status') {
     const { isOpen, closure } = await getStoreAvailability.execute();
@@ -133,16 +152,21 @@ export async function GET(
     );
   }
 
-  await setStoreAvailability.execute({
-    isOpen: action === 'open',
-    reason: request.nextUrl.searchParams.get('reason'),
-    // No session behind this door; the audit entry records which door it was.
-    actor: { userId: null, email: 'ops-url' },
-  });
+  // A repeat doesn't re-run the switch: it would write a second audit entry
+  // and sign customers out twice for one instruction. The state is already
+  // what was asked for, so reporting it is the honest response.
+  if (!isRepeat) {
+    await setStoreAvailability.execute({
+      isOpen: action === 'open',
+      reason: request.nextUrl.searchParams.get('reason'),
+      // No session behind this door; the audit entry records which door it was.
+      actor: { userId: null, email: 'ops-url' },
+    });
 
-  logger.warn(`store switch: store ${action === 'open' ? 'REOPENED' : 'CLOSED'} via the ops URL`, {
-    ip,
-  });
+    logger.warn(`store switch: store ${action === 'open' ? 'REOPENED' : 'CLOSED'} via the ops URL`, {
+      ip,
+    });
+  }
 
   return NextResponse.json(
     { open: action === 'open' },

@@ -20,7 +20,7 @@
     "store:close": "tsx --env-file-if-exists=.env scripts/store-switch.ts close",
     "store:open": "tsx --env-file-if-exists=.env scripts/store-switch.ts open",
     "store:status": "tsx --env-file-if-exists=.env scripts/store-switch.ts status",
-    "store:switch-setup": "tsx scripts/store-switch-setup.tsx",
+    "store:switch-setup": "tsx --env-file-if-exists=.env scripts/store-switch-setup.tsx",
     "geo:fetch": "node scripts/fetch-geo-db.mjs"
   },
   "dependencies": {
