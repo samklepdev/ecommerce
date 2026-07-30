@@ -1,24 +1,28 @@
 /**
- * Generates the two secrets the ops URL needs, and a QR code to scan.
+ * Generates the two secrets the ops URL needs, and prints a QR code to scan.
  *
  *   npm run store:switch-setup
  *
- * Prints the env lines to add and writes a QR image to a temp file. Nothing
- * is written into the repo: both values are secrets, and a file holding them
- * in the working tree is one `git add -A` away from being published.
+ * Everything stays in the terminal. It used to write an SVG to a temp file,
+ * which was wrong twice over: `renderToStaticMarkup` emits `<svg>` without
+ * an `xmlns`, so the file was invalid as a standalone image and nothing
+ * would render it — and it left a TOTP secret sitting on disk waiting to be
+ * deleted by hand.
  *
  * Re-running generates fresh values — which is also how you rotate, e.g.
  * after the URL has been through a log you don't control. The old code stops
  * working the moment the env changes.
  */
 import { randomBytes } from 'node:crypto';
-import { writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { QRCodeSVG } from 'qrcode.react';
 
 import { generateTotp, decodeBase32, totpUri } from '../src/shared/infrastructure/totp';
+import {
+  hasFinderPatterns,
+  parseQrMatrix,
+  renderQrToAnsi,
+} from '../src/shared/infrastructure/qr-matrix';
 
 const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
@@ -58,8 +62,11 @@ function main(): void {
   const secret = randomBase32(32);
   const uri = totpUri(secret, 'kill switch', 'Storefront');
 
-  const qrFile = join(tmpdir(), `store-switch-qr-${Date.now()}.svg`);
-  writeFileSync(qrFile, renderToStaticMarkup(<QRCodeSVG value={uri} size={256} marginSize={4} />));
+  // Rendered, read back, and structurally checked before it's shown. A QR
+  // that's subtly wrong is worse than none: you'd scan it, get a secret that
+  // doesn't match the server, and only find out when the switch didn't work.
+  const matrix = parseQrMatrix(renderToStaticMarkup(<QRCodeSVG value={uri} size={256} />));
+  const qr = matrix && hasFinderPatterns(matrix) ? renderQrToAnsi(matrix) : null;
 
   const current = generateTotp(decodeBase32(secret)!, Math.floor(Date.now() / 1000 / 30));
 
@@ -75,13 +82,21 @@ Your URL then is:
 
   ...and ?action=open to reopen, ?action=status to check.
   Add &reason=... on close to note why in the audit log.
+`);
 
-Set up your authenticator:
+  if (qr) {
+    console.log('Scan this with your authenticator app:\n');
+    console.log(qr);
+  } else {
+    // Never show a QR this couldn't verify — the pasteable URI below always
+    // works, and every authenticator app accepts manual entry.
+    console.log('(Could not render a verifiable QR code — use the URI below instead.)');
+  }
 
-  1. Scan the QR code:  open ${qrFile}
-     (or paste this into the app: ${uri})
-  2. Check it matches — the code right now is ${current}
-  3. Delete the QR file:  rm ${qrFile}
+  console.log(`
+Or add it by hand:  ${uri}
+
+Check it worked — the code right now is ${current}
 
 Save the URL as a bookmark or a phone shortcut. The path alone does nothing
 without a current code, and a code is single-use, so a stale link in a log or
