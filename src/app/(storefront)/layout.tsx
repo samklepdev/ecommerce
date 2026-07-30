@@ -4,9 +4,10 @@ import { after } from 'next/server';
 import { getContainer } from '@/composition/container';
 import { getSessionUser, GUEST_SESSION_COOKIE } from '@/app/lib/session';
 import { getClientIp } from '@/app/lib/rate-limit';
-import { StorefrontChrome } from '@/components/StorefrontChrome';
+import { StorefrontChrome, StorefrontScope } from '@/components/StorefrontChrome';
 import { PageDwellTracker } from './PageDwellTracker';
 import { StoreClosed } from './StoreClosed';
+import { StoreStatusWatcher } from './StoreStatusWatcher';
 
 export default async function StorefrontLayout({ children }: { children: React.ReactNode }) {
   // The kill switch, checked before anything else this layout does. Closing
@@ -18,10 +19,14 @@ export default async function StorefrontLayout({ children }: { children: React.R
   const { getStoreAvailability } = getContainer();
   const { isOpen } = await getStoreAvailability.execute();
   if (!isOpen) {
+    // The scope, not the chrome: the closed notice keeps the storefront's
+    // palette but carries no header or footer, since every link in them
+    // leads back to this same page.
     return (
-      <StorefrontChrome>
+      <StorefrontScope>
+        <StoreStatusWatcher isOpen={false} />
         <StoreClosed />
-      </StorefrontChrome>
+      </StorefrontScope>
     );
   }
 
@@ -57,6 +62,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
   return (
     <>
       <PageDwellTracker />
+      <StoreStatusWatcher isOpen />
       <StorefrontChrome>{children}</StorefrontChrome>
     </>
   );

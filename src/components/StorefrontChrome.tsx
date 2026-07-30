@@ -14,10 +14,27 @@ import styles from './StorefrontChrome.module.css';
  */
 export function StorefrontChrome({ children }: { children: ReactNode }) {
   return (
-    <div className={styles.storefront} data-theme-scope>
+    <StorefrontScope>
       <Header />
       {children}
       <Footer />
+    </StorefrontScope>
+  );
+}
+
+/**
+ * The palette on its own, without header or footer.
+ *
+ * For the pages that shouldn't carry navigation — the closed-store notice —
+ * which still need the storefront's colours and, more importantly, the
+ * `data-theme-scope` marker that anything portaled resolves against.
+ * Rendering those pages bare would fall back to the root palette and look
+ * like a different site.
+ */
+export function StorefrontScope({ children }: { children: ReactNode }) {
+  return (
+    <div className={styles.storefront} data-theme-scope>
+      {children}
     </div>
   );
 }

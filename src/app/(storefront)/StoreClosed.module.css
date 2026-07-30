@@ -1,35 +1,51 @@
-.wrap {
-  min-height: 60vh;
+/* Deliberately not the storefront chrome. A closed shop shows its name and
+   the reason, and nothing you can click — a header full of dead links to
+   pages that all say the same thing is worse than no header. */
+.page {
+  min-height: 100vh;
   display: grid;
-  place-items: center;
-  padding: 5rem 1.5rem;
+  grid-template-rows: 1fr auto 1.4fr;
+  justify-items: center;
+  padding: 2rem 1.5rem;
+  background: var(--canvas);
+  color: var(--ink);
 }
 
+/* Sits on the middle row, so the panel lands slightly above centre — where
+   the eye goes first, rather than dead centre. */
 .panel {
-  max-width: 30rem;
+  max-width: 27rem;
   text-align: center;
   display: grid;
-  gap: 1rem;
+  gap: 1.25rem;
+  justify-items: center;
 }
 
-.mark {
-  justify-self: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 50%;
-  border: 1px solid var(--line-strong);
-  background: var(--amber-wash);
-  display: grid;
-  place-items: center;
-  color: var(--amber);
-  font-size: 1.1rem;
-  line-height: 1;
+/* The header's brand, minus the link. */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.brandMark {
+  width: 9px;
+  height: 21px;
+  flex: none;
+  background: linear-gradient(180deg, var(--accent) 0 55%, var(--amber) 55% 100%);
+}
+
+.brandName {
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: -0.018em;
 }
 
 .title {
   margin: 0;
   font-size: 1.5rem;
   letter-spacing: -0.01em;
+  font-weight: 600;
 }
 
 .body {
@@ -38,11 +54,21 @@
   line-height: 1.65;
 }
 
-/* Deliberately quiet: this is a state, not an error, and a visitor who
-   arrives mid-closure shouldn't be met with something that reads like a
-   crash. */
 .note {
   margin: 0;
   color: var(--faint);
   font-size: 0.875rem;
+  line-height: 1.6;
+  /* Keeps the address off a line of its own when the sentence wraps. */
+  text-wrap: pretty;
+}
+
+.note a {
+  color: inherit;
+}
+
+@media (max-width: 480px) {
+  .page {
+    grid-template-rows: 1fr auto 1fr;
+  }
 }

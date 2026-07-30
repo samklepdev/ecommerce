@@ -20,6 +20,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { QRCodeSVG } from 'qrcode.react';
 
+import { env } from '../src/config/env';
 import { generateTotp, decodeBase32, totpUri } from '../src/shared/infrastructure/totp';
 import {
   hasFinderPatterns,
@@ -85,8 +86,8 @@ function printQr(qr: string | null): void {
 /** The QR for the secret already in the environment, for when you've written
  * it but not yet paired a device — or have paired a new one. */
 function showConfigured(): void {
-  const path = process.env.STORE_SWITCH_PATH;
-  const secret = process.env.STORE_SWITCH_TOTP_SECRET;
+  const path = env.STORE_SWITCH_PATH;
+  const secret = env.STORE_SWITCH_TOTP_SECRET;
 
   if (!path || !secret) {
     console.error('Nothing configured: set STORE_SWITCH_PATH and STORE_SWITCH_TOTP_SECRET first, or run this without --show to generate them.');
@@ -103,7 +104,7 @@ function showConfigured(): void {
   console.log(`
 Your URL is:
 
-  https://<your-host>/api/ops/${path}?action=close&code=<6 digits>
+  ${env.APP_URL}/api/ops/${path}?action=close&code=<6 digits>
 
 Add it by hand:  ${uri}
 
@@ -174,7 +175,7 @@ function main(): void {
   // configured, is how you end up with a URL that 404s and a phone paired
   // to a secret the server has never heard of. Say so up front — the values
   // below are a proposal, not the state of the system.
-  if (!write && process.env.STORE_SWITCH_PATH && process.env.STORE_SWITCH_PATH !== path) {
+  if (!write && env.STORE_SWITCH_PATH && env.STORE_SWITCH_PATH !== path) {
     console.log(`
   ⚠  A different STORE_SWITCH_PATH is already configured.
 
@@ -217,10 +218,14 @@ Your URL then is:`,
 
   console.log(`
 
-  https://<your-host>/api/ops/${path}?action=close&code=<6 digits>
+  ${env.APP_URL}/api/ops/${path}?action=close&code=<6 digits>
 
   ...and ?action=open to reopen, ?action=status to check.
   Add &reason=... on close to note why in the audit log.
+
+  (That host comes from APP_URL. Set it to your public https:// address in
+  production — locally it is http, and a browser that "helpfully" upgrades
+  the URL to https gets ERR_SSL_PROTOCOL_ERROR from a server with no TLS.)
 
 Save it as a bookmark or a phone shortcut. The path alone does nothing
 without a current code, and a code is single-use, so a stale link in a log

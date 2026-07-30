@@ -150,6 +150,13 @@ Customer writes are refused too, not just hidden: cart changes, wishlist toggles
 and sourcing inquiries all return the paused message rather than quietly succeeding for
 anyone who POSTs to the action directly.
 
+**A tab already open updates itself.** Server-rendered pages only change when the browser
+asks again, so closing the shop used to leave anyone mid-visit looking at a live storefront
+until they reloaded. A small client watcher checks `/api/store-status` when the tab regains
+focus, and every 30s while it's visible — skipped entirely while hidden, so background tabs
+cost nothing. It only re-renders when the answer differs from what the server sent. Both
+directions work: closing swaps to the notice, reopening swaps back.
+
 ## What closing does *not* do
 
 - **It does not stop the BTC watcher.** Coins already sent still confirm, paid orders
@@ -160,6 +167,9 @@ anyone who POSTs to the action directly.
   that exits can't restart itself.
 - **It does not reduce load.** Page components in the storefront group still execute;
   the visitor just sees the paused notice instead of the result.
+- **The notice carries no navigation.** No header, no footer, no links — every one of them
+  would lead back to another copy of this page. Just the brand mark, so a visitor can see
+  they're in the right place.
 - **It does not cancel anything.** Existing orders, carts, and accounts are untouched, and
   reopening puts all of that back as it was. The one thing it does destroy is customer
   sessions — those people have to sign in again.
