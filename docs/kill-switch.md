@@ -158,6 +158,73 @@ focus, and every 30s while it's visible — skipped entirely while hidden, so ba
 cost nothing. It only re-renders when the answer differs from what the server sent. Both
 directions work: closing swaps to the notice, reopening swaps back.
 
+## Tier 2: taking the whole thing offline
+
+Everything above keeps the app running and refuses to sell. Sometimes you want the process
+gone. That's a hosting action — the app can't do it to itself, and shouldn't: something that
+switches the app off can't switch it back on.
+
+**Two rules before any of the commands below.**
+
+1. **The trigger lives on your device, not on the server.** A script on your laptop, or an
+   iOS Shortcut hitting the provider's API. Put it on the box and it dies with the box.
+2. **Keep the provider token off the server.** A token that can stop a service can usually
+   delete it too, so on the server it turns a compromise into a much worse one.
+
+### The commands
+
+The host is still undecided (see `deployment.md`), so:
+
+```bash
+# Fly.io — seconds, reversible
+fly scale count 0 -a <app>          # off
+fly scale count 1 -a <app>          # back
+
+# VPS with this repo's docker-compose.yml
+ssh <host> 'cd /srv/storefront && docker compose down'
+ssh <host> 'cd /srv/storefront && docker compose up -d'
+
+# Railway / Render — suspend the service via their REST API
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  https://api.render.com/v1/services/<id>/suspend
+```
+
+If you front the site with Cloudflare, a WAF rule returning 503 is the only option that
+works when the origin itself is unreachable — you're switching off the path rather than the
+server. Deleting the DNS record also works, but it's TTL-bound, so neither the stop nor the
+restart is instant.
+
+### What it costs, specific to this app
+
+**Settlement stops.** Customers' coins still arrive — every address derives from your xpub,
+so funds are yours and recoverable whether or not anything of ours is running — but nothing
+marks an order paid until the watcher is back. That is exactly why the app-level switch
+deliberately leaves the watcher alone.
+
+**Your data survives.** Postgres and Redis are separate services: carts, sessions, orders and
+the kill-switch state are all still there when you return.
+
+### Coming back
+
+Most of it takes care of itself, by design. The worker's tick runs the chain watch **before**
+expiry, and an order seen on-chain moves to `awaiting_confirmation`, which is out of
+`ExpireStaleCheckouts`' reach. A customer who paid during the outage is therefore picked up on
+the first pass rather than expired out from under them. Passes are re-runnable and
+`ConfirmPayment` de-dupes by event id, so restarting re-scans safely.
+
+Two things still want a human:
+
+- **Orders that expired during the outage.** An outage longer than
+  `ORDER_PAYMENT_WINDOW_HOURS` (default 24) expires every order still awaiting payment. Money
+  sent after that arrives at an address with no open order attached. Check `/admin/orders` for
+  orders expired inside the outage window and confirm none of their addresses received funds.
+- **A payment still unconfirmed at the first pass.** "Seen" means *confirmed* sats, so a
+  transaction sitting in the mempool when the watcher restarts doesn't protect its order from
+  expiry if the window has already lapsed. Narrow, but it's the case to look for.
+
+Then run `npm run store:status`: it's easy to bring the infrastructure back and forget the
+app-level switch is also on.
+
 ## What closing does *not* do
 
 - **It does not stop the BTC watcher.** Coins already sent still confirm, paid orders

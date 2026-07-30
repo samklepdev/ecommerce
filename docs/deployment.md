@@ -62,6 +62,12 @@ lost:
    never a seed, mnemonic, or private key on the server, enforced by a Zod
    check in `src/config/env.ts`.
 
+## Taking it offline
+
+Two tiers, both in `docs/kill-switch.md`: an app-level switch that keeps the process up and
+stops it selling (settlement, admin and recovery keep working), and the hosting-level stop for
+when you want the process gone — including what to check on the way back in.
+
 ## Monitoring, at minimum
 
 Point an uptime monitor at `/api/health` and page on a non-200. It is the
