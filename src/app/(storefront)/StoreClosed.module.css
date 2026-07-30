@@ -13,13 +13,22 @@
 /* The mark the paused notice used to carry, kept as the whole page. Amber
    rather than accent: this is a held state, the same colour the checkout
    widget uses for waiting. */
+/* No border, and no flat fill either. Both draw a circle with a definite
+   edge — the border as a pale line, the fill as the boundary where the wash
+   stops — and against this canvas either one reads as a hard ring around
+   the dot. The fill is a gradient that runs out before it reaches the edge,
+   so the only crisp thing on the page is the dot itself. */
 .mark {
   position: relative;
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 50%;
-  border: 1px solid var(--line-strong);
-  background: var(--amber-wash);
+  background: radial-gradient(
+    circle closest-side,
+    color-mix(in srgb, var(--amber) 18%, transparent),
+    color-mix(in srgb, var(--amber) 6%, transparent) 60%,
+    transparent 100%
+  );
   display: grid;
   place-items: center;
   color: var(--amber);
