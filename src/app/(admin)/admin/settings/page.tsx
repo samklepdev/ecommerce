@@ -4,6 +4,7 @@ import { requireAdmin } from '@/app/lib/session';
 import { Money } from '@/shared/domain/money';
 import { ShippingRateEditor } from './ShippingRateEditor';
 import { CouponsPanel } from './CouponsPanel';
+import { StoreSwitch } from './StoreSwitch';
 import styles from './page.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -40,11 +41,12 @@ function hostOf(url: string): string {
 export default async function AdminSettingsPage() {
   await requireAdmin();
 
-  const { getShippingRate, listCoupons, checkSystemHealth } = getContainer();
-  const [shippingRate, coupons, health] = await Promise.all([
+  const { getShippingRate, listCoupons, checkSystemHealth, getStoreAvailability } = getContainer();
+  const [shippingRate, coupons, health, storeAvailability] = await Promise.all([
     getShippingRate.execute(),
     listCoupons.execute(),
     checkSystemHealth.execute(),
+    getStoreAvailability.execute(),
   ]);
 
   const emailConfigured = Boolean(env.RESEND_API_KEY && env.EMAIL_FROM);
@@ -66,6 +68,18 @@ export default async function AdminSettingsPage() {
         <div className={styles.sectionHead}>
           <h2>Storefront</h2>
           <span className={styles.sectionCount}>what you can change here</span>
+        </div>
+
+        <div className={styles.panel}>
+          <div className={styles.panelHead}>
+            <h3 className={styles.panelTitle}>Store status</h3>
+          </div>
+          <StoreSwitch
+            isOpen={storeAvailability.isOpen}
+            closedAt={storeAvailability.closure?.closedAt.toISOString() ?? null}
+            closedBy={storeAvailability.closure?.closedBy ?? null}
+            reason={storeAvailability.closure?.reason ?? null}
+          />
         </div>
 
         <div className={styles.panel}>

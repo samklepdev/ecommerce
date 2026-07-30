@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { getContainer } from '@/composition/container';
+import { isStoreOpen, STORE_CLOSED_MESSAGE } from '@/app/lib/store-open';
 import { getSessionUser } from '@/app/lib/session';
 
 const ToggleSchema = z.object({ productId: z.string().min(1) });
@@ -23,6 +24,7 @@ export async function toggleWishlistItemAction(
   _prevState: ToggleWishlistActionResult | undefined,
   formData: FormData,
 ): Promise<ToggleWishlistActionResult> {
+  if (!(await isStoreOpen())) return { error: STORE_CLOSED_MESSAGE };
   const user = await getSessionUser();
   if (!user) return { error: 'Sign in to save products.' };
 

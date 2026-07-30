@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { getContainer } from '@/composition/container';
+import { isStoreOpen, STORE_CLOSED_MESSAGE } from '@/app/lib/store-open';
 import { isErr } from '@/shared/domain/result';
 import { requireUser } from '@/app/lib/session';
 
@@ -25,6 +26,7 @@ export async function submitReviewAction(
   _prevState: SubmitReviewActionResult | undefined,
   formData: FormData,
 ): Promise<SubmitReviewActionResult> {
+  if (!(await isStoreOpen())) return { error: STORE_CLOSED_MESSAGE };
   const user = await requireUser();
   const parsed = SubmitReviewSchema.safeParse({
     productId: formData.get('productId'),

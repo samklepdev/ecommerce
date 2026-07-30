@@ -4,10 +4,32 @@ import { after } from 'next/server';
 import { getContainer } from '@/composition/container';
 import { getSessionUser, GUEST_SESSION_COOKIE } from '@/app/lib/session';
 import { getClientIp } from '@/app/lib/rate-limit';
-import { StorefrontChrome } from '@/components/StorefrontChrome';
+import { StorefrontChrome, StorefrontScope } from '@/components/StorefrontChrome';
 import { PageDwellTracker } from './PageDwellTracker';
+import { StoreClosed } from './StoreClosed';
+import { StoreStatusWatcher } from './StoreStatusWatcher';
 
 export default async function StorefrontLayout({ children }: { children: React.ReactNode }) {
+  // The kill switch, checked before anything else this layout does. Closing
+  // the shop shouldn't cost a page view record or a session lookup.
+  //
+  // Only the customer-facing group is gated. `/login` lives in `(auth)` and
+  // `/admin` in `(admin)`, both untouched — otherwise closing the store
+  // would lock you out of the console you reopen it from.
+  const { getStoreAvailability } = getContainer();
+  const { isOpen } = await getStoreAvailability.execute();
+  if (!isOpen) {
+    // The scope, not the chrome: the closed notice keeps the storefront's
+    // palette but carries no header or footer, since every link in them
+    // leads back to this same page.
+    return (
+      <StorefrontScope>
+        <StoreStatusWatcher isOpen={false} />
+        <StoreClosed />
+      </StorefrontScope>
+    );
+  }
+
   const headerStore = await headers();
   const path = headerStore.get('x-pathname');
   const referrer = headerStore.get('referer');
@@ -40,6 +62,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
   return (
     <>
       <PageDwellTracker />
+      <StoreStatusWatcher isOpen />
       <StorefrontChrome>{children}</StorefrontChrome>
     </>
   );

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 
+import type { AssertStoreOpenForCheckout } from '@/shared/application/use-cases/assert-store-open-for-checkout';
 import { PlaceOrder } from './place-order';
 import { Cart } from '@/modules/cart/domain/cart';
 import { CartLine } from '@/modules/cart/domain/cart-line';
@@ -90,6 +91,12 @@ function validShippingAddress() {
   };
 }
 
+/** The kill switch, open — every test here predates it and none is about
+ * it. The closed case has its own test at the bottom. */
+function storeOpen(isOpen = true): AssertStoreOpenForCheckout {
+  return { execute: async () => isOpen } as AssertStoreOpenForCheckout;
+}
+
 describe('PlaceOrder', () => {
   it('turns a priced cart into a durable pending order, repricing from the catalog', async () => {
     const productId = randomUUID();
@@ -108,7 +115,7 @@ describe('PlaceOrder', () => {
 
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
     const coupons = makeFakeCoupons();
-    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons).execute({
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen()).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -136,7 +143,7 @@ describe('PlaceOrder', () => {
 
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
     const coupons = makeFakeCoupons();
-    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons).execute({
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen()).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -156,7 +163,7 @@ describe('PlaceOrder', () => {
 
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
     const coupons = makeFakeCoupons();
-    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons).execute({
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen()).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -180,7 +187,7 @@ describe('PlaceOrder', () => {
 
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
     const coupons = makeFakeCoupons();
-    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons).execute({
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen()).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -209,7 +216,7 @@ describe('PlaceOrder', () => {
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
     const coupons = makeFakeCoupons();
 
-    await new PlaceOrder(carts, products, orders, shippingRates, coupons).execute({
+    await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen()).execute({
       owner: { type: 'user', userId: 'user-1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -233,7 +240,7 @@ describe('PlaceOrder', () => {
     const shippingRates = makeFakeShippingRates(Money.of(599, 'USD'));
     const coupons = makeFakeCoupons();
 
-    await new PlaceOrder(carts, products, orders, shippingRates, coupons).execute({
+    await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen()).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -264,7 +271,7 @@ describe('PlaceOrder', () => {
     });
     const coupons = makeFakeCoupons(coupon);
 
-    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons).execute({
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen()).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -292,7 +299,7 @@ describe('PlaceOrder', () => {
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
     const coupons = makeFakeCoupons(null);
 
-    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons).execute({
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen()).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -326,7 +333,7 @@ describe('PlaceOrder', () => {
     });
     const coupons = makeFakeCoupons(inactiveCoupon);
 
-    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons).execute({
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen()).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -337,5 +344,43 @@ describe('PlaceOrder', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe('invalid_coupon');
     expect(created).toHaveLength(0);
+  });
+
+  // Checked before the cart is even read, and before anything is written:
+  // a closed store must not mint orders, however the action was reached.
+  it('refuses to create an order when the store kill switch is on', async () => {
+    const productId = randomUUID();
+    const product = makeProduct(productId, 1999);
+    const cart = Cart.create({
+      id: randomUUID(),
+      owner: { type: 'guest', sessionId: 's1' },
+      lines: [
+        CartLine.create({ productId, sku: 'SKU-1', quantity: 1, unitPrice: Money.of(1999, 'USD') }),
+      ],
+    });
+
+    const { repo: carts, deletedOwners } = makeFakeCarts(cart);
+    const products = makeFakeProducts(new Map([[productId, product]]));
+    const { repo: orders, created } = makeFakeOrders();
+
+    const result = await new PlaceOrder(
+      carts,
+      products,
+      orders,
+      makeFakeShippingRates(Money.zero('USD')),
+      makeFakeCoupons(),
+      storeOpen(false),
+    ).execute({
+      owner: { type: 'guest', sessionId: 's1' },
+      customerEmail: 'test@example.com',
+      currency: 'USD',
+      shippingAddress: validShippingAddress(),
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe('store_closed');
+    expect(created).toHaveLength(0);
+    // And the customer's cart survives, so reopening doesn't cost them it.
+    expect(deletedOwners).toEqual([]);
   });
 });

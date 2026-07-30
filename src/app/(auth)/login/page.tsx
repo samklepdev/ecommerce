@@ -16,6 +16,11 @@ interface LoginPageProps {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const { reset } = await searchParams;
 
+  // Deliberately identical whether the store is open or closed. A banner
+  // here, or links that disappear, would announce the state of the business
+  // to anyone who loaded the page — and a closed store already refuses
+  // customer sign-in without needing to explain itself.
+
   return (
     <PageContainer>
       <Stack gap={5}>

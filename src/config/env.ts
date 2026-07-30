@@ -62,6 +62,34 @@ const envSchema = z.object({
   // welcome-email tracking pixel) — never derived from a request header.
   APP_URL: z.string().url().default('http://localhost:3000'),
 
+  // The kill switch's out-of-band trigger, reachable at
+  // `/api/ops/<STORE_SWITCH_PATH>`. Both of these must be set or the route
+  // does not exist at all — a shutdown endpoint with no secret behind it is
+  // worse than no endpoint.
+  //
+  // The path is itself a secret, which is why it comes from env rather than
+  // being a literal in the repo: there is no URL to find by reading the
+  // source or by scanning. Generate both with `npm run store:switch-setup`.
+  STORE_SWITCH_PATH: z.preprocess(
+    emptyAsUndefined,
+    z
+      .string()
+      .min(16, 'STORE_SWITCH_PATH must be at least 16 characters — it is a secret, not a name')
+      .regex(/^[A-Za-z0-9_-]+$/, 'STORE_SWITCH_PATH must be URL-safe (A-Z a-z 0-9 _ -)')
+      .optional(),
+  ),
+  // Base32 shared secret for the 6-digit code, as held by your authenticator
+  // app. 32 base32 chars = 160 bits, the RFC 6238 recommendation. A static
+  // token would stay valid forever once it appeared in a log; this doesn't.
+  STORE_SWITCH_TOTP_SECRET: z.preprocess(
+    emptyAsUndefined,
+    z
+      .string()
+      .min(32, 'STORE_SWITCH_TOTP_SECRET must be at least 32 base32 characters')
+      .regex(/^[A-Z2-7]+=*$/i, 'STORE_SWITCH_TOTP_SECRET must be base32 (A-Z, 2-7)')
+      .optional(),
+  ),
+
   PASSWORD_RESET_TTL_SECONDS: z.coerce.number().int().positive().default(3600),
   EMAIL_VERIFICATION_TTL_SECONDS: z.coerce.number().int().positive().default(86_400),
 
@@ -103,7 +131,37 @@ const envSchema = z.object({
     message: 'EMAIL_FROM is required when RESEND_API_KEY is set — Resend rejects unverified senders.',
   });
 
-const parsed = envSchema.parse(process.env);
+/** Extra guidance for variables you're meant to generate rather than invent. */
+const HINTS: Record<string, string> = {
+  STORE_SWITCH_PATH: 'Generate both STORE_SWITCH_* values with: npm run store:switch-setup',
+  STORE_SWITCH_TOTP_SECRET:
+    'Generate both STORE_SWITCH_* values with: npm run store:switch-setup',
+};
+
+const result = envSchema.safeParse(process.env);
+
+if (!result.success) {
+  // Rethrown as a plain Error, never the ZodError itself. `ZodError.message`
+  // is a getter with no setter, and anything that decorates errors on their
+  // way to a log or an overlay — Next included — tries to assign to it. That
+  // assignment throws `TypeError: Cannot set property message`, which then
+  // *replaces* the diagnosis: you get a white screen and a complaint about a
+  // property setter instead of the name of the variable you typo'd.
+  const issues = result.error.issues.map((issue) => {
+    const name = issue.path.join('.') || '(schema)';
+    const hint = HINTS[name];
+    return `  ${name}: ${issue.message}${hint ? `\n      ${hint}` : ''}`;
+  });
+
+  const unique = [...new Set(issues)];
+  throw new Error(
+    `Invalid environment configuration — the app cannot start.\n\n${unique.join('\n')}\n\n` +
+      'Check your .env (or your host\'s environment) against .env.example.\n' +
+      'A variable you are not using should be absent or empty, not filled with a placeholder.\n',
+  );
+}
+
+const parsed = result.data;
 
 export const env: Env = {
   ...parsed,

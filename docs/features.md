@@ -146,6 +146,22 @@ feature" checklist).
 
 ## Admin (`/admin/*`, requires an admin account)
 
+- **Kill switch** (`/admin/settings` → Store status) — closes the storefront on
+  demand. Closing asks for an internal reason and takes a second click;
+  reopening is one click, because the recovery path should never be the fiddly
+  one. While closed, every customer-facing route shows a
+  single mark on an otherwise empty page — no message, no navigation, nothing
+  that goes stale or promises a return date — and checkout refuses even if a form is submitted directly. Orders
+  already paid keep settling and shipping — the payment watcher is unaffected —
+  and admin plus sign-in stay reachable. Also flippable outside the browser
+  with `npm run store:close` / `store:open`, or from a phone via a secret ops
+  URL guarded by a 6-digit rotating code from an authenticator app
+  (`npm run store:switch-setup` generates it), for when this page isn't
+  reachable. Every flip is audit-logged with
+  who, when, and from where. While closed, only admins can sign in, every
+  customer is signed out, and sign-up and password-reset requests are paused;
+  cart, wishlist, review and inquiry submissions are refused rather than
+  silently accepted. The login page looks the same either way.
 - **Dashboard** (`/admin`) — at-a-glance counts (unsourced order lines,
   supplier orders needing action, orders awaiting confirmation, recovered
   orders needing review), each linking to the relevant page, plus quick

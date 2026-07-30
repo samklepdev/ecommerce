@@ -7,6 +7,11 @@ import { RedisRateLimiter } from '@/shared/infrastructure/redis/redis-rate-limit
 import { RedisHeartbeatStore } from '@/shared/infrastructure/redis/redis-heartbeat-store';
 import { DrizzleDatabaseProbe } from '@/shared/infrastructure/db/drizzle-database-probe';
 import { CheckSystemHealth } from '@/shared/application/use-cases/check-system-health';
+import { AssertStoreOpenForCheckout } from '@/shared/application/use-cases/assert-store-open-for-checkout';
+import { GetStoreAvailability } from '@/shared/application/use-cases/get-store-availability';
+import { SetStoreAvailability } from '@/shared/application/use-cases/set-store-availability';
+import { RedisStoreAvailabilityStore } from '@/shared/infrastructure/redis/redis-store-availability-store';
+import { RedisCustomerSessionRevoker } from '@/modules/identity/infrastructure/redis-customer-session-revoker';
 import type { HeartbeatStore } from '@/shared/application/ports/health-ports';
 import type { RateLimiter } from '@/shared/application/ports/rate-limiter';
 
@@ -210,6 +215,9 @@ export interface Container {
   rateLimiter: RateLimiter;
   heartbeats: HeartbeatStore;
   checkSystemHealth: CheckSystemHealth;
+  getStoreAvailability: GetStoreAvailability;
+  setStoreAvailability: SetStoreAvailability;
+  assertStoreOpenForCheckout: AssertStoreOpenForCheckout;
   /** fiat -> sats, for dual-denominated display prices. Presentation only —
    * an order's binding quote is locked by the gateway at checkout. */
   btcRates: BtcRateProvider;
@@ -369,12 +377,20 @@ function build(): Container {
   // intervals, floored at two minutes so a very short interval can't make
   // the check flap.
   const heartbeats = new RedisHeartbeatStore(redis);
+
+  // The kill switch. Its store is built here next to the other Redis
+  // adapters; the write side is wired after the audit recorder below, since
+  // every flip of it is audited.
+  const storeAvailabilityStore = new RedisStoreAvailabilityStore(redis);
+  const getStoreAvailability = new GetStoreAvailability(storeAvailabilityStore);
   const checkSystemHealth = new CheckSystemHealth(
     new DrizzleDatabaseProbe(db),
     heartbeats,
     heartbeats,
     Math.max(3 * env.BTC_WATCH_INTERVAL_MS, 120_000),
+    getStoreAvailability,
   );
+  const assertStoreOpenForCheckout = new AssertStoreOpenForCheckout(storeAvailabilityStore);
 
   const network = env.BTC_NETWORK === 'testnet' ? networks.testnet : networks.bitcoin;
 
@@ -422,6 +438,11 @@ function build(): Container {
   const bulkAssignCategory = new BulkAssignCategory(products);
   const auditLogRepository = new DrizzleAuditLogRepository(db);
   const recordAuditLogEntry = new RecordAuditLogEntry(auditLogRepository, new NextRequestContext());
+  const setStoreAvailability = new SetStoreAvailability(
+    storeAvailabilityStore,
+    recordAuditLogEntry,
+    new RedisCustomerSessionRevoker(redis, db),
+  );
   const analyticsEventRepository = new DrizzleAnalyticsEventRepository(db);
   // Local database read, no per-request network call — see the README in
   // modules/analytics/infrastructure/geo for licence, refresh and why a
@@ -574,9 +595,22 @@ function build(): Container {
   const createCoupon = new CreateCoupon(coupons);
   const listCoupons = new ListCoupons(coupons);
   const setCouponActive = new SetCouponActive(coupons);
-  const placeOrder = new PlaceOrder(carts, products, orders, shippingRates, coupons);
+  const placeOrder = new PlaceOrder(
+    carts,
+    products,
+    orders,
+    shippingRates,
+    coupons,
+    assertStoreOpenForCheckout,
+  );
   const reorderItems = new ReorderItems(orders, carts, products);
-  const startCheckout = new StartCheckout(orders, gateways, env.QUOTE_TTL_SECONDS, env.ORDER_PAYMENT_WINDOW_HOURS);
+  const startCheckout = new StartCheckout(
+    orders,
+    gateways,
+    env.QUOTE_TTL_SECONDS,
+    env.ORDER_PAYMENT_WINDOW_HOURS,
+    assertStoreOpenForCheckout,
+  );
   const refreshPaymentQuote = new RefreshPaymentQuote(orders, btcGateway);
   const expireStaleCheckouts = new ExpireStaleCheckouts(orders, paymentStore);
 
@@ -661,6 +695,9 @@ function build(): Container {
     rateLimiter,
     heartbeats,
     checkSystemHealth,
+    getStoreAvailability,
+    setStoreAvailability,
+    assertStoreOpenForCheckout,
     /** fiat -> sats, for dual-denominated display prices. Presentation only
      * — an order's actual quote is locked by the gateway at checkout. */
     btcRates: rates,

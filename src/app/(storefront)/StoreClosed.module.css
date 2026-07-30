@@ -1,0 +1,98 @@
+/* Deliberately not the storefront chrome, and deliberately empty. A closed
+   shop shows one mark and nothing else — no header of dead links, no copy
+   that goes stale the moment it's written. */
+.page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.5rem;
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+/* The mark the paused notice used to carry, kept as the whole page. Amber
+   rather than accent: this is a held state, the same colour the checkout
+   widget uses for waiting. */
+/* No border, and no flat fill either. Both draw a circle with a definite
+   edge — the border as a pale line, the fill as the boundary where the wash
+   stops — and against this canvas either one reads as a hard ring around
+   the dot. The fill is a gradient that runs out before it reaches the edge,
+   so the only crisp thing on the page is the dot itself. */
+.mark {
+  position: relative;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle closest-side,
+    color-mix(in srgb, var(--amber) 18%, transparent),
+    color-mix(in srgb, var(--amber) 6%, transparent) 60%,
+    transparent 100%
+  );
+  display: grid;
+  place-items: center;
+  color: var(--amber);
+  font-size: 1.1rem;
+  line-height: 1;
+  animation: breathe 2.8s ease-in-out infinite;
+}
+
+/* A soft amber glow that swells out of the mark and fades.
+
+   Feathered with a radial gradient rather than drawn as a border: a 1px
+   stroke stays perfectly crisp as it scales, so the eye reads a hard ring
+   travelling outwards instead of light spreading. The gradient has no edge
+   to sharpen.
+
+   Slow and low-contrast on purpose: this is the only thing on the page, so
+   anything brisk reads as an alert — and a closed shop is a resting state,
+   not an emergency. */
+.mark::after {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle closest-side,
+    color-mix(in srgb, var(--amber) 30%, transparent),
+    color-mix(in srgb, var(--amber) 8%, transparent) 65%,
+    transparent 100%
+  );
+  animation: ping 2.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes ping {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+  70%,
+  100% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+}
+
+/* Someone who has asked the OS for less motion gets the mark and no
+   movement — the page still reads exactly the same, which is the test for
+   whether an animation was decoration. */
+@media (prefers-reduced-motion: reduce) {
+  .mark {
+    animation: none;
+    opacity: 1;
+  }
+
+  .mark::after {
+    display: none;
+  }
+}

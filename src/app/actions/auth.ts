@@ -8,6 +8,7 @@ import { env } from '@/config/env';
 import { isErr } from '@/shared/domain/result';
 import { logger } from '@/shared/infrastructure/logger';
 import { getContainer } from '@/composition/container';
+import { isStoreOpen, STORE_CLOSED_MESSAGE } from '@/app/lib/store-open';
 import { newPasswordSchema } from '@/app/lib/password-schema';
 import { PASSWORD_RULE_TEXT } from '@/shared/domain/password-policy';
 import { GUEST_SESSION_COOKIE, SESSION_COOKIE } from '@/app/lib/session';
@@ -38,15 +39,44 @@ export interface AuthActionResult {
   error?: string;
 }
 
-/** Logs in, sets the session cookie, and merges the pre-login guest cart. */
-async function establishSession(email: string, password: string): Promise<AuthActionResult> {
-  const { logIn, mergeGuestCart } = getContainer();
+/** What a non-admin sees while the store is closed: exactly what a wrong
+ * password produces, and nothing else.
+ *
+ * Two reasons it's this and not "we're closed". It doesn't announce the
+ * state of the business to anyone probing the login form; and it keeps the
+ * response identical for a valid customer password and an invalid one, so a
+ * closure can't be used to test which addresses have accounts. */
+const CLOSED_SIGN_IN_REFUSAL = 'Invalid email or password.';
+
+/** Logs in, sets the session cookie, and merges the pre-login guest cart.
+ *
+ * `adminOnly` is the closed-store case: credentials are still checked, but a
+ * session is only *kept* for an admin. Anyone else gets the same message as a
+ * wrong password would produce, so a closed store doesn't become an oracle
+ * for which addresses have accounts. */
+async function establishSession(
+  email: string,
+  password: string,
+  adminOnly = false,
+): Promise<AuthActionResult> {
+  const { logIn, mergeGuestCart, getCurrentUser, logOut } = getContainer();
   const result = await logIn.execute({
     email,
     password,
     sessionTtlSeconds: env.SESSION_TTL_SECONDS,
   });
   if (isErr(result)) return { error: 'Invalid email or password.' };
+
+  if (adminOnly) {
+    const user = await getCurrentUser.execute({ sessionId: result.value.id });
+    if (user?.role !== 'admin') {
+      // The session exists for a moment because the role lives behind it.
+      // Revoked here rather than left to expire, and the cookie is never
+      // set, so nothing usable reaches the browser.
+      await logOut.execute({ sessionId: result.value.id });
+      return { error: CLOSED_SIGN_IN_REFUSAL };
+    }
+  }
 
   const cookieStore = await cookies();
   const guestSessionId = cookieStore.get(GUEST_SESSION_COOKIE)?.value;
@@ -89,6 +119,11 @@ export async function signUpAction(
           `Enter a valid email. ${PASSWORD_RULE_TEXT}`),
     };
   }
+
+  // No new accounts while the shop is shut. Registration during a closure
+  // creates rows and sends mail for someone who can't do anything yet, and
+  // it's an open surface at exactly the time nobody is watching it.
+  if (!(await isStoreOpen())) return { error: STORE_CLOSED_MESSAGE };
 
   const ip = await getClientIp();
   const signupLimit = await checkRateLimit(`signup:${ip}`, 3, 60 * 60);
@@ -143,7 +178,13 @@ export async function logInAction(
     return { error: tooManyAttemptsMessage(perAccountLimit.retryAfterSeconds) };
   }
 
-  const result = await establishSession(parsed.data.email, parsed.data.password);
+  // While the store is closed, only admins may sign in — the console has to
+  // stay reachable, and everything a customer would sign in *for* is paused
+  // anyway. Existing customer sessions aren't revoked; every page they can
+  // reach already shows the paused notice.
+  const adminOnly = !(await isStoreOpen());
+
+  const result = await establishSession(parsed.data.email, parsed.data.password, adminOnly);
   if (result.error) return result;
 
   redirect('/');
@@ -176,6 +217,12 @@ export async function requestPasswordResetAction(
   _prevState: RequestPasswordResetActionResult | undefined,
   formData: FormData,
 ): Promise<RequestPasswordResetActionResult> {
+  // Paused with sign-up: this one sends mail, and a closure is exactly when
+  // you don't want reset links going out unattended. `resetPasswordAction`
+  // and `verifyEmailAction` stay open — they complete a flow someone was
+  // already sent a link for, and those tokens expire.
+  if (!(await isStoreOpen())) return { error: STORE_CLOSED_MESSAGE };
+
   const parsed = RequestPasswordResetSchema.safeParse({ email: formData.get('email') });
   if (!parsed.success) return { error: 'Enter a valid email address.' };
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import type { GetStoreAvailability } from '@/shared/application/use-cases/get-store-availability';
 import { CheckSystemHealth } from './check-system-health';
 import type { HeartbeatStore, ServiceProbe } from '@/shared/application/ports/health-ports';
 
@@ -27,12 +28,18 @@ function makeUseCase(opts: {
   cache?: boolean;
   watcherLastSeen?: Date | null;
   staleAfterMs?: number;
+  storeOpen?: boolean;
 }) {
+  const availability = {
+    execute: async () => ({ isOpen: opts.storeOpen ?? true, closure: null }),
+  } as GetStoreAvailability;
+
   return new CheckSystemHealth(
     probe(opts.db ?? true),
     probe(opts.cache ?? true),
     heartbeat(opts.watcherLastSeen === undefined ? NOW : opts.watcherLastSeen),
     opts.staleAfterMs ?? 135_000,
+    availability,
     () => NOW,
   );
 }
@@ -102,5 +109,19 @@ describe('CheckSystemHealth', () => {
     expect(result.checks.btcWatcher.status).toBe('fail');
     expect(result.checks.btcWatcher.reason).toBe('never_reported');
     expect(result.checks.btcWatcher.ageSeconds).toBeNull();
+  });
+
+  // The kill switch is an intentional state, not a fault. A 503 here would
+  // have a load balancer pull the instance — and take the admin console the
+  // switch is reset from down with it.
+  it('reports a closed store without failing the health check', async () => {
+    const result = await makeUseCase({ storeOpen: false }).execute();
+
+    expect(result.storeOpen).toBe(false);
+    expect(result.status).toBe('ok');
+  });
+
+  it('reports an open store when the switch is off', async () => {
+    expect((await makeUseCase({}).execute()).storeOpen).toBe(true);
   });
 });
