@@ -8,6 +8,8 @@ import {
 } from '@/app/actions/admin/users';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
+import { ReauthPrompt } from '@/components/admin/ReauthPrompt';
+import { REAUTH_REQUIRED } from '@/app/lib/session-constants';
 
 const initialState: PromoteUserToAdminActionResult = {};
 
@@ -35,10 +37,14 @@ export function PromoteUserButton({ email }: PromoteUserButtonProps) {
           Promote to admin
         </Button>
       </form>
-      {state.error && (
-        <Alert key={nonce} tone="danger">
-          {state.error}
-        </Alert>
+      {state.error === REAUTH_REQUIRED ? (
+        <ReauthPrompt action="promote this user" />
+      ) : (
+        state.error && (
+          <Alert key={nonce} tone="danger">
+            {state.error}
+          </Alert>
+        )
       )}
       {state.message && (
         <Alert key={nonce} tone="success">

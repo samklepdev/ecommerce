@@ -17,6 +17,8 @@ import {
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
+import { ReauthPrompt } from '@/components/admin/ReauthPrompt';
+import { REAUTH_REQUIRED } from '@/app/lib/session-constants';
 import { Input, Select } from '@/components/ui/Input';
 import { cx } from '@/components/ui/cx';
 import { ProductEditPanel } from './ProductEditPanel';
@@ -122,7 +124,11 @@ export function AdminProductsTable({
       {publishState.message && <Alert tone="success">{publishState.message}</Alert>}
       {unpublishState.error && <Alert tone="danger">{unpublishState.error}</Alert>}
       {unpublishState.message && <Alert tone="success">{unpublishState.message}</Alert>}
-      {deleteState.error && <Alert tone="danger">{deleteState.error}</Alert>}
+      {deleteState.error === REAUTH_REQUIRED ? (
+        <ReauthPrompt action="delete these products" />
+      ) : (
+        deleteState.error && <Alert tone="danger">{deleteState.error}</Alert>
+      )}
       {deleteState.message && <Alert tone="success">{deleteState.message}</Alert>}
       {markupState.error && <Alert tone="danger">{markupState.error}</Alert>}
       {markupState.message && <Alert tone="success">{markupState.message}</Alert>}

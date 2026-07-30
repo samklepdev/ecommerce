@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 
 import { cookies } from 'next/headers';
 
+import { env } from '@/config/env';
+import { REAUTH_REQUIRED } from '@/app/lib/session-constants';
 import { getContainer } from '@/composition/container';
 import type { CartOwner } from '@/modules/cart/domain/cart';
 import type { User } from '@/modules/identity/domain/user';
@@ -74,4 +76,36 @@ export async function requireUser(): Promise<User> {
     throw new Error('Login required');
   }
   return user;
+}
+
+export { REAUTH_REQUIRED } from '@/app/lib/session-constants';
+
+/**
+ * Admin *and* recently re-authenticated.
+ *
+ * `requireAdmin` proves who holds the session; this proves someone who knows
+ * the password is at the keyboard right now. The difference matters for the
+ * handful of actions that move money or destroy data — an unlocked laptop
+ * should be able to read the console without being able to refund an order
+ * or delete the catalogue.
+ *
+ * Returns a discriminated result rather than throwing, because "type your
+ * password again" is a normal prompt, not an error.
+ */
+export async function requireRecentAdminAuth(): Promise<
+  { ok: true; admin: User } | { ok: false; reason: typeof REAUTH_REQUIRED }
+> {
+  const admin = await requireAdmin();
+
+  const cookieStore = await cookies();
+  const sessionId = cookieStore.get(SESSION_COOKIE)?.value ?? null;
+  if (!sessionId) return { ok: false, reason: REAUTH_REQUIRED };
+
+  const { sessions } = getContainer();
+  const session = await sessions.get(sessionId);
+  if (!session || !session.hasRecentAuthAt(env.ADMIN_REAUTH_WINDOW_SECONDS)) {
+    return { ok: false, reason: REAUTH_REQUIRED };
+  }
+
+  return { ok: true, admin };
 }

@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 import { getContainer } from '@/composition/container';
 import { isErr } from '@/shared/domain/result';
-import { requireAdmin } from '@/app/lib/session';
+import { requireAdmin, requireRecentAdminAuth } from '@/app/lib/session';
 
 const PromoteUserToAdminSchema = z.object({
   email: z.string().email(),
@@ -20,7 +20,10 @@ export async function promoteUserToAdminAction(
   _prevState: PromoteUserToAdminActionResult | undefined,
   formData: FormData,
 ): Promise<PromoteUserToAdminActionResult> {
-  const admin = await requireAdmin();
+  // Destructive: refuses unless the password was typed recently.
+  const sudo = await requireRecentAdminAuth();
+  if (!sudo.ok) return { error: sudo.reason };
+  const admin = sudo.admin;
   const parsed = PromoteUserToAdminSchema.safeParse({ email: formData.get('email') });
   if (!parsed.success) return { error: 'Missing user.' };
 

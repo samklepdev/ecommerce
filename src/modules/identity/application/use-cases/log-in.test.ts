@@ -30,16 +30,24 @@ function makeFakeUsers(user: User | null) {
 }
 
 function makeFakeSessions() {
-  const created: { userId: string; ttlSeconds: number }[] = [];
+  const created: { userId: string; ttlSeconds: number; idleTimeoutSeconds: number }[] = [];
   const store: SessionStore = {
-    async create(userId, ttlSeconds) {
-      created.push({ userId, ttlSeconds });
-      return Session.create({ id: 'session-1', userId, expiresAt: new Date(Date.now() + ttlSeconds * 1000) });
+    async create(userId, options) {
+      created.push({ userId, ...options });
+      return Session.create({
+        id: 'session-1',
+        userId,
+        expiresAt: new Date(Date.now() + options.ttlSeconds * 1000),
+        lastSeenAt: new Date(),
+        idleTimeoutSeconds: options.idleTimeoutSeconds,
+        reauthenticatedAt: new Date(),
+      });
     },
     async get() {
       return null;
     },
     async destroy() {},
+    async markReauthenticated() {},
   };
   return { store, created };
 }
@@ -55,11 +63,15 @@ describe('LogIn', () => {
       email: 'a@example.com',
       password: 'correct-horse',
       sessionTtlSeconds: 3600,
+      idleTimeoutSeconds: 1_209_600,
+      adminIdleTimeoutSeconds: 3_600,
     });
 
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.value.userId).toBe('user-1');
-    expect(created).toEqual([{ userId: 'user-1', ttlSeconds: 3600 }]);
+    expect(created).toEqual([
+      { userId: 'user-1', ttlSeconds: 3600, idleTimeoutSeconds: 1_209_600 },
+    ]);
   });
 
   it('returns invalid_credentials for a nonexistent email (no info leak vs wrong password)', async () => {
@@ -70,6 +82,8 @@ describe('LogIn', () => {
       email: 'nobody@example.com',
       password: 'whatever',
       sessionTtlSeconds: 3600,
+      idleTimeoutSeconds: 1_209_600,
+      adminIdleTimeoutSeconds: 3_600,
     });
 
     expect(result.ok).toBe(false);
@@ -87,6 +101,8 @@ describe('LogIn', () => {
       email: 'a@example.com',
       password: 'wrong-password',
       sessionTtlSeconds: 3600,
+      idleTimeoutSeconds: 1_209_600,
+      adminIdleTimeoutSeconds: 3_600,
     });
 
     expect(result.ok).toBe(false);

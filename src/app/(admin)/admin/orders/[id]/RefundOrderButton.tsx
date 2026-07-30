@@ -10,6 +10,8 @@ import type { PaymentStatus } from '@/modules/orders/domain/order-status';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
+import { ReauthPrompt } from '@/components/admin/ReauthPrompt';
+import { REAUTH_REQUIRED } from '@/app/lib/session-constants';
 
 const initialState: MarkOrderRefundedActionResult = {};
 
@@ -47,10 +49,14 @@ export function RefundOrderButton({ orderId, paymentStatus }: RefundOrderButtonP
           Mark refunded
         </Button>
       </form>
-      {state.error && (
-        <Alert key={nonce} tone="danger">
-          {state.error}
-        </Alert>
+      {state.error === REAUTH_REQUIRED ? (
+        <ReauthPrompt action="mark this order refunded" />
+      ) : (
+        state.error && (
+          <Alert key={nonce} tone="danger">
+            {state.error}
+          </Alert>
+        )
       )}
       {state.message && (
         <Alert key={nonce} tone="success">

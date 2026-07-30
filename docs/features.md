@@ -146,6 +146,13 @@ feature" checklist).
 
 ## Admin (`/admin/*`, requires an admin account)
 
+- **Session security** — admin sessions go idle after an hour of inactivity
+  (customers get 14 days, under a 30-day ceiling for both), and the
+  destructive actions — refund, promote, and every delete — ask for the
+  password again if it has been more than 15 minutes since you typed it.
+  Confirming doesn't carry the action out; you're returned to it to click
+  again, deliberately.
+
 - **Kill switch** (`/admin/settings` → Store status) — closes the storefront on
   demand. Closing asks for an internal reason and takes a second click;
   reopening is one click, because the recovery path should never be the fiddly

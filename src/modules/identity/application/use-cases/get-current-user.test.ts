@@ -15,6 +15,7 @@ function makeFakeSessions(session: Session | null) {
       return session;
     },
     async destroy() {},
+    async markReauthenticated() {},
   };
   return store;
 }
@@ -64,8 +65,7 @@ describe('GetCurrentUser', () => {
     const expiredSession = Session.create({
       id: 'session-1',
       userId: 'user-1',
-      expiresAt: new Date(Date.now() - 1000),
-    });
+      expiresAt: new Date(Date.now() - 1000), lastSeenAt: new Date(), idleTimeoutSeconds: 3600, reauthenticatedAt: new Date() });
     const sessions = makeFakeSessions(expiredSession);
     const users = makeFakeUsers(User.create({ id: 'user-1', email: 'a@example.com', passwordHash: 'hash' }));
 
@@ -78,8 +78,7 @@ describe('GetCurrentUser', () => {
     const validSession = Session.create({
       id: 'session-1',
       userId: 'user-1',
-      expiresAt: new Date(Date.now() + 60_000),
-    });
+      expiresAt: new Date(Date.now() + 60_000), lastSeenAt: new Date(), idleTimeoutSeconds: 3600, reauthenticatedAt: new Date() });
     const user = User.create({ id: 'user-1', email: 'a@example.com', passwordHash: 'hash' });
     const sessions = makeFakeSessions(validSession);
     const users = makeFakeUsers(user);

@@ -64,6 +64,8 @@ async function establishSession(
     email,
     password,
     sessionTtlSeconds: env.SESSION_TTL_SECONDS,
+    idleTimeoutSeconds: env.SESSION_IDLE_TIMEOUT_SECONDS,
+    adminIdleTimeoutSeconds: env.ADMIN_SESSION_IDLE_TIMEOUT_SECONDS,
   });
   if (isErr(result)) return { error: 'Invalid email or password.' };
 

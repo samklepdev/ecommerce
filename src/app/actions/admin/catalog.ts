@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { getContainer } from '@/composition/container';
-import { requireAdmin } from '@/app/lib/session';
+import { requireAdmin, requireRecentAdminAuth } from '@/app/lib/session';
 import { parseDecimalToMinorUnits } from '@/shared/domain/parse-decimal-amount';
 import {
   isAllowedJsonFeedUpload,
@@ -265,7 +265,10 @@ export async function deleteProductsAction(
   _prevState: DeleteProductsActionResult | undefined,
   formData: FormData,
 ): Promise<DeleteProductsActionResult> {
-  const admin = await requireAdmin();
+  // Destructive: refuses unless the password was typed recently.
+  const sudo = await requireRecentAdminAuth();
+  if (!sudo.ok) return { error: sudo.reason };
+  const admin = sudo.admin;
   const parsed = DeleteProductsSchema.safeParse({
     productIds: formData.getAll('productIds'),
   });

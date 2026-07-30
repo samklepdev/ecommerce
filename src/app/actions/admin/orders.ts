@@ -8,7 +8,7 @@ import { isErr } from '@/shared/domain/result';
 import { Money } from '@/shared/domain/money';
 import { satsToBtcString } from '@/modules/payments/domain/bip21';
 import { MAX_CART_LINE_QUANTITY } from '@/modules/cart/domain/cart-line';
-import { requireAdmin } from '@/app/lib/session';
+import { requireAdmin, requireRecentAdminAuth } from '@/app/lib/session';
 
 /** Same ceiling the cart enforces — an admin editing an order shouldn't be
  * able to write a quantity a customer couldn't have ordered. */
@@ -27,7 +27,10 @@ export async function markOrderRefundedAction(
   _prevState: MarkOrderRefundedActionResult | undefined,
   formData: FormData,
 ): Promise<MarkOrderRefundedActionResult> {
-  const admin = await requireAdmin();
+  // Destructive: refuses unless the password was typed recently.
+  const sudo = await requireRecentAdminAuth();
+  if (!sudo.ok) return { error: sudo.reason };
+  const admin = sudo.admin;
   const parsed = MarkOrderRefundedSchema.safeParse({ orderId: formData.get('orderId') });
   if (!parsed.success) return { error: 'Missing order.' };
 

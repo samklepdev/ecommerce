@@ -9,6 +9,13 @@ export interface LogInInput {
   email: string;
   password: string;
   sessionTtlSeconds: number;
+  /** Idle window for a customer session. */
+  idleTimeoutSeconds: number;
+  /** Idle window for an admin session — shorter, and chosen here because
+   * this is the only place that knows the role at the moment a session is
+   * minted. Authorization still reads the role from the database on every
+   * request; this only governs how long the session may sit unused. */
+  adminIdleTimeoutSeconds: number;
 }
 
 export type LogInError = { code: 'invalid_credentials' };
@@ -26,7 +33,12 @@ export class LogIn implements UseCase<LogInInput, Result<Session, LogInError>> {
     const valid = await verifyPassword(user.passwordHash, input.password);
     if (!valid) return err({ code: 'invalid_credentials' });
 
-    const session = await this.sessions.create(user.id, input.sessionTtlSeconds);
+    const session = await this.sessions.create(user.id, {
+      ttlSeconds: input.sessionTtlSeconds,
+      idleTimeoutSeconds: user.isAdmin
+        ? input.adminIdleTimeoutSeconds
+        : input.idleTimeoutSeconds,
+    });
     return ok(session);
   }
 }
