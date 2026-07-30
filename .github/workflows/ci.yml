@@ -97,3 +97,53 @@ jobs:
           DATABASE_URL: postgres://fake:fake@localhost:59999/fake
           REDIS_URL: redis://localhost:59998
           BTC_ACCOUNT_XPUB: tpubDDTyJEgNqk6uZKJ6vdM1HdNytMarfrTJBkQH1MGSiYrCnPrkXr1642ndLRb1FbDYBRbHzrq25w2MsGrRrEZziNj1v3BQcmxjYqAMc4iaVQ6
+
+  # A second job rather than more steps on the first: this one needs real
+  # services, and keeping them apart means a Postgres image failing to pull
+  # can't fail the typecheck/lint/unit run that needs nothing.
+  integration:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: storefront_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d storefront_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Ports match docker-compose.test.yml so the URLs are the same here as
+      # on a laptop, and `assertSafeTestTarget` recognises them as a
+      # throwaway target rather than someone's real database.
+      - name: Integration tests
+        run: npm run test:integration
+        env:
+          TEST_DATABASE_URL: postgres://test:test@localhost:5433/storefront_test
+          TEST_REDIS_URL: redis://localhost:6380

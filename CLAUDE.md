@@ -244,7 +244,10 @@ npm run dev              # Next dev server
 npm run build && npm start # production build + serve
 npm run typecheck        # tsc --noEmit
 npm run lint             # eslint
-npm test                 # unit tests (domain + use cases run without infra)
+npm test                 # fast suite: domain + use cases, no infra at all
+npm run test:integration:up    # start throwaway Postgres/Redis (ports 5433/6380)
+npm run test:integration       # repository + Redis adapter tests against them
+npm run test:integration:down  # stop them and drop the data
 npm run db:generate      # drizzle-kit generate (migrations)
 npm run db:migrate       # apply migrations
 npm run db:studio        # drizzle studio
@@ -281,7 +284,17 @@ npm install -D drizzle-kit
 5. Expose it via a thin server action or route handler in `app/`.
 6. If it changes what a customer or admin can do, update `docs/features.md` in the same PR.
 
-Domain and use-case tests must run **without** a database or network.
+Domain and use-case tests must run **without** a database or network — that's what
+`npm test` is, and it stays that way.
+
+Anything whose behaviour lives in SQL or in Redis semantics needs the second suite
+(`*.integration.test.ts`, `npm run test:integration`), because a fake repository is a
+second implementation of the rule and can't disagree with itself. The active-only
+filter, `getUsage`'s counts, the sourceable-offer fallback, address-index atomicity
+under concurrency and the session revoker's keyspace walk are all there for that
+reason — each one either shipped a bug or guards money. The suite talks to
+`docker-compose.test.yml` on ports 5433/6380, never your dev stack, and truncates
+every table between cases.
 
 ## Current state
 
