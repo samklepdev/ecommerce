@@ -170,6 +170,21 @@ function main(): void {
 
   const outcome = write ? writeToEnvFile({ STORE_SWITCH_PATH: path, STORE_SWITCH_TOTP_SECRET: secret }) : null;
 
+  // Generating without writing, while something different is already
+  // configured, is how you end up with a URL that 404s and a phone paired
+  // to a secret the server has never heard of. Say so up front — the values
+  // below are a proposal, not the state of the system.
+  if (!write && process.env.STORE_SWITCH_PATH && process.env.STORE_SWITCH_PATH !== path) {
+    console.log(`
+  ⚠  A different STORE_SWITCH_PATH is already configured.
+
+     What follows is NEW and does nothing until you put both values in
+     place and restart. The URL you may already have bookmarked, and the
+     entry already in your authenticator, belong to the configured pair —
+     see them with:  npm run store:switch-setup -- --show
+`);
+  }
+
   if (outcome === 'occupied') {
     console.error(`
 Refusing to overwrite: .env already has STORE_SWITCH values.
