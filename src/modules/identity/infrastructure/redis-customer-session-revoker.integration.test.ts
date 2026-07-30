@@ -26,9 +26,9 @@ describe('RedisCustomerSessionRevoker (integration)', () => {
     ]);
     const store = sessions();
     const [aliceSession, bobSession, adminSession] = await Promise.all([
-      store.create(alice.id, 3600),
-      store.create(bob.id, 3600),
-      store.create(admin.id, 3600),
+      store.create(alice.id, { ttlSeconds: 3600, idleTimeoutSeconds: 3600 }),
+      store.create(bob.id, { ttlSeconds: 3600, idleTimeoutSeconds: 3600 }),
+      store.create(admin.id, { ttlSeconds: 3600, idleTimeoutSeconds: 3600 }),
     ]);
 
     const revoked = await revoker().revokeAllCustomerSessions();
@@ -44,9 +44,9 @@ describe('RedisCustomerSessionRevoker (integration)', () => {
     const store = sessions();
     // Phone, laptop, and a browser they forgot about.
     const created = await Promise.all([
-      store.create(customer.id, 3600),
-      store.create(customer.id, 3600),
-      store.create(customer.id, 3600),
+      store.create(customer.id, { ttlSeconds: 3600, idleTimeoutSeconds: 3600 }),
+      store.create(customer.id, { ttlSeconds: 3600, idleTimeoutSeconds: 3600 }),
+      store.create(customer.id, { ttlSeconds: 3600, idleTimeoutSeconds: 3600 }),
     ]);
 
     expect(await revoker().revokeAllCustomerSessions()).toBe(3);
@@ -61,7 +61,7 @@ describe('RedisCustomerSessionRevoker (integration)', () => {
 
   it('leaves unrelated Redis keys untouched', async () => {
     const customer = await makeUser(db, { role: 'customer' });
-    await sessions().create(customer.id, 3600);
+    await sessions().create(customer.id, { ttlSeconds: 3600, idleTimeoutSeconds: 3600 });
     await redis.set('cart:guest:abc', '{"lines":[]}');
     await redis.set('btc:addr:next-index', '42');
 
@@ -78,7 +78,7 @@ describe('RedisCustomerSessionRevoker (integration)', () => {
   it('walks past a single SCAN page', async () => {
     const customer = await makeUser(db, { role: 'customer' });
     const store = sessions();
-    await Promise.all(Array.from({ length: 500 }, () => store.create(customer.id, 3600)));
+    await Promise.all(Array.from({ length: 500 }, () => store.create(customer.id, { ttlSeconds: 3600, idleTimeoutSeconds: 3600 })));
 
     expect(await revoker().revokeAllCustomerSessions()).toBe(500);
     expect(await redis.keys('session:*')).toHaveLength(0);
@@ -88,7 +88,7 @@ describe('RedisCustomerSessionRevoker (integration)', () => {
     // Deleted account, session still in Redis until its TTL. Not an admin,
     // so it goes — the safe reading of an unknown holder.
     const store = sessions();
-    await store.create('a-user-id-that-was-deleted', 3600);
+    await store.create('a-user-id-that-was-deleted', { ttlSeconds: 3600, idleTimeoutSeconds: 3600 });
 
     expect(await revoker().revokeAllCustomerSessions()).toBe(1);
   });

@@ -159,6 +159,25 @@ depend on a write having succeeded.
   It is unguessable, not unreachable: anyone holding both secrets can call it from anywhere.
   Put it behind Tailscale/WireGuard if that matters.
 
+## Sessions
+
+- **Two clocks.** `SESSION_TTL_SECONDS` (30 days) is the hard ceiling; the idle window is
+  what actually ends most sessions. Customers get `SESSION_IDLE_TIMEOUT_SECONDS` (14 days),
+  admins `ADMIN_SESSION_IDLE_TIMEOUT_SECONDS` (1 hour) — an admin session can refund money
+  and delete a catalogue, a customer's can look at their own orders.
+- The idle window is chosen **at login**, from the role, and stored on the session. Only the
+  window: authorization still reads the role from the database on every request.
+- **Redis' TTL is what enforces idleness** — set to whichever clock expires first, so an idle
+  session disappears even if nothing ever reads it again. `lastSeenAt` is only rewritten
+  every 60s (`TOUCH_THROTTLE_SECONDS`); Redis is on every request path here and a write per
+  request is not free.
+- **Destructive admin actions need sudo mode**: refund, promote, and every delete call
+  `requireRecentAdminAuth()`, which needs the password typed within
+  `ADMIN_REAUTH_WINDOW_SECONDS` (15 min). Logging in counts. Browsing does **not** extend it —
+  it's bought by typing the password, not by being present.
+- Confirming the password does not replay the blocked action. Silently deleting something the
+  moment a password lands turns the prompt into a second confirm dialog.
+
 ## Idempotency
 
 Every mutating money- or inventory-touching operation **must** be idempotent:

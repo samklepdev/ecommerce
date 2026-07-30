@@ -144,6 +144,8 @@ import { ReorderItems } from '@/modules/cart/application/use-cases/reorder-items
 import { DrizzleUserRepository } from '@/modules/identity/infrastructure/drizzle-user-repository';
 import { RedisSessionStore } from '@/modules/identity/infrastructure/redis-session-store';
 import { SignUp } from '@/modules/identity/application/use-cases/sign-up';
+import { Reauthenticate } from '@/modules/identity/application/use-cases/reauthenticate';
+import type { SessionStore } from '@/modules/identity/application/ports/session-store';
 import { LogIn } from '@/modules/identity/application/use-cases/log-in';
 import { LogOut } from '@/modules/identity/application/use-cases/log-out';
 import { GetCurrentUser } from '@/modules/identity/application/use-cases/get-current-user';
@@ -272,7 +274,9 @@ export interface Container {
   reorderItems: ReorderItems;
 
   signUp: SignUp;
+  sessions: SessionStore;
   logIn: LogIn;
+  reauthenticate: Reauthenticate;
   logOut: LogOut;
   getCurrentUser: GetCurrentUser;
   changePassword: ChangePassword;
@@ -479,6 +483,7 @@ function build(): Container {
   const sessions = new RedisSessionStore(redis);
   const signUp = new SignUp(users);
   const logIn = new LogIn(users, sessions);
+  const reauthenticate = new Reauthenticate(users, sessions);
   const logOut = new LogOut(sessions);
   const getCurrentUser = new GetCurrentUser(sessions, users);
   const changePassword = new ChangePassword(users);
@@ -754,7 +759,9 @@ function build(): Container {
     mergeGuestCart,
     reorderItems,
     signUp,
+    sessions,
     logIn,
+    reauthenticate,
     logOut,
     getCurrentUser,
     changePassword,

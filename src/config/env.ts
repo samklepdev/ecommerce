@@ -50,6 +50,16 @@ const envSchema = z.object({
   BTC_WATCH_INTERVAL_MS: z.coerce.number().int().positive().default(45_000),
 
   SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(2_592_000),
+  // Idle timeouts, layered under the absolute TTL above: a session dies when
+  // either clock runs out. Customers get a long one because signing someone
+  // out mid-shop costs a sale and protects little; admins get a short one
+  // because that session can refund money and delete a catalogue.
+  SESSION_IDLE_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(1_209_600), // 14 days
+  ADMIN_SESSION_IDLE_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(3_600), // 1 hour
+  // How long typing your password buys you before a destructive admin
+  // action asks again. Long enough to do a batch of work, short enough that
+  // a walked-away-from laptop isn't one.
+  ADMIN_REAUTH_WINDOW_SECONDS: z.coerce.number().int().positive().default(900), // 15 minutes
   // The rate lock. Short on purpose: every minute of it is BTC/USD exposure
   // on a price already quoted to a customer.
   QUOTE_TTL_SECONDS: z.coerce.number().int().positive().default(900),

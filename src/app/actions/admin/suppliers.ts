@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 import { getContainer } from '@/composition/container';
 import { isErr } from '@/shared/domain/result';
-import { requireAdmin } from '@/app/lib/session';
+import { requireAdmin, requireRecentAdminAuth } from '@/app/lib/session';
 import { httpUrlSchema } from '@/app/lib/url-schema';
 
 const UpdateSupplierSchema = z.object({
@@ -119,7 +119,10 @@ export async function deleteSupplierAction(
   _prevState: DeleteSupplierActionResult | undefined,
   formData: FormData,
 ): Promise<DeleteSupplierActionResult> {
-  const admin = await requireAdmin();
+  // Destructive: refuses unless the password was typed recently.
+  const sudo = await requireRecentAdminAuth();
+  if (!sudo.ok) return { error: sudo.reason };
+  const admin = sudo.admin;
   const parsed = DeleteSupplierSchema.safeParse({ id: formData.get('id') });
   if (!parsed.success) return { error: 'Missing supplier.' };
 

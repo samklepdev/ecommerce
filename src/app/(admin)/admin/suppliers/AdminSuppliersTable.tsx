@@ -11,6 +11,8 @@ import {
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
+import { ReauthPrompt } from '@/components/admin/ReauthPrompt';
+import { REAUTH_REQUIRED } from '@/app/lib/session-constants';
 import { cx } from '@/components/ui/cx';
 import { SupplierEditPanel } from './SupplierEditPanel';
 import styles from './page.module.css';
@@ -61,7 +63,11 @@ export function AdminSuppliersTable({ suppliers, emptyMessage }: AdminSuppliersT
     <div>
       {toggleState.error && <Alert tone="danger">{toggleState.error}</Alert>}
       {toggleState.message && <Alert tone="success">{toggleState.message}</Alert>}
-      {deleteState.error && <Alert tone="danger">{deleteState.error}</Alert>}
+      {deleteState.error === REAUTH_REQUIRED ? (
+        <ReauthPrompt action="delete this supplier" />
+      ) : (
+        deleteState.error && <Alert tone="danger">{deleteState.error}</Alert>
+      )}
       {deleteState.message && <Alert tone="success">{deleteState.message}</Alert>}
 
       <div className={styles.tableWrap}>
