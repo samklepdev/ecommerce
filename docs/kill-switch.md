@@ -169,8 +169,9 @@ directions work: closing swaps to the notice, reopening swaps back.
 - **It does not reduce load.** Page components in the storefront group still execute;
   the visitor just sees the paused notice instead of the result.
 - **The closed page says nothing.** No header, no footer, no links, no copy, no wordmark —
-  one mark, centred. Links would all lead back to another copy of the same page, and any
-  wording is either a promise the switch can't keep or an explanation nobody asked for.
+  one mark, centred, pulsing slowly. Links would all lead back to another copy of the same
+  page, and any wording is either a promise the switch can't keep or an explanation nobody
+  asked for. The pulse is suppressed under `prefers-reduced-motion`.
 - **It does not cancel anything.** Existing orders, carts, and accounts are untouched, and
   reopening puts all of that back as it was. The one thing it does destroy is customer
   sessions — those people have to sign in again.
