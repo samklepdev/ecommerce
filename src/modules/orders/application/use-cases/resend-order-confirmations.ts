@@ -40,7 +40,11 @@ export class ResendOrderConfirmations implements UseCase<ResendOrderConfirmation
           customerEmail: input.email,
           orderId: order.id,
           lines: order.lines.map((l) => ({ sku: l.sku, quantity: l.quantity })),
-          totalDisplay: Money.of(order.amountMinor, order.currency).toString(),
+          // `toDisplayString`, not `toString` — this reaches a customer, and
+          // `toString` is the debug form ("4200 USD"). The queued
+          // order-confirmation path already formats it this way, and the same
+          // order must not read differently depending on which path mailed it.
+          totalDisplay: Money.of(order.amountMinor, order.currency).toDisplayString(),
           orderUrl: `${this.appUrl}/orders/${order.id}`,
         });
       } catch (e) {

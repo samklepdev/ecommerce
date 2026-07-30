@@ -17,9 +17,10 @@ chain-watcher poller. No third-party processor, no custody of funds, no card rai
 - **Next.js** (App Router) + **TypeScript** (strict mode, no implicit `any`)
 - **PostgreSQL** + **Drizzle** ORM
 - **Redis** (carts, idempotency keys, BTC address-index counter, rate limiting)
-- **No queue yet.** BullMQ is the intended destination for async work and is *not installed*;
-  the BTC watcher is a standalone interval process (`src/workers/btc-watcher.ts`) and email
-  and fulfillment run inline in the request path
+- **BullMQ** for after-the-response work (mail, supplier ordering) — `JobQueue` port,
+  `BullMqJobQueue` adapter, handlers in `src/workers/job-worker.ts`. See *Async / side effects*.
+  The BTC watcher stays a standalone interval process (`src/workers/btc-watcher.ts`) and hosts
+  the job worker in the same process
 - **bitcoinjs-lib + bip32 + tiny-secp256k1** for HD address derivation; **qrcode.react** for
   the checkout QR
 - **Zod** for validation at every boundary
@@ -235,9 +236,19 @@ Payment and fulfillment are **separate** machines that reference each other.
   Five attempts with exponential backoff; whatever exhausts them stays in BullMQ's failed set,
   which is the dead-letter queue, and `/api/health` reports the depths.
 - **Job ids must not contain `:`** — BullMQ builds its own keys with colons and rejects a
-  custom id containing one *at enqueue time*. Deterministic ids (`fulfillment-<orderId>`) are
-  what make an enqueue idempotent, which matters because the watcher re-runs its pass over the
-  same orders every 45s.
+  custom id containing one *at enqueue time*.
+- **A deterministic job id is a second line of defence, not the guard.** BullMQ dedupes a
+  repeated id only while that job still exists in Redis, and completed jobs are evicted on
+  `removeOnComplete` (an hour, or 1000 jobs) — past that the same id enqueues again. So the
+  watcher re-running its pass every 45s is safe because `ConfirmPayment` returns early once an
+  order is `paid` and `CreateSupplierOrdersForPaidOrder` skips lines already covered — the id
+  just saves the duplicate work inside the window. **Don't let a deterministic id stand in for
+  a handler that's actually idempotent.**
+- **Conversely, don't give a stable id to something a customer can legitimately repeat.**
+  Signup's `email-verification-<userId>` is fine because it happens once per account; the
+  resend button and change-email enqueue with **no** id, because a stable one would be deduped
+  into nothing inside the retention window and the action would report success having sent no
+  mail.
 - **Payloads carry ids, not objects.** A job may run minutes later, after a deploy, on another
   process; anything it carries is a snapshot that may already be stale, so handlers re-read.
 - **The chain watcher is still a loop**, not a repeatable job, and deliberately so: it is a
@@ -281,7 +292,7 @@ npm run test:integration:down  # stop them and drop the data
 npm run db:generate      # drizzle-kit generate (migrations)
 npm run db:migrate       # apply migrations
 npm run db:studio        # drizzle studio
-npm run queue:dev        # run the BTC watcher locally (tsx watch; no queue involved)
+npm run queue:dev        # run the BTC watcher + job worker locally (tsx watch; one process)
 npm run admin:promote -- <email>  # promote an existing account to admin
 npm run store:close      # kill switch: shut the storefront (optionally: -- "reason")
 npm run store:open       # reopen it

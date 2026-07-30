@@ -76,6 +76,7 @@ import { RedisProcessedEventStore } from '@/modules/orders/infrastructure/redis-
 import { QueuedFulfillmentQueue } from '@/modules/orders/infrastructure/queued-fulfillment-queue';
 import { QueuedPaymentConfirmationNotifier } from '@/modules/orders/infrastructure/queued-payment-confirmation-notifier';
 import { BullMqJobQueue } from '@/shared/infrastructure/queue/bullmq-job-queue';
+import type { JobQueue } from '@/shared/application/ports/job-queue';
 import { EmailPaymentConfirmationNotifier } from '@/modules/orders/infrastructure/email-payment-confirmation-notifier';
 import { EmailShipmentNotifier } from '@/modules/orders/infrastructure/email-shipment-notifier';
 
@@ -220,7 +221,11 @@ export interface Container {
   rateLimiter: RateLimiter;
   heartbeats: HeartbeatStore;
   checkSystemHealth: CheckSystemHealth;
-  jobQueue: BullMqJobQueue;
+  /** The port, not `BullMqJobQueue` — callers (server actions) get `enqueue`
+   * and nothing else. `stats()` reaches `CheckSystemHealth` as a
+   * `JobQueueMonitor` injected below, so nothing outside this file needs the
+   * concrete adapter. */
+  jobQueue: JobQueue;
   paymentConfirmationEmail: EmailPaymentConfirmationNotifier;
   getStoreAvailability: GetStoreAvailability;
   setStoreAvailability: SetStoreAvailability;

@@ -6,13 +6,15 @@ import { createJobWorker } from '@/workers/job-worker';
 
 /**
  * Standalone worker: polls the chain for awaiting BTC payments and drives
- * ConfirmPayment, then reconciles stale reservations. This is the `worker`
- * service in docker-compose (separate process from the Next `web` service).
+ * ConfirmPayment, then reconciles stale reservations. It also hosts the BullMQ
+ * job worker (see below). This is the `worker` service in docker-compose
+ * (separate process from the Next `web` service).
  *
- * FIRST CUT — a simple interval loop. The production upgrade is a BullMQ repeat
- * job (dedupe + backoff + observability). Because each pass reconciles from
- * chain state, a restart never loses a payment: confirmations arrive a cycle
- * late at worst.
+ * **The chain poll stays an interval loop rather than a BullMQ repeat job**, and
+ * deliberately: it is a poller with a heartbeat `/api/health` already watches, so
+ * converting the one thing that notices a customer paid would buy observability
+ * it has. Because each pass reconciles from chain state, a restart never loses a
+ * payment: confirmations arrive a cycle late at worst.
  *
  * **Run exactly one of these.** There is no lock or leader election, so a
  * second replica just doubles the load on the Esplora provider (the work

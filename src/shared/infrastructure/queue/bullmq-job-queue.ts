@@ -49,7 +49,16 @@ export interface RetryPolicy {
  * that way.
  */
 export function createQueueConnection(url: string): Redis {
-  return new Redis(url, { maxRetriesPerRequest: null });
+  return new Redis(url, {
+    maxRetriesPerRequest: null,
+    // `lazyConnect` for the same reason `redis/client.ts` uses it: the DI
+    // container builds a queue unconditionally (`container.ts`), so importing
+    // the container must not open a socket — `next build` renders pages with
+    // no Redis running. Without this, constructing the queue alone against a
+    // dead Redis emits ~13 `[ioredis] Unhandled error event: connect
+    // ECONNREFUSED` in four seconds; with it, none until a command is issued.
+    lazyConnect: true,
+  });
 }
 
 export class BullMqJobQueue implements JobQueue, JobQueueMonitor {

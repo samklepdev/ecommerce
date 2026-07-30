@@ -112,11 +112,21 @@ export async function resendVerificationAction(): Promise<ResendVerificationActi
   const user = await requireUser();
   if (user.isEmailVerified) return { message: 'Your email is already verified.' };
 
-  const { requestEmailVerification } = getContainer();
+  const { jobQueue } = getContainer();
   try {
-    await requestEmailVerification.execute({ userId: user.id, email: user.email });
+    // No `jobId`, deliberately. Signup can use a deterministic
+    // `email-verification-<userId>` because it happens once per account; a
+    // resend cannot. Completed jobs are retained for an hour, so a stable id
+    // here would dedupe the second press of the button into nothing and this
+    // action would report success having sent no mail.
+    await jobQueue.enqueue('email.verification', { userId: user.id, email: user.email });
   } catch (e) {
-    logger.warn('resend-verification: failed', { error: e instanceof Error ? e.message : String(e) });
+    // The enqueue is all this action does, so if it fails nothing is going to
+    // happen later and the customer should be told to try again. A mail
+    // provider failing is no longer this path's problem — the queue retries it.
+    logger.error('resend-verification: could not queue mail', {
+      error: e instanceof Error ? e.message : String(e),
+    });
     return { error: 'Could not send the verification email. Try again shortly.' };
   }
 
@@ -144,7 +154,7 @@ export async function changeEmailAction(
   });
   if (!parsed.success) return { error: 'Enter a valid email and your current password.' };
 
-  const { changeEmail, requestEmailVerification } = getContainer();
+  const { changeEmail, jobQueue } = getContainer();
   const result = await changeEmail.execute({
     userId: user.id,
     newEmail: parsed.data.newEmail,
@@ -160,9 +170,20 @@ export async function changeEmailAction(
   }
 
   try {
-    await requestEmailVerification.execute({ userId: user.id, email: parsed.data.newEmail });
+    // Queued, and swallowed if the enqueue itself fails: the email change has
+    // already committed, so this cannot report failure without telling the
+    // customer their address didn't change when it did. What the queue buys is
+    // that a mail provider having a bad minute no longer silently costs someone
+    // their verification link while this action claims one is on the way.
+    //
+    // No `jobId` — see resendVerificationAction. A stable id would drop the
+    // second change within the retention window.
+    await jobQueue.enqueue('email.verification', {
+      userId: user.id,
+      email: parsed.data.newEmail,
+    });
   } catch (e) {
-    logger.warn('change-email: verification email failed', {
+    logger.error('change-email: could not queue verification mail', {
       error: e instanceof Error ? e.message : String(e),
     });
   }

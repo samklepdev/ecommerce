@@ -63,7 +63,7 @@ describe('ResendOrderConfirmations', () => {
       customerEmail: 'buyer@example.com',
       orderId: 'order-1',
       lines: [{ sku: 'SKU-1', quantity: 2 }],
-      totalDisplay: '4200 USD',
+      totalDisplay: '$42.00',
       orderUrl: 'https://shop.example.com/orders/order-1',
     });
     expect(sent[1]?.orderId).toBe('order-2');
