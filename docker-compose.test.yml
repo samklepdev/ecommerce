@@ -1,0 +1,34 @@
+# Throwaway Postgres and Redis for the integration suite.
+#
+# Deliberately separate from docker-compose.yml and on different ports: that
+# stack holds your development data, and these tests truncate every table
+# between cases. Nothing here has a volume — the whole point is that the
+# state dies with the container.
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: storefront_test
+    ports:
+      - '5433:5432'
+    # Data in memory, not on a volume: it's recreated from migrations on
+    # every run anyway, and this makes the suite noticeably faster.
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U test -d storefront_test']
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  redis-test:
+    image: redis:7-alpine
+    ports:
+      - '6380:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 2s
+      timeout: 3s
+      retries: 15
