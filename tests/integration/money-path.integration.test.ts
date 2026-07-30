@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { Cart } from '@/modules/cart/domain/cart';
 import { CartLine } from '@/modules/cart/domain/cart-line';
@@ -31,6 +31,20 @@ const SHIPPING_ADDRESS = {
  */
 describe('the money path (integration)', () => {
   const { db, redis } = useTestInfrastructure();
+  const built: { closeJobs: () => Promise<void> }[] = [];
+
+  /** Tracked so every worker this file starts is closed again — an open
+   * BullMQ worker keeps the process alive after the suite finishes. */
+  function money(...args: Parameters<typeof buildMoneyPath>) {
+    const path = buildMoneyPath(...args);
+    built.push(path);
+    return path;
+  }
+
+  afterEach(async () => {
+    await Promise.all(built.map((p) => p.closeJobs()));
+    built.length = 0;
+  });
 
   const owner = { type: 'guest', sessionId: 'session-under-test' } as const;
 
@@ -69,7 +83,7 @@ describe('the money path (integration)', () => {
 
   it('carries an order from cart to paid to sourced', async () => {
     const { product, supplier } = await arrangeCartWithOneProduct();
-    const path = buildMoneyPath(db, redis, { requiredConfirmations: 3 });
+    const path = money(db, redis, { requiredConfirmations: 3 });
 
     // 1. Place the order.
     const placed = await path.placeOrder.execute({
@@ -114,6 +128,9 @@ describe('the money path (integration)', () => {
 
     const paid = await path.orders.findById(orderId);
     expect(paid?.paymentStatus).toBe('paid');
+
+    // The sourcing work and the email are jobs now, not inline calls.
+    await path.drainJobs();
     expect(path.notifier.notified).toEqual([orderId]);
 
     // 5. And fulfilment has something to act on.
@@ -124,7 +141,7 @@ describe('the money path (integration)', () => {
   });
 
   it('gives two orders two different addresses', async () => {
-    const path = buildMoneyPath(db, redis);
+    const path = money(db, redis);
     const addresses: string[] = [];
 
     for (const email of ['first@example.com', 'second@example.com']) {
@@ -155,7 +172,7 @@ describe('the money path (integration)', () => {
 
   it('does not mark an underpaid order paid, however deep it is', async () => {
     await arrangeCartWithOneProduct();
-    const path = buildMoneyPath(db, redis, { requiredConfirmations: 2 });
+    const path = money(db, redis, { requiredConfirmations: 2 });
 
     const placed = await path.placeOrder.execute({
       owner,
@@ -175,6 +192,7 @@ describe('the money path (integration)', () => {
     // Well short, and buried 20 blocks deep.
     path.chain.pay(session.value.reference, session.value.expectedSats - 5_000, 20);
     await path.watcher.runOnce();
+    await path.drainJobs();
 
     const order = await path.orders.findById(placed.value.id);
     expect(order?.paymentStatus).toBe('awaiting_confirmation');
@@ -183,7 +201,7 @@ describe('the money path (integration)', () => {
 
   it('is idempotent across repeated watcher passes', async () => {
     const { supplier } = await arrangeCartWithOneProduct();
-    const path = buildMoneyPath(db, redis, { requiredConfirmations: 1 });
+    const path = money(db, redis, { requiredConfirmations: 1 });
 
     const placed = await path.placeOrder.execute({
       owner,
@@ -207,6 +225,7 @@ describe('the money path (integration)', () => {
     await path.watcher.runOnce();
     await path.watcher.runOnce();
     await path.watcher.runOnce();
+    await path.drainJobs();
 
     expect(path.notifier.notified).toEqual([placed.value.id]);
     const supplierOrders = await path.supplierOrders.listByOrderId(placed.value.id);
@@ -216,7 +235,7 @@ describe('the money path (integration)', () => {
 
   it('stops watching an order once it is paid', async () => {
     await arrangeCartWithOneProduct();
-    const path = buildMoneyPath(db, redis, { requiredConfirmations: 1 });
+    const path = money(db, redis, { requiredConfirmations: 1 });
 
     const placed = await path.placeOrder.execute({
       owner,

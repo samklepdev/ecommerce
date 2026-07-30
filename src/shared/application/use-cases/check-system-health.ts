@@ -1,5 +1,6 @@
 import type { UseCase } from '@/shared/application/use-case';
 import type { GetStoreAvailability } from '@/shared/application/use-cases/get-store-availability';
+import type { JobQueueMonitor, JobQueueStats } from '@/shared/application/ports/job-queue';
 import {
   BTC_WATCHER_HEARTBEAT,
   type HeartbeatStore,
@@ -31,6 +32,11 @@ export interface SystemHealth {
   /** Whether the kill switch is on. Reported, never counted toward
    * `status` — see the class doc. */
   storeOpen: boolean;
+  /** Queue depths. Reported for the same reason the watcher heartbeat is:
+   * work silently piling up is how you find out days later that nobody got
+   * their confirmation email. Null when the queue can't be read — that's
+   * already covered by the redis check. */
+  jobs: JobQueueStats | null;
 }
 
 /**
@@ -64,15 +70,17 @@ export class CheckSystemHealth implements UseCase<void, SystemHealth> {
     /** How long the watcher may go quiet before it counts as dead. */
     private readonly watcherStaleAfterMs: number,
     private readonly storeAvailability: GetStoreAvailability,
+    private readonly jobs: JobQueueMonitor,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
   async execute(): Promise<SystemHealth> {
-    const [database, redis, btcWatcher, availability] = await Promise.all([
+    const [database, redis, btcWatcher, availability, jobs] = await Promise.all([
       this.probe(this.database),
       this.probe(this.cache),
       this.checkWatcher(),
       this.storeAvailability.execute(),
+      this.jobCounts(),
     ]);
 
     const status =
@@ -80,7 +88,23 @@ export class CheckSystemHealth implements UseCase<void, SystemHealth> {
         ? 'ok'
         : 'degraded';
 
-    return { status, checks: { database, redis, btcWatcher }, storeOpen: availability.isOpen };
+    return {
+      status,
+      checks: { database, redis, btcWatcher },
+      storeOpen: availability.isOpen,
+      jobs,
+    };
+  }
+
+  /** Never throws, and never affects `status`: a depth reading is
+   * information, not a verdict — and a queue with a backlog is still a
+   * working queue. */
+  private async jobCounts(): Promise<JobQueueStats | null> {
+    try {
+      return await this.jobs.stats();
+    } catch {
+      return null;
+    }
   }
 
   private async probe(service: ServiceProbe): Promise<ServiceCheck> {

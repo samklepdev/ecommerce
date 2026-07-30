@@ -4,7 +4,6 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
-import { env } from '@/config/env';
 import { getContainer } from '@/composition/container';
 import { isErr } from '@/shared/domain/result';
 import { logger } from '@/shared/infrastructure/logger';
@@ -68,7 +67,7 @@ export async function startCheckoutAction(
   }
 
   const owner = await resolveCartOwner();
-  const { placeOrder, startCheckout, sendOrderConfirmationEmail, addSavedAddress } = getContainer();
+  const { placeOrder, startCheckout, jobQueue, addSavedAddress } = getContainer();
 
   const placed = await placeOrder.execute({
     owner,
@@ -146,17 +145,20 @@ export async function startCheckoutAction(
   // later navigation, doesn't keep showing the pre-checkout count.
   revalidatePath('/', 'layout');
 
-  const orderUrl = `${env.APP_URL}/orders/${placed.value.id}`;
+  // Queued, not sent here. A customer used to wait for the mail provider
+  // before their payment page rendered, and a provider timeout meant the
+  // email was simply lost — there was nothing to retry it.
   try {
-    await sendOrderConfirmationEmail.execute({
-      customerEmail: parsed.data.customerEmail,
-      orderId: placed.value.id,
-      lines: placed.value.lines.map((line) => ({ sku: line.sku, quantity: line.quantity })),
-      totalDisplay: placed.value.total.toString(),
-      orderUrl,
-    });
+    await jobQueue.enqueue(
+      'email.order-confirmation',
+      { orderId: placed.value.id, customerEmail: parsed.data.customerEmail },
+      { jobId: `order-confirmation-${placed.value.id}` },
+    );
   } catch (e) {
-    logger.warn('checkout: order confirmation email failed', {
+    // Redis is down. The order exists and is payable — that matters more
+    // than the receipt, so this is logged rather than surfaced.
+    logger.error('checkout: could not queue the order confirmation email', {
+      orderId: placed.value.id,
       error: e instanceof Error ? e.message : String(e),
     });
   }

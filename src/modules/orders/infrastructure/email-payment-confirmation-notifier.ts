@@ -31,7 +31,9 @@ export class EmailPaymentConfirmationNotifier implements PaymentConfirmationNoti
 
     const html = renderPaymentConfirmedEmailHtml({
       orderId: order.id,
-      totalDisplay: total.toString(),
+      // Customer-facing, so the formatted form — `toString` is the debug
+      // shape ("4200 USD"). See the same note in ResendOrderConfirmations.
+      totalDisplay: total.toDisplayString(),
       orderUrl: `${this.appUrl}/orders/${order.id}`,
       supportEmail: this.supportEmail,
     });

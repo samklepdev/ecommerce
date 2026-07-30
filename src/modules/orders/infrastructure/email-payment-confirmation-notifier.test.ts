@@ -54,7 +54,7 @@ describe('EmailPaymentConfirmationNotifier', () => {
 
     expect(sent).toHaveLength(1);
     expect(sent[0]?.to).toBe('buyer@example.com');
-    expect(sent[0]?.html).toContain('4200 USD');
+    expect(sent[0]?.html).toContain('$42.00');
     expect(sent[0]?.html).toContain('https://shop.example.com/orders/order-1');
   });
 
@@ -77,8 +77,8 @@ describe('EmailPaymentConfirmationNotifier', () => {
       'order-1',
     );
 
-    expect(sent[0]?.html).toContain('4000 USD');
-    expect(sent[0]?.html).not.toContain('4200 USD');
+    expect(sent[0]?.html).toContain('$40.00');
+    expect(sent[0]?.html).not.toContain('$42.00');
   });
 
   it('is a no-op when the order no longer exists', async () => {

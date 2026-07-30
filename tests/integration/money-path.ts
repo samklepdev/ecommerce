@@ -30,7 +30,11 @@ import { StartCheckout } from '@/modules/checkout/application/use-cases/start-ch
 import { ConfirmPayment } from '@/modules/orders/application/use-cases/confirm-payment';
 import { MarkAwaitingConfirmation } from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
 import { CreateSupplierOrdersForPaidOrder } from '@/modules/orders/application/use-cases/create-supplier-orders-for-paid-order';
-import { SupplierOrderFulfillmentQueue } from '@/modules/orders/infrastructure/supplier-order-fulfillment-queue';
+import { QueuedFulfillmentQueue } from '@/modules/orders/infrastructure/queued-fulfillment-queue';
+import { QueuedPaymentConfirmationNotifier } from '@/modules/orders/infrastructure/queued-payment-confirmation-notifier';
+import { BullMqJobQueue, createQueueConnection, QUEUE_NAME } from '@/shared/infrastructure/queue/bullmq-job-queue';
+import { Worker } from 'bullmq';
+import { TEST_REDIS_URL } from './config';
 import type { AssertStoreOpenForCheckout } from '@/shared/application/use-cases/assert-store-open-for-checkout';
 
 /** A watch-only testnet xpub. Public data by definition — this is the whole
@@ -131,16 +135,54 @@ export function buildMoneyPath(
     orders,
   );
 
+  // The production wiring: confirming a payment enqueues the sourcing work
+  // and the email rather than doing either on the watcher's thread. The
+  // worker below is the same handler shape the real worker process runs, so
+  // these tests cover the transport too — a refactor that broke the queue
+  // would break the money path here.
+  const jobQueue = new BullMqJobQueue(TEST_REDIS_URL, { attempts: 1, backoffDelayMs: 10 });
+
+  const jobWorker = new Worker(
+    QUEUE_NAME,
+    async (job) => {
+      if (job.name === 'fulfillment.create-supplier-orders') {
+        await createSupplierOrders.execute({ orderId: job.data.orderId });
+      }
+      if (job.name === 'email.payment-confirmed') {
+        await notifier.notifyPaymentConfirmed(job.data.orderId);
+      }
+    },
+    { connection: createQueueConnection(TEST_REDIS_URL), concurrency: 1 },
+  );
+
   const confirmPayment = new ConfirmPayment(
     orders,
     processed,
-    new SupplierOrderFulfillmentQueue(createSupplierOrders),
-    notifier,
+    new QueuedFulfillmentQueue(jobQueue),
+    new QueuedPaymentConfirmationNotifier(jobQueue),
   );
+
+  /** Resolves once the queue has nothing left to do — the async equivalent
+   * of the old synchronous call, so assertions don't race the worker. */
+  const drainJobs = async (): Promise<void> => {
+    for (let i = 0; i < 100; i += 1) {
+      const { waiting, active } = await jobQueue.stats();
+      if (waiting === 0 && active === 0) return;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    throw new Error('jobs did not drain within 5s');
+  };
+
+  const closeJobs = async (): Promise<void> => {
+    await jobWorker.close();
+    await jobQueue.close();
+  };
 
   return {
     chain,
     notifier,
+    drainJobs,
+    closeJobs,
     paymentStore,
     orders,
     supplierOrders,

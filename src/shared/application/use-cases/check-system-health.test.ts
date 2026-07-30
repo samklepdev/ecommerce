@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { GetStoreAvailability } from '@/shared/application/use-cases/get-store-availability';
+import type { JobQueueMonitor } from '@/shared/application/ports/job-queue';
 import { CheckSystemHealth } from './check-system-health';
 import type { HeartbeatStore, ServiceProbe } from '@/shared/application/ports/health-ports';
 
@@ -29,10 +30,18 @@ function makeUseCase(opts: {
   watcherLastSeen?: Date | null;
   staleAfterMs?: number;
   storeOpen?: boolean;
+  jobs?: { waiting: number; active: number; failed: number } | 'unreadable';
 }) {
   const availability = {
     execute: async () => ({ isOpen: opts.storeOpen ?? true, closure: null }),
   } as GetStoreAvailability;
+
+  const jobs: JobQueueMonitor = {
+    async stats() {
+      if (opts.jobs === 'unreadable') throw new Error('redis down');
+      return opts.jobs ?? { waiting: 0, active: 0, failed: 0 };
+    },
+  };
 
   return new CheckSystemHealth(
     probe(opts.db ?? true),
@@ -40,6 +49,7 @@ function makeUseCase(opts: {
     heartbeat(opts.watcherLastSeen === undefined ? NOW : opts.watcherLastSeen),
     opts.staleAfterMs ?? 135_000,
     availability,
+    jobs,
     () => NOW,
   );
 }
@@ -123,5 +133,22 @@ describe('CheckSystemHealth', () => {
 
   it('reports an open store when the switch is off', async () => {
     expect((await makeUseCase({}).execute()).storeOpen).toBe(true);
+  });
+
+  it('reports queue depths alongside the service checks', async () => {
+    const result = await makeUseCase({ jobs: { waiting: 7, active: 1, failed: 3 } }).execute();
+
+    expect(result.jobs).toEqual({ waiting: 7, active: 1, failed: 3 });
+  });
+
+  // A backlog is information, not a verdict — a queue with work in it is a
+  // working queue, and an unreadable one is already covered by the redis
+  // check above.
+  it('does not let a backlog or an unreadable queue fail the check', async () => {
+    expect((await makeUseCase({ jobs: { waiting: 5_000, active: 5, failed: 99 } }).execute()).status).toBe('ok');
+
+    const unreadable = await makeUseCase({ jobs: 'unreadable' }).execute();
+    expect(unreadable.jobs).toBeNull();
+    expect(unreadable.status).toBe('ok');
   });
 });

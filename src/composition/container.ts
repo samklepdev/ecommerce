@@ -73,7 +73,10 @@ import type { BtcRateProvider } from '@/modules/payments/application/ports/bitco
 import { DrizzleOrderRepository } from '@/modules/orders/infrastructure/drizzle-order-repository';
 import { DrizzleSupplierOrderRepository } from '@/modules/orders/infrastructure/drizzle-supplier-order-repository';
 import { RedisProcessedEventStore } from '@/modules/orders/infrastructure/redis-processed-event-store';
-import { SupplierOrderFulfillmentQueue } from '@/modules/orders/infrastructure/supplier-order-fulfillment-queue';
+import { QueuedFulfillmentQueue } from '@/modules/orders/infrastructure/queued-fulfillment-queue';
+import { QueuedPaymentConfirmationNotifier } from '@/modules/orders/infrastructure/queued-payment-confirmation-notifier';
+import { BullMqJobQueue } from '@/shared/infrastructure/queue/bullmq-job-queue';
+import type { JobQueue } from '@/shared/application/ports/job-queue';
 import { EmailPaymentConfirmationNotifier } from '@/modules/orders/infrastructure/email-payment-confirmation-notifier';
 import { EmailShipmentNotifier } from '@/modules/orders/infrastructure/email-shipment-notifier';
 
@@ -218,6 +221,12 @@ export interface Container {
   rateLimiter: RateLimiter;
   heartbeats: HeartbeatStore;
   checkSystemHealth: CheckSystemHealth;
+  /** The port, not `BullMqJobQueue` — callers (server actions) get `enqueue`
+   * and nothing else. `stats()` reaches `CheckSystemHealth` as a
+   * `JobQueueMonitor` injected below, so nothing outside this file needs the
+   * concrete adapter. */
+  jobQueue: JobQueue;
+  paymentConfirmationEmail: EmailPaymentConfirmationNotifier;
   getStoreAvailability: GetStoreAvailability;
   setStoreAvailability: SetStoreAvailability;
   assertStoreOpenForCheckout: AssertStoreOpenForCheckout;
@@ -387,6 +396,7 @@ function build(): Container {
   // The kill switch. Its store is built here next to the other Redis
   // adapters; the write side is wired after the audit recorder below, since
   // every flip of it is audited.
+  const jobQueue = new BullMqJobQueue(env.REDIS_URL);
   const storeAvailabilityStore = new RedisStoreAvailabilityStore(redis);
   const getStoreAvailability = new GetStoreAvailability(storeAvailabilityStore);
   const checkSystemHealth = new CheckSystemHealth(
@@ -395,6 +405,7 @@ function build(): Container {
     heartbeats,
     Math.max(3 * env.BTC_WATCH_INTERVAL_MS, 120_000),
     getStoreAvailability,
+    jobQueue,
   );
   const assertStoreOpenForCheckout = new AssertStoreOpenForCheckout(storeAvailabilityStore);
 
@@ -631,8 +642,12 @@ function build(): Container {
     supplierOrders,
     orders,
   );
-  const fulfillment = new SupplierOrderFulfillmentQueue(createSupplierOrdersForPaidOrder);
-  const paymentConfirmationNotifier = new EmailPaymentConfirmationNotifier(
+  // The queue-backed pair: ConfirmPayment still depends on the same two
+  // ports, but both now hand the work to a job instead of doing it on the
+  // watcher's thread. The email notifier below is what the *worker* calls.
+  const fulfillment = new QueuedFulfillmentQueue(jobQueue);
+  const paymentConfirmationNotifier = new QueuedPaymentConfirmationNotifier(jobQueue);
+  const paymentConfirmationEmail = new EmailPaymentConfirmationNotifier(
     orders,
     emailSender,
     env.APP_URL,
@@ -706,6 +721,8 @@ function build(): Container {
     rateLimiter,
     heartbeats,
     checkSystemHealth,
+    jobQueue,
+    paymentConfirmationEmail,
     getStoreAvailability,
     setStoreAvailability,
     assertStoreOpenForCheckout,
