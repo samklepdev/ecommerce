@@ -90,28 +90,60 @@ export function hasFinderPatterns({ size, modules }: QrMatrix): boolean {
   );
 }
 
+/** Half-block glyphs, indexed by [top is dark][bottom is dark]. Printed
+ * black-on-white, so the fill is the dark module and the background is the
+ * light one. */
+const HALF_BLOCK = [
+  [' ', '▄'],
+  ['▀', '█'],
+] as const;
+
 /**
- * Renders the matrix using ANSI background colours rather than block
- * characters.
+ * Renders the matrix two rows per line, using half-block characters.
  *
- * Blocks (`██`) only scan on a light terminal — on a dark one the code comes
- * out inverted and no reader will touch it. Explicit black-on-white
- * backgrounds look the same either way. The four-module quiet zone is part
- * of the spec, not padding: without it, scanners can't find the symbol.
+ * **Size is a correctness problem, not a comfort one.** One cell per module
+ * makes a 41-module symbol 49 columns wide with its quiet zone; two cells
+ * per module makes it 98, which wraps in an 80-column terminal and turns the
+ * code into confetti. Packing two module-rows into each line also fixes the
+ * aspect ratio — a terminal cell is about twice as tall as it is wide, so
+ * half a cell high by one cell wide is square, which is what a scanner
+ * expects.
+ *
+ * Explicit black-on-white, rather than relying on the terminal's own
+ * colours: on a dark background the code would come out inverted and no
+ * reader will touch it.
+ *
+ * The four-module quiet zone is part of the spec, not padding — without it
+ * scanners can't find the symbol at all.
  */
 export function renderQrToAnsi({ size, modules }: QrMatrix): string {
-  const DARK = '\x1b[40m  \x1b[0m';
-  const LIGHT = '\x1b[47m  \x1b[0m';
   const QUIET = 4;
+  const span = size + QUIET * 2;
+  // Black on white, set once per line and reset at the end of it, so a
+  // terminal that soft-wraps can't smear the colour across the screen.
+  const OPEN = '\x1b[30;47m';
+  const CLOSE = '\x1b[0m';
 
-  const blank = LIGHT.repeat(size + QUIET * 2);
-  const lines: string[] = Array.from({ length: QUIET }, () => blank);
+  /** Padded row lookup: anything outside the symbol is quiet zone. */
+  const isDark = (row: number, col: number): boolean => {
+    const y = row - QUIET;
+    const x = col - QUIET;
+    if (y < 0 || x < 0 || y >= size || x >= size) return false;
+    return modules[y]![x]!;
+  };
 
-  for (let y = 0; y < size; y += 1) {
-    let line = LIGHT.repeat(QUIET);
-    for (let x = 0; x < size; x += 1) line += modules[y]![x] ? DARK : LIGHT;
-    lines.push(line + LIGHT.repeat(QUIET));
+  const lines: string[] = [];
+  for (let row = 0; row < span; row += 2) {
+    let line = '';
+    for (let col = 0; col < span; col += 1) {
+      // The bottom half of the final line falls outside an odd-height grid,
+      // which reads as quiet zone — exactly what it should be.
+      const top = isDark(row, col);
+      const bottom = row + 1 < span ? isDark(row + 1, col) : false;
+      line += HALF_BLOCK[top ? 1 : 0][bottom ? 1 : 0];
+    }
+    lines.push(OPEN + line + CLOSE);
   }
 
-  return [...lines, ...Array.from({ length: QUIET }, () => blank)].join('\n');
+  return lines.join('\n');
 }

@@ -98,15 +98,22 @@ export function verifyTotp(
   return { valid: matchedStep !== null, step: matchedStep };
 }
 
-/** The `otpauth://` URI an authenticator app scans or imports. */
+/**
+ * The `otpauth://` URI an authenticator app scans or imports.
+ *
+ * `algorithm=SHA1`, `digits=6` and `period=30` are deliberately omitted:
+ * they are the defaults in the key-uri spec and match what this file
+ * implements, and spelling them out costs ~34 characters — enough to push
+ * the QR from 37 modules to 41, which is the difference between a code that
+ * fits an 80x24 terminal and one that scrolls off it. A QR you have to
+ * scroll is a QR you can't scan.
+ *
+ * The setup script prints the current code straight after, so a client that
+ * somehow defaulted differently would show up immediately as a mismatch
+ * rather than as a kill switch that quietly doesn't work.
+ */
 export function totpUri(secretBase32: string, label: string, issuer: string): string {
-  const params = new URLSearchParams({
-    secret: secretBase32,
-    issuer,
-    algorithm: 'SHA1',
-    digits: String(DIGITS),
-    period: String(STEP_SECONDS),
-  });
+  const params = new URLSearchParams({ secret: secretBase32, issuer });
   return `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(label)}?${params}`;
 }
 

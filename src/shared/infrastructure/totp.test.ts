@@ -98,7 +98,17 @@ describe('totpUri', () => {
 
     expect(uri).toContain('otpauth://totp/Storefront:kill%20switch');
     expect(uri).toContain('secret=JBSWY3DPEE');
-    expect(uri).toContain('period=30');
-    expect(uri).toContain('digits=6');
+    expect(uri).toContain('issuer=Storefront');
+  });
+
+  // Every omitted parameter is one this file implements at the spec default,
+  // and ~34 characters that would push the QR up a version — see totpUri.
+  it('omits the parameters that are already the defaults, to keep the QR small', () => {
+    const uri = totpUri('JBSWY3DPEE', 'kill switch', 'Storefront');
+
+    expect(uri).not.toContain('algorithm=');
+    expect(uri).not.toContain('digits=');
+    expect(uri).not.toContain('period=');
+    expect(uri.length).toBeLessThan(80);
   });
 });

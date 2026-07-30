@@ -56,23 +56,56 @@ describe('parseQrMatrix', () => {
 });
 
 describe('renderQrToAnsi', () => {
-  it('draws every row with a four-module quiet zone on all sides', () => {
-    const matrix = parseQrMatrix(svgFor('otpauth://totp/a?secret=AAAA'))!;
+  const matrixFor = (value: string) => parseQrMatrix(svgFor(value))!;
+
+  it('packs two module rows per line, with a four-module quiet zone', () => {
+    const matrix = matrixFor('otpauth://totp/a?secret=AAAA');
 
     const lines = renderQrToAnsi(matrix).split('\n');
+    const span = matrix.size + 8;
 
-    expect(lines).toHaveLength(matrix.size + 8);
-    // The first four rows are entirely light — the quiet zone the spec
-    // requires for a scanner to find the symbol at all.
-    expect(lines.slice(0, 4).every((line) => !line.includes('\x1b[40m'))).toBe(true);
-    expect(lines.slice(-4).every((line) => !line.includes('\x1b[40m'))).toBe(true);
+    expect(lines).toHaveLength(Math.ceil(span / 2));
+    // Two quiet rows collapse into the first line, so it must be blank.
+    expect(lines[0]).not.toMatch(/[▀▄█]/);
+    expect(lines[lines.length - 1]).not.toMatch(/[▀▄█]/);
   });
 
-  it('uses background colours, not block characters, so it scans on a dark terminal too', () => {
-    const output = renderQrToAnsi(parseQrMatrix(svgFor('x'))!);
+  // Width is the reason this exists: at two cells per module a real
+  // otpauth:// symbol is ~98 columns and wraps in an 80-column terminal,
+  // which shreds the code.
+  it('stays within 80 columns for a realistic otpauth URI', () => {
+    const matrix = matrixFor(
+      'otpauth://totp/Storefront:kill%20switch?secret=AMZS7J4K3GGNHP3N6QDAGGUBAAA3H2SV&issuer=Storefront&algorithm=SHA1&digits=6&period=30',
+    );
 
-    expect(output).toContain('\x1b[40m');
-    expect(output).toContain('\x1b[47m');
-    expect(output).not.toContain('█');
+    const visibleWidth = renderQrToAnsi(matrix)
+      .split('\n')
+      .map((line) => line.replace(/\x1b\[[0-9;]*m/g, '').length);
+
+    expect(Math.max(...visibleWidth)).toBe(matrix.size + 8);
+    expect(Math.max(...visibleWidth)).toBeLessThanOrEqual(80);
+  });
+
+  it('prints black on white explicitly, so it scans on a dark terminal too', () => {
+    const output = renderQrToAnsi(matrixFor('x'));
+
+    expect(output).toContain('\x1b[30;47m');
+    // Every line closes its own colour rather than leaking it onward.
+    for (const line of output.split('\n')) expect(line.endsWith('\x1b[0m')).toBe(true);
+  });
+
+  it('draws each module pair as the right half-block', () => {
+    // A hand-built matrix beats a generated one here: it pins the mapping
+    // rather than asserting whatever the renderer happens to do.
+    const modules = [
+      [true, false],
+      [false, true],
+    ];
+    const lines = renderQrToAnsi({ size: 2, modules }).split('\n');
+    const stripped = lines.map((l) => l.replace(/\x1b\[[0-9;]*m/g, ''));
+
+    // Rows 4 and 5 of the padded grid are the symbol; they share one line.
+    const symbolLine = stripped[2]!;
+    expect(symbolLine.slice(4, 6)).toBe('▀▄');
   });
 });

@@ -82,26 +82,26 @@ Your URL then is:
 
   ...and ?action=open to reopen, ?action=status to check.
   Add &reason=... on close to note why in the audit log.
-`);
 
-  if (qr) {
-    console.log('Scan this with your authenticator app:\n');
-    console.log(qr);
-  } else {
-    // Never show a QR this couldn't verify — the pasteable URI below always
-    // works, and every authenticator app accepts manual entry.
-    console.log('(Could not render a verifiable QR code — use the URI below instead.)');
-  }
+Save it as a bookmark or a phone shortcut. The path alone does nothing
+without a current code, and a code is single-use, so a stale link in a log
+or in browser history is not a working kill switch.
 
-  console.log(`
-Or add it by hand:  ${uri}
-
+Add it by hand:  ${uri}
 Check it worked — the code right now is ${current}
-
-Save the URL as a bookmark or a phone shortcut. The path alone does nothing
-without a current code, and a code is single-use, so a stale link in a log or
-in browser history is not a working kill switch.
 `);
+
+  // Printed last, deliberately: anything after it scrolls the code off the
+  // screen, and half a QR is no QR.
+  if (qr) {
+    console.log('Scan with your authenticator app:\n');
+    console.log(qr);
+    console.log('');
+  } else {
+    // Never show a QR this couldn't verify — the URI above always works, and
+    // every authenticator app accepts manual entry.
+    console.log('(Could not render a verifiable QR code — add it by hand with the URI above.)\n');
+  }
 }
 
 main();
