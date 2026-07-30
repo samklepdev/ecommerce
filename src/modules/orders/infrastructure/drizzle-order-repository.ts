@@ -400,7 +400,12 @@ export class DrizzleOrderRepository
           // COALESCE, not assignment: a second checkout on the same order
           // re-quotes the price but must not hand the customer another full
           // window to pay in.
-          paymentDeadlineAt: sql`coalesce(${orders.paymentDeadlineAt}, ${paymentDeadlineAt})`,
+          //
+          // Serialised by hand, with a cast. Drizzle converts a Date for a
+          // typed column, but inside a `sql` template the value goes to the
+          // driver untouched — and postgres.js throws on a Date it was handed
+          // where it expects a string. Every checkout failed here.
+          paymentDeadlineAt: sql`coalesce(${orders.paymentDeadlineAt}, ${paymentDeadlineAt.toISOString()}::timestamptz)`,
           updatedAt: new Date(),
         })
         .where(eq(orders.id, orderId));

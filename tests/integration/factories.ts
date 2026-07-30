@@ -1,5 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import type { drizzle } from 'drizzle-orm/postgres-js';
+
+// Type-only: erased at runtime, so this never pulls in the env-reading
+// client module that would connect to the development database.
+import type { DB } from '@/shared/infrastructure/db/client';
 
 import {
   categories,
@@ -8,8 +11,6 @@ import {
   suppliers,
   users,
 } from '@/shared/infrastructure/db/schema';
-
-type DB = ReturnType<typeof drizzle>;
 
 /**
  * Row builders for the integration suite.

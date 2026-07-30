@@ -5,6 +5,7 @@ import postgres from 'postgres';
 import { afterAll, beforeEach } from 'vitest';
 
 import * as schema from '@/shared/infrastructure/db/schema';
+import type { DB } from '@/shared/infrastructure/db/client';
 import { assertSafeTestTarget, TEST_DATABASE_URL, TEST_REDIS_URL } from './config';
 
 /**
@@ -46,7 +47,7 @@ export function useTestInfrastructure() {
  * surfaces as a foreign-key error in an unrelated test. `drizzle_migrations`
  * is excluded — dropping it would make the next file re-run migrations.
  */
-export async function truncateAll(db: ReturnType<typeof drizzle>): Promise<void> {
+export async function truncateAll(db: DB): Promise<void> {
   const tables = await db.execute<{ tablename: string }>(raw`
     select tablename from pg_tables
     where schemaname = 'public' and tablename <> '__drizzle_migrations'
