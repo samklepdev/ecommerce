@@ -8,6 +8,7 @@ import { env } from '@/config/env';
 import { isErr } from '@/shared/domain/result';
 import { logger } from '@/shared/infrastructure/logger';
 import { getContainer } from '@/composition/container';
+import { isStoreOpen } from '@/app/lib/store-open';
 import { newPasswordSchema } from '@/app/lib/password-schema';
 import { PASSWORD_RULE_TEXT } from '@/shared/domain/password-policy';
 import { GUEST_SESSION_COOKIE, SESSION_COOKIE } from '@/app/lib/session';
@@ -38,15 +39,40 @@ export interface AuthActionResult {
   error?: string;
 }
 
-/** Logs in, sets the session cookie, and merges the pre-login guest cart. */
-async function establishSession(email: string, password: string): Promise<AuthActionResult> {
-  const { logIn, mergeGuestCart } = getContainer();
+/** Deliberately says nothing about whether an account exists or the password
+ * was right — while closed, every non-admin outcome looks the same. */
+const STORE_CLOSED_SIGN_IN =
+  'The store is temporarily closed and sign-in is paused. Please try again later.';
+
+/** Logs in, sets the session cookie, and merges the pre-login guest cart.
+ *
+ * `adminOnly` is the closed-store case: credentials are still checked, but a
+ * session is only *kept* for an admin. Anyone else gets the same message as a
+ * wrong password would produce, so a closed store doesn't become an oracle
+ * for which addresses have accounts. */
+async function establishSession(
+  email: string,
+  password: string,
+  adminOnly = false,
+): Promise<AuthActionResult> {
+  const { logIn, mergeGuestCart, getCurrentUser, logOut } = getContainer();
   const result = await logIn.execute({
     email,
     password,
     sessionTtlSeconds: env.SESSION_TTL_SECONDS,
   });
-  if (isErr(result)) return { error: 'Invalid email or password.' };
+  if (isErr(result)) return { error: adminOnly ? STORE_CLOSED_SIGN_IN : 'Invalid email or password.' };
+
+  if (adminOnly) {
+    const user = await getCurrentUser.execute({ sessionId: result.value.id });
+    if (user?.role !== 'admin') {
+      // The session exists for a moment because the role lives behind it.
+      // Revoked here rather than left to expire, and the cookie is never
+      // set, so nothing usable reaches the browser.
+      await logOut.execute({ sessionId: result.value.id });
+      return { error: STORE_CLOSED_SIGN_IN };
+    }
+  }
 
   const cookieStore = await cookies();
   const guestSessionId = cookieStore.get(GUEST_SESSION_COOKIE)?.value;
@@ -89,6 +115,11 @@ export async function signUpAction(
           `Enter a valid email. ${PASSWORD_RULE_TEXT}`),
     };
   }
+
+  // No new accounts while the shop is shut. Registration during a closure
+  // creates rows and sends mail for someone who can't do anything yet, and
+  // it's an open surface at exactly the time nobody is watching it.
+  if (!(await isStoreOpen())) return { error: STORE_CLOSED_SIGN_IN };
 
   const ip = await getClientIp();
   const signupLimit = await checkRateLimit(`signup:${ip}`, 3, 60 * 60);
@@ -143,7 +174,13 @@ export async function logInAction(
     return { error: tooManyAttemptsMessage(perAccountLimit.retryAfterSeconds) };
   }
 
-  const result = await establishSession(parsed.data.email, parsed.data.password);
+  // While the store is closed, only admins may sign in — the console has to
+  // stay reachable, and everything a customer would sign in *for* is paused
+  // anyway. Existing customer sessions aren't revoked; every page they can
+  // reach already shows the paused notice.
+  const adminOnly = !(await isStoreOpen());
+
+  const result = await establishSession(parsed.data.email, parsed.data.password, adminOnly);
   if (result.error) return result;
 
   redirect('/');

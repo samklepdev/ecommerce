@@ -157,7 +157,9 @@ feature" checklist).
   URL guarded by a 6-digit rotating code from an authenticator app
   (`npm run store:switch-setup` generates it), for when this page isn't
   reachable. Every flip is audit-logged with
-  who, when, and from where.
+  who, when, and from where. While closed, only admins can sign in; sign-up
+  and password-reset requests are paused, and cart, wishlist, review and
+  inquiry submissions are refused rather than silently accepted.
 - **Dashboard** (`/admin`) — at-a-glance counts (unsourced order lines,
   supplier orders needing action, orders awaiting confirmation, recovered
   orders needing review), each linking to the relevant page, plus quick

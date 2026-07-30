@@ -125,8 +125,17 @@ depend on a write having succeeded.
   `next build`, where Redis is deliberately absent.
 - **The closed page is cosmetic; the use-case guard is what holds.** A server action can be
   POSTed at directly. Never move the check into the UI only.
-- **Only `(storefront)` is gated.** `(auth)` and `(admin)` stay reachable, or closing the
-  store locks you out of the console you reopen it from.
+- **Only `(storefront)` is gated at the layout.** `(admin)` stays reachable, and so does
+  `/login` — closing the store must not lock you out of the console you reopen it from.
+- **While closed, only admins may sign in.** `logInAction` checks credentials, then keeps the
+  session only for an admin; everyone else gets the same message a wrong password produces,
+  so a closure isn't an oracle for which emails have accounts. `/signup` and
+  `/forgot-password` are paused (new rows, outbound mail); `/reset-password` and
+  `/verify-email` stay open because they finish a flow someone was already emailed and those
+  tokens expire.
+- **Customer writes are refused, not merely hidden** — cart, wishlist, reviews, inquiries all
+  check `isStoreOpen()` (`src/app/lib/store-open.ts`), because hiding a page doesn't stop a
+  direct POST to its action.
 - **The watcher is untouched.** Orders already paid still settle and ship — closing the
   front door must not strand someone who paid before you shut it.
 - **`/api/health` reports `storeOpen` but stays 200 when closed.** A 503 would have the load

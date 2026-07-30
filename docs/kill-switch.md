@@ -1,8 +1,8 @@
 # The kill switch
 
 Closes the storefront on demand: no new orders, a paused notice on every
-customer-facing route, admin and sign-in untouched, and orders already paid still
-settling and shipping.
+customer-facing route, customer sign-in paused while admin sign-in keeps working,
+and orders already paid still settling and shipping.
 
 State is one Redis key (`store:closed`). Absent means open.
 
@@ -97,6 +97,26 @@ your origin. Works well from a phone; you're trusting Cloudflare with the bounda
 Restricting by source IP in the proxy works if you have a static address, but it's
 poor for a phone — cellular IPs change constantly — and if you implement it in the
 app rather than the proxy it inherits the `x-forwarded-for` spoofing problem above.
+
+## Who can still sign in
+
+While closed, **only admins can log in.** Credentials are still checked, but a session is
+only kept for an admin — anyone else gets the same message a wrong password would produce,
+so a closed store doesn't become an oracle for which addresses have accounts.
+
+| Route | While closed |
+|---|---|
+| `/login` | Open, with a banner saying sign-in is paused. It's the only entrance to the console |
+| `/signup`, `/forgot-password` | Paused notice. No new accounts, no reset mail going out unattended |
+| `/reset-password`, `/verify-email` | Open — they complete a flow someone was already emailed a link for, and those tokens expire |
+
+Existing customer sessions are **not** revoked. There's nothing to revoke them for: every
+page such a session can reach already shows the paused notice, and every write it could
+attempt is refused.
+
+Customer writes are refused too, not just hidden: cart changes, wishlist toggles, reviews,
+and sourcing inquiries all return the paused message rather than quietly succeeding for
+anyone who POSTs to the action directly.
 
 ## What closing does *not* do
 

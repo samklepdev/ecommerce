@@ -3,6 +3,7 @@
 import { z } from 'zod';
 
 import { getContainer } from '@/composition/container';
+import { isStoreOpen, STORE_CLOSED_MESSAGE } from '@/app/lib/store-open';
 import { isHoneypotTripped } from '@/app/lib/honeypot';
 import { getSessionUser } from '@/app/lib/session';
 import { checkRateLimit, getClientIp, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
@@ -27,6 +28,8 @@ export async function submitInquiryAction(
   _prevState: SubmitInquiryActionResult | undefined,
   formData: FormData,
 ): Promise<SubmitInquiryActionResult> {
+  if (!(await isStoreOpen())) return { error: STORE_CLOSED_MESSAGE };
+
   // Answers exactly as a real submission does. Telling a bot it was caught
   // is telling its author what to change.
   if (isHoneypotTripped(formData)) {
