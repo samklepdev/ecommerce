@@ -86,6 +86,11 @@ export interface AnalyticsEventRow {
 
 export interface AnalyticsEventRepository {
   record(event: AnalyticsEventInput): Promise<void>;
+  /** Deletes events older than `before`, in batches, and reports how many
+   * went. Batched because this table is the one that grows without bound —
+   * a single unbounded DELETE on months of rows takes a lock long enough to
+   * be felt on the request path, and Redis and Postgres are both on it. */
+  deleteOlderThan(before: Date, batchSize: number): Promise<number>;
   countByTypePerDay(eventType: AnalyticsEventType, since: Date, until: Date): Promise<DailyCount[]>;
   topValues(
     eventType: AnalyticsEventType,

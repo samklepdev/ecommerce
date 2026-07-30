@@ -6,6 +6,7 @@ import type { AnalyticsEventRepository, AnalyticsEventRow } from '@/modules/anal
 function fakeRepo(overrides: Partial<AnalyticsEventRepository> = {}): AnalyticsEventRepository {
   return {
     async record() {},
+    async deleteOlderThan() { return 0; },
     async countByTypePerDay() {
       return [];
     },

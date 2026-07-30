@@ -24,7 +24,7 @@ export async function updateSupplierAction(
   _prevState: UpdateSupplierActionResult | undefined,
   formData: FormData,
 ): Promise<UpdateSupplierActionResult> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const parsed = UpdateSupplierSchema.safeParse({
     id: formData.get('id'),
     name: formData.get('name'),
@@ -35,12 +35,24 @@ export async function updateSupplierAction(
     return { error: parsed.error.issues[0]?.message ?? 'Enter a name and a valid URL.' };
   }
 
-  const { updateSupplier } = getContainer();
+  const { updateSupplier, recordAuditLogEntry } = getContainer();
   await updateSupplier.execute({
     id: parsed.data.id,
     name: parsed.data.name,
     url: parsed.data.url,
     notes: parsed.data.notes ?? null,
+  });
+
+  // A supplier's URL is where fulfilment goes to buy. Changing it silently
+  // was the gap: deletes were audited, edits weren't, so the one change that
+  // redirects real purchasing left no trace.
+  await recordAuditLogEntry.execute({
+    actorUserId: admin.id,
+    actorEmail: admin.email,
+    action: 'supplier.updated',
+    targetType: 'supplier',
+    targetId: parsed.data.id,
+    metadata: { name: parsed.data.name, url: parsed.data.url },
   });
 
   revalidatePath('/admin/suppliers');
@@ -64,16 +76,25 @@ export async function setSupplierActiveAction(
   _prevState: SetSupplierActiveActionResult | undefined,
   formData: FormData,
 ): Promise<SetSupplierActiveActionResult> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const parsed = SetSupplierActiveSchema.safeParse({
     id: formData.get('id'),
     isActive: formData.get('isActive'),
   });
   if (!parsed.success) return { error: 'Missing supplier.' };
 
-  const { setSupplierActive } = getContainer();
+  const { setSupplierActive, recordAuditLogEntry } = getContainer();
   const isActive = parsed.data.isActive === 'true';
   await setSupplierActive.execute({ id: parsed.data.id, isActive });
+
+  await recordAuditLogEntry.execute({
+    actorUserId: admin.id,
+    actorEmail: admin.email,
+    action: isActive ? 'supplier.reactivated' : 'supplier.deactivated',
+    targetType: 'supplier',
+    targetId: parsed.data.id,
+    metadata: {},
+  });
 
   revalidatePath('/admin/suppliers');
   revalidatePath('/admin/products');

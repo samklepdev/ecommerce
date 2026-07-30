@@ -28,7 +28,7 @@ export async function createSupplierAction(
   _prevState: CreateSupplierActionResult | undefined,
   formData: FormData,
 ): Promise<CreateSupplierActionResult> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const parsed = CreateSupplierSchema.safeParse({
     name: formData.get('name'),
     url: formData.get('url'),
@@ -38,8 +38,18 @@ export async function createSupplierAction(
     return { error: parsed.error.issues[0]?.message ?? 'Enter a name and a valid URL.' };
   }
 
-  const { createSupplier } = getContainer();
+  const { createSupplier, recordAuditLogEntry } = getContainer();
   const supplier = await createSupplier.execute(parsed.data);
+
+  await recordAuditLogEntry.execute({
+    actorUserId: admin.id,
+    actorEmail: admin.email,
+    action: 'supplier.created',
+    targetType: 'supplier',
+    targetId: supplier.id,
+    metadata: { name: supplier.name, url: parsed.data.url },
+  });
+
   revalidatePath('/admin/products');
   revalidatePath('/admin/suppliers');
   return { message: `Added supplier "${supplier.name}".` };

@@ -116,6 +116,13 @@ const envSchema = z.object({
   // and refresh it in place with `npm run geo:fetch`.
   IP_GEO_DB_PATH: z.string().min(1).optional(),
 
+  // How long raw analytics rows are kept. This is the one table that grows
+  // per page view and never shrank on its own; the worker prunes past this
+  // window once a day. Reporting reads aggregates over recent ranges, so the
+  // default costs no dashboard fidelity — raise it if you need a longer
+  // lookback, and remember it's personal data with an IP attached.
+  ANALYTICS_RETENTION_DAYS: z.coerce.number().int().positive().default(90),
+
   // Development affordance. Locally there is no `x-forwarded-for` header, so
   // `getClientIp()` yields 'unknown' and analytics records no country —
   // the geo features look permanently broken while you build them. Set this

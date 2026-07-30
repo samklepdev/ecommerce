@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, asc, desc, eq, gte, ilike, isNotNull, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, lte, sql } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { analyticsEvents } from '@/shared/infrastructure/db/schema';
@@ -33,6 +33,42 @@ function toRow(r: typeof analyticsEvents.$inferSelect): AnalyticsEventRow {
 
 export class DrizzleAnalyticsEventRepository implements AnalyticsEventRepository {
   constructor(private readonly db: DB) {}
+
+  /**
+   * Deleted in batches by id, chosen with a subquery rather than one
+   * `DELETE ... WHERE created_at < x`.
+   *
+   * The unbounded form holds a lock over however many months of rows have
+   * accumulated, on the busiest-writing table in the schema, while every
+   * page view in flight is trying to insert into it. Batching turns that
+   * into a series of short locks the write path can interleave with.
+   */
+  async deleteOlderThan(before: Date, batchSize: number): Promise<number> {
+    let deleted = 0;
+
+    for (;;) {
+      const batch = await this.db
+        .select({ id: analyticsEvents.id })
+        .from(analyticsEvents)
+        .where(lte(analyticsEvents.createdAt, before))
+        .limit(batchSize);
+
+      if (batch.length === 0) break;
+
+      await this.db.delete(analyticsEvents).where(
+        inArray(
+          analyticsEvents.id,
+          batch.map((row) => row.id),
+        ),
+      );
+      deleted += batch.length;
+
+      // A partial batch means we've reached the end of what's old enough.
+      if (batch.length < batchSize) break;
+    }
+
+    return deleted;
+  }
 
   async record(event: AnalyticsEventInput): Promise<void> {
     await this.db.insert(analyticsEvents).values({

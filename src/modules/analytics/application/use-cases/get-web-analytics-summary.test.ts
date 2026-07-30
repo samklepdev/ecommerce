@@ -23,6 +23,7 @@ describe('GetWebAnalyticsSummary', () => {
     // either way.
     const repo = {
       async record() {},
+      async deleteOlderThan() { return 0; },
       async countByTypePerDay(eventType, s, u) {
         expect(s).toBe(since);
         expect(u).toBe(until);
