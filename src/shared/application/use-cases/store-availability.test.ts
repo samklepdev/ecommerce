@@ -8,6 +8,7 @@ import type {
   StoreClosure,
 } from '@/shared/application/ports/store-availability';
 import type { RecordAuditLogEntry } from '@/modules/audit/application/use-cases/record-audit-log-entry';
+import type { CustomerSessionRevoker } from '@/shared/application/ports/customer-session-revoker';
 
 const CLOSURE: StoreClosure = {
   closedAt: new Date('2026-07-29T12:00:00Z'),
@@ -39,6 +40,19 @@ const unreachable: StoreAvailabilityStore = {
   async close() {},
   async open() {},
 };
+
+/** Records how many times customers were signed out, so the tests can assert
+ * closing does it and reopening doesn't. */
+function makeSessionRevoker(revoked = 0) {
+  const calls: number[] = [];
+  const revoker: CustomerSessionRevoker = {
+    async revokeAllCustomerSessions() {
+      calls.push(revoked);
+      return revoked;
+    },
+  };
+  return { revoker, calls };
+}
 
 function makeAuditLog() {
   const entries: unknown[] = [];
@@ -109,7 +123,7 @@ describe('SetStoreAvailability', () => {
     const { auditLog, entries } = makeAuditLog();
     const now = new Date('2026-07-29T12:00:00Z');
 
-    await new SetStoreAvailability(state.store, auditLog, () => now).execute({
+    await new SetStoreAvailability(state.store, auditLog, makeSessionRevoker(3).revoker, () => now).execute({
       isOpen: false,
       reason: 'supplier outage',
       actor,
@@ -127,7 +141,7 @@ describe('SetStoreAvailability', () => {
         action: 'store.closed',
         targetType: 'store',
         targetId: 'default',
-        metadata: { reason: 'supplier outage' },
+        metadata: { reason: 'supplier outage', revokedSessions: 3 },
       },
     ]);
   });
@@ -136,7 +150,10 @@ describe('SetStoreAvailability', () => {
     const state = makeStore(CLOSURE);
     const { auditLog, entries } = makeAuditLog();
 
-    await new SetStoreAvailability(state.store, auditLog).execute({ isOpen: true, actor });
+    await new SetStoreAvailability(state.store, auditLog, makeSessionRevoker().revoker).execute({
+      isOpen: true,
+      actor,
+    });
 
     expect(state.current).toBeNull();
     expect(entries).toHaveLength(1);
@@ -147,7 +164,7 @@ describe('SetStoreAvailability', () => {
     const state = makeStore(null);
     const { auditLog } = makeAuditLog();
 
-    await new SetStoreAvailability(state.store, auditLog).execute({
+    await new SetStoreAvailability(state.store, auditLog, makeSessionRevoker().revoker).execute({
       isOpen: false,
       reason: '   ',
       actor,
@@ -162,12 +179,55 @@ describe('SetStoreAvailability', () => {
     const state = makeStore(null);
     const { auditLog, entries } = makeAuditLog();
 
-    await new SetStoreAvailability(state.store, auditLog).execute({
+    await new SetStoreAvailability(state.store, auditLog, makeSessionRevoker().revoker).execute({
       isOpen: false,
       actor: { userId: null, email: 'cli' },
     });
 
     expect((entries[0] as { actorEmail: string; actorUserId: null }).actorEmail).toBe('cli');
     expect((entries[0] as { actorUserId: string | null }).actorUserId).toBeNull();
+  });
+
+  it('signs every customer out when closing', async () => {
+    const state = makeStore(null);
+    const { auditLog } = makeAuditLog();
+    const { revoker, calls } = makeSessionRevoker(7);
+
+    await new SetStoreAvailability(state.store, auditLog, revoker).execute({
+      isOpen: false,
+      actor,
+    });
+
+    expect(calls).toHaveLength(1);
+  });
+
+  // Reopening must not touch sessions: the admin sessions that survived the
+  // closure are the ones still in use.
+  it('does not revoke anything when reopening', async () => {
+    const state = makeStore(CLOSURE);
+    const { auditLog } = makeAuditLog();
+    const { revoker, calls } = makeSessionRevoker();
+
+    await new SetStoreAvailability(state.store, auditLog, revoker).execute({ isOpen: true, actor });
+
+    expect(calls).toEqual([]);
+  });
+
+  // The store is already shut by the time sessions are dealt with, so a
+  // failure there must not undo the close or surface as an error.
+  it('still closes when signing customers out fails', async () => {
+    const state = makeStore(null);
+    const { auditLog } = makeAuditLog();
+    const failing: CustomerSessionRevoker = {
+      async revokeAllCustomerSessions() {
+        throw new Error('redis down');
+      },
+    };
+
+    await expect(
+      new SetStoreAvailability(state.store, auditLog, failing).execute({ isOpen: false, actor }),
+    ).rejects.toThrow();
+    // ...but the switch was already flipped before it threw.
+    expect(state.current).not.toBeNull();
   });
 });

@@ -2,6 +2,7 @@ import type { UseCase } from '@/shared/application/use-case';
 import { logger } from '@/shared/infrastructure/logger';
 import type { StoreAvailabilityStore } from '@/shared/application/ports/store-availability';
 import type { RecordAuditLogEntry } from '@/modules/audit/application/use-cases/record-audit-log-entry';
+import type { CustomerSessionRevoker } from '@/shared/application/ports/customer-session-revoker';
 
 export interface SetStoreAvailabilityInput {
   isOpen: boolean;
@@ -24,6 +25,8 @@ export interface SetStoreAvailabilityInput {
  * running outside a request, so the CLI path records too — with a null
  * origin rather than a missing entry.
  *
+ * Closing also signs every customer out — see `CustomerSessionRevoker`.
+ *
  * Cache invalidation is *not* done here. Blowing the ISR cache needs
  * `revalidatePath`, which is a Next binding and would drag the framework
  * into the application layer; the callers that have one do it. The switch is
@@ -34,10 +37,13 @@ export class SetStoreAvailability implements UseCase<SetStoreAvailabilityInput, 
   constructor(
     private readonly store: StoreAvailabilityStore,
     private readonly auditLog: RecordAuditLogEntry,
+    private readonly sessions: CustomerSessionRevoker,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
   async execute(input: SetStoreAvailabilityInput): Promise<void> {
+    let revokedSessions = 0;
+
     if (input.isOpen) {
       await this.store.open();
     } else {
@@ -46,6 +52,16 @@ export class SetStoreAvailability implements UseCase<SetStoreAvailabilityInput, 
         reason: input.reason?.trim() ? input.reason.trim() : null,
         closedBy: input.actor.email,
       });
+
+      // After the switch is set, never before: if this throws or hangs, the
+      // store is already shut. Signing customers out is the tidier half, not
+      // the load-bearing one.
+      //
+      // Existing sessions are the one way in that the closed sign-in path
+      // doesn't cover — they were issued before the door shut. Admin
+      // sessions survive, or closing the store would log out the person
+      // closing it.
+      revokedSessions = await this.sessions.revokeAllCustomerSessions();
     }
 
     // Logged as well as audited: the audit log is a database read away, and
@@ -54,6 +70,7 @@ export class SetStoreAvailability implements UseCase<SetStoreAvailabilityInput, 
     logger.warn(input.isOpen ? 'store REOPENED' : 'store CLOSED by kill switch', {
       actor: input.actor.email,
       reason: input.reason ?? null,
+      ...(input.isOpen ? {} : { revokedSessions }),
     });
 
     await this.auditLog.execute({
@@ -62,7 +79,7 @@ export class SetStoreAvailability implements UseCase<SetStoreAvailabilityInput, 
       action: input.isOpen ? 'store.opened' : 'store.closed',
       targetType: 'store',
       targetId: 'default',
-      metadata: input.isOpen ? {} : { reason: input.reason ?? null },
+      metadata: input.isOpen ? {} : { reason: input.reason ?? null, revokedSessions },
     });
   }
 }

@@ -11,6 +11,7 @@ import { AssertStoreOpenForCheckout } from '@/shared/application/use-cases/asser
 import { GetStoreAvailability } from '@/shared/application/use-cases/get-store-availability';
 import { SetStoreAvailability } from '@/shared/application/use-cases/set-store-availability';
 import { RedisStoreAvailabilityStore } from '@/shared/infrastructure/redis/redis-store-availability-store';
+import { RedisCustomerSessionRevoker } from '@/modules/identity/infrastructure/redis-customer-session-revoker';
 import type { HeartbeatStore } from '@/shared/application/ports/health-ports';
 import type { RateLimiter } from '@/shared/application/ports/rate-limiter';
 
@@ -437,7 +438,11 @@ function build(): Container {
   const bulkAssignCategory = new BulkAssignCategory(products);
   const auditLogRepository = new DrizzleAuditLogRepository(db);
   const recordAuditLogEntry = new RecordAuditLogEntry(auditLogRepository, new NextRequestContext());
-  const setStoreAvailability = new SetStoreAvailability(storeAvailabilityStore, recordAuditLogEntry);
+  const setStoreAvailability = new SetStoreAvailability(
+    storeAvailabilityStore,
+    recordAuditLogEntry,
+    new RedisCustomerSessionRevoker(redis, db),
+  );
   const analyticsEventRepository = new DrizzleAnalyticsEventRepository(db);
   // Local database read, no per-request network call — see the README in
   // modules/analytics/infrastructure/geo for licence, refresh and why a

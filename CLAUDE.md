@@ -127,9 +127,13 @@ depend on a write having succeeded.
   POSTed at directly. Never move the check into the UI only.
 - **Only `(storefront)` is gated at the layout.** `(admin)` stays reachable, and so does
   `/login` — closing the store must not lock you out of the console you reopen it from.
-- **While closed, only admins may sign in.** `logInAction` checks credentials, then keeps the
-  session only for an admin; everyone else gets the same message a wrong password produces,
-  so a closure isn't an oracle for which emails have accounts. `/signup` and
+- **While closed, only admins may sign in**, and **closing signs every customer out**
+  (`CustomerSessionRevoker`; `SCAN`, never `KEYS` — Redis is on every request path here).
+  Admin sessions survive, or you'd log yourself out by closing. `logInAction` checks
+  credentials, then keeps the session only for an admin; everyone else gets the same message
+  a wrong password produces, and the login page looks identical open or closed. **Don't add a
+  "we're closed" banner there** — it announces the state of the business and turns the form
+  into an oracle for which emails have accounts. `/signup` and
   `/forgot-password` are paused (new rows, outbound mail); `/reset-password` and
   `/verify-email` stay open because they finish a flow someone was already emailed and those
   tokens expire.

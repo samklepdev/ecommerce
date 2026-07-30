@@ -8,7 +8,7 @@ import { env } from '@/config/env';
 import { isErr } from '@/shared/domain/result';
 import { logger } from '@/shared/infrastructure/logger';
 import { getContainer } from '@/composition/container';
-import { isStoreOpen } from '@/app/lib/store-open';
+import { isStoreOpen, STORE_CLOSED_MESSAGE } from '@/app/lib/store-open';
 import { newPasswordSchema } from '@/app/lib/password-schema';
 import { PASSWORD_RULE_TEXT } from '@/shared/domain/password-policy';
 import { GUEST_SESSION_COOKIE, SESSION_COOKIE } from '@/app/lib/session';
@@ -39,10 +39,14 @@ export interface AuthActionResult {
   error?: string;
 }
 
-/** Deliberately says nothing about whether an account exists or the password
- * was right — while closed, every non-admin outcome looks the same. */
-const STORE_CLOSED_SIGN_IN =
-  'The store is temporarily closed and sign-in is paused. Please try again later.';
+/** What a non-admin sees while the store is closed: exactly what a wrong
+ * password produces, and nothing else.
+ *
+ * Two reasons it's this and not "we're closed". It doesn't announce the
+ * state of the business to anyone probing the login form; and it keeps the
+ * response identical for a valid customer password and an invalid one, so a
+ * closure can't be used to test which addresses have accounts. */
+const CLOSED_SIGN_IN_REFUSAL = 'Invalid email or password.';
 
 /** Logs in, sets the session cookie, and merges the pre-login guest cart.
  *
@@ -61,7 +65,7 @@ async function establishSession(
     password,
     sessionTtlSeconds: env.SESSION_TTL_SECONDS,
   });
-  if (isErr(result)) return { error: adminOnly ? STORE_CLOSED_SIGN_IN : 'Invalid email or password.' };
+  if (isErr(result)) return { error: 'Invalid email or password.' };
 
   if (adminOnly) {
     const user = await getCurrentUser.execute({ sessionId: result.value.id });
@@ -70,7 +74,7 @@ async function establishSession(
       // Revoked here rather than left to expire, and the cookie is never
       // set, so nothing usable reaches the browser.
       await logOut.execute({ sessionId: result.value.id });
-      return { error: STORE_CLOSED_SIGN_IN };
+      return { error: CLOSED_SIGN_IN_REFUSAL };
     }
   }
 
@@ -119,7 +123,7 @@ export async function signUpAction(
   // No new accounts while the shop is shut. Registration during a closure
   // creates rows and sends mail for someone who can't do anything yet, and
   // it's an open surface at exactly the time nobody is watching it.
-  if (!(await isStoreOpen())) return { error: STORE_CLOSED_SIGN_IN };
+  if (!(await isStoreOpen())) return { error: STORE_CLOSED_MESSAGE };
 
   const ip = await getClientIp();
   const signupLimit = await checkRateLimit(`signup:${ip}`, 3, 60 * 60);
@@ -213,6 +217,12 @@ export async function requestPasswordResetAction(
   _prevState: RequestPasswordResetActionResult | undefined,
   formData: FormData,
 ): Promise<RequestPasswordResetActionResult> {
+  // Paused with sign-up: this one sends mail, and a closure is exactly when
+  // you don't want reset links going out unattended. `resetPasswordAction`
+  // and `verifyEmailAction` stay open — they complete a flow someone was
+  // already sent a link for, and those tokens expire.
+  if (!(await isStoreOpen())) return { error: STORE_CLOSED_MESSAGE };
+
   const parsed = RequestPasswordResetSchema.safeParse({ email: formData.get('email') });
   if (!parsed.success) return { error: 'Enter a valid email address.' };
 

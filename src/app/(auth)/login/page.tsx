@@ -1,7 +1,5 @@
 import Link from 'next/link';
 
-import { getContainer } from '@/composition/container';
-
 import { LoginForm } from './LoginForm';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
@@ -18,11 +16,10 @@ interface LoginPageProps {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const { reset } = await searchParams;
 
-  // The page stays reachable while the store is closed — it's the only
-  // entrance to the admin console — but it says so, rather than letting a
-  // customer type a correct password and be told something ambiguous.
-  const { getStoreAvailability } = getContainer();
-  const storeIsOpen = (await getStoreAvailability.execute()).isOpen;
+  // Deliberately identical whether the store is open or closed. A banner
+  // here, or links that disappear, would announce the state of the business
+  // to anyone who loaded the page — and a closed store already refuses
+  // customer sign-in without needing to explain itself.
 
   return (
     <PageContainer>
@@ -32,23 +29,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           {reset === 'success' && (
             <Alert tone="success">Your password has been reset. Log in with your new password.</Alert>
           )}
-          {!storeIsOpen && (
-            <Alert tone="warning">
-              The store is temporarily closed and customer sign-in is paused. Ordering will
-              resume shortly.
-            </Alert>
-          )}
           <LoginForm />
-          {storeIsOpen && (
-            <>
-              <p className={styles.switchLink}>
-                <Link href="/forgot-password">Forgot password?</Link>
-              </p>
-              <p className={styles.switchLink}>
-                Don&apos;t have an account? <Link href="/signup">Sign up</Link>
-              </p>
-            </>
-          )}
+          <p className={styles.switchLink}>
+            <Link href="/forgot-password">Forgot password?</Link>
+          </p>
+          <p className={styles.switchLink}>
+            Don&apos;t have an account? <Link href="/signup">Sign up</Link>
+          </p>
         </Card>
       </Stack>
     </PageContainer>

@@ -101,18 +101,29 @@ app rather than the proxy it inherits the `x-forwarded-for` spoofing problem abo
 ## Who can still sign in
 
 While closed, **only admins can log in.** Credentials are still checked, but a session is
-only kept for an admin — anyone else gets the same message a wrong password would produce,
-so a closed store doesn't become an oracle for which addresses have accounts.
+only kept for an admin.
+
+A refused customer sees exactly what a wrong password produces — "Invalid email or
+password." — and nothing else. The login page itself is byte-for-byte what it always is: no
+banner, no missing links, nothing that announces the state of the business to whoever loads
+it. That also means a closure can't be used to test which addresses have accounts, since the
+response is identical for a right password and a wrong one.
 
 | Route | While closed |
 |---|---|
-| `/login` | Open, with a banner saying sign-in is paused. It's the only entrance to the console |
+| `/login` | Open and visually unchanged. It's the only entrance to the console |
 | `/signup`, `/forgot-password` | Paused notice. No new accounts, no reset mail going out unattended |
 | `/reset-password`, `/verify-email` | Open — they complete a flow someone was already emailed a link for, and those tokens expire |
 
-Existing customer sessions are **not** revoked. There's nothing to revoke them for: every
-page such a session can reach already shows the paused notice, and every write it could
-attempt is refused.
+**Closing signs every customer out.** Sessions issued before the door shut are the one way in
+that the sign-in check doesn't cover, so they're destroyed — Redis is walked with `SCAN`,
+never `KEYS`, because `KEYS` blocks the server every request here depends on. Admin sessions
+survive, or closing the store would log out the person closing it. The count lands in the
+audit entry. If signing out fails, the store still closes: that half is tidying, not the
+point.
+
+Customers must sign in again after you reopen. That's the trade for a closure that actually
+puts people out rather than leaving live sessions sitting behind a paused page.
 
 Customer writes are refused too, not just hidden: cart changes, wishlist toggles, reviews,
 and sourcing inquiries all return the paused message rather than quietly succeeding for
@@ -128,5 +139,6 @@ anyone who POSTs to the action directly.
   that exits can't restart itself.
 - **It does not reduce load.** Page components in the storefront group still execute;
   the visitor just sees the paused notice instead of the result.
-- **It does not cancel anything.** Existing orders, carts, and accounts are untouched.
-  Reopening puts everything back exactly as it was.
+- **It does not cancel anything.** Existing orders, carts, and accounts are untouched, and
+  reopening puts all of that back as it was. The one thing it does destroy is customer
+  sessions — those people have to sign in again.
