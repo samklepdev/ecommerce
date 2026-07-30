@@ -115,6 +115,7 @@ import { RecordAuditLogEntry } from '@/modules/audit/application/use-cases/recor
 import { NextRequestContext } from '@/modules/audit/infrastructure/next-request-context';
 import { ListAuditLogEntries } from '@/modules/audit/application/use-cases/list-audit-log-entries';
 import { DrizzleAnalyticsEventRepository } from '@/modules/analytics/infrastructure/drizzle-analytics-event-repository';
+import { PruneAnalyticsEvents } from '@/modules/analytics/application/use-cases/prune-analytics-events';
 import { RecordAnalyticsEvent } from '@/modules/analytics/application/use-cases/record-analytics-event';
 import { MmdbIpGeoLookup } from '@/modules/analytics/infrastructure/geo/mmdb-ip-geo-lookup';
 import { GetWebAnalyticsSummary } from '@/modules/analytics/application/use-cases/get-web-analytics-summary';
@@ -246,6 +247,7 @@ export interface Container {
   bulkAssignCategory: BulkAssignCategory;
   recordAuditLogEntry: RecordAuditLogEntry;
   recordAnalyticsEvent: RecordAnalyticsEvent;
+  pruneAnalyticsEvents: PruneAnalyticsEvents;
   getWebAnalyticsSummary: GetWebAnalyticsSummary;
   listAnalyticsEvents: ListAnalyticsEvents;
   getEventsForIdentity: GetEventsForIdentity;
@@ -448,6 +450,10 @@ function build(): Container {
   // modules/analytics/infrastructure/geo for licence, refresh and why a
   // server should hold the archive outside the repo.
   const ipGeo = new MmdbIpGeoLookup(env.IP_GEO_DB_PATH);
+  const pruneAnalyticsEvents = new PruneAnalyticsEvents(
+    analyticsEventRepository,
+    env.ANALYTICS_RETENTION_DAYS,
+  );
   const recordAnalyticsEvent = new RecordAnalyticsEvent(analyticsEventRepository, ipGeo);
   const getWebAnalyticsSummary = new GetWebAnalyticsSummary(analyticsEventRepository);
   const listAnalyticsEvents = new ListAnalyticsEvents(analyticsEventRepository);
@@ -725,6 +731,7 @@ function build(): Container {
     bulkAssignCategory,
     recordAuditLogEntry,
     recordAnalyticsEvent,
+    pruneAnalyticsEvents,
     getWebAnalyticsSummary,
     listAnalyticsEvents,
     getEventsForIdentity,

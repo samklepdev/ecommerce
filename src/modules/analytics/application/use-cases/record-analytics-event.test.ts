@@ -12,6 +12,7 @@ function fakeRepo(recorded: AnalyticsEventInput[]): AnalyticsEventRepository {
     async record(event) {
       recorded.push(event);
     },
+    async deleteOlderThan() { return 0; },
     async countByTypePerDay() {
       return [];
     },

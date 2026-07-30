@@ -1,0 +1,105 @@
+/* Its own palette rather than the storefront's scope: these screens render
+   outside any route group's layout — global-error.tsx replaces <html> — so
+   they can't rely on a class an ancestor was supposed to provide. */
+.root {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 3rem 1.5rem;
+  background: #0a0e13;
+  color: #e9eef4;
+  font-family: var(--font-geist-sans, system-ui, sans-serif);
+}
+
+.panel {
+  max-width: 30rem;
+  display: grid;
+  gap: 1rem;
+  justify-items: center;
+  text-align: center;
+}
+
+.mark {
+  width: 9px;
+  height: 21px;
+  background: linear-gradient(180deg, #3fb6ae 0 55%, #e0a340 55% 100%);
+}
+
+.code {
+  margin: 0;
+  font-family: var(--font-geist-mono, ui-monospace, monospace);
+  font-size: 0.8125rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #66748a;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.body {
+  margin: 0;
+  color: #98a5b6;
+  line-height: 1.65;
+}
+
+/* The order id, when we have one. Selectable and monospaced because the
+   whole point is that someone copies it into an email. */
+.reference {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #2c3846;
+  border-radius: 4px;
+  background: #121821;
+  font-family: var(--font-geist-mono, ui-monospace, monospace);
+  font-size: 0.8125rem;
+  color: #e9eef4;
+  user-select: all;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 0.25rem;
+}
+
+.button,
+.buttonQuiet {
+  appearance: none;
+  border-radius: 4px;
+  padding: 0.55rem 1.1rem;
+  font: inherit;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.button {
+  background: #3fb6ae;
+  color: #04211f;
+  font-weight: 600;
+}
+
+.buttonQuiet {
+  background: transparent;
+  border-color: #2c3846;
+  color: #e9eef4;
+}
+
+.note {
+  margin: 0;
+  color: #66748a;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.note a {
+  color: inherit;
+}

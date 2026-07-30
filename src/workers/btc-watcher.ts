@@ -24,10 +24,13 @@ import { logger } from '@/shared/infrastructure/logger';
  */
 const INTERVAL_MS = env.BTC_WATCH_INTERVAL_MS;
 
+const PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
 async function main(): Promise<void> {
   const {
     watchBitcoinPayments,
     expireStaleCheckouts,
+    pruneAnalyticsEvents,
     failStuckAwaitingConfirmationOrders,
     heartbeats,
   } = getContainer();
@@ -41,6 +44,11 @@ async function main(): Promise<void> {
   };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
+
+  // Runs once now and then daily. "Now" is deliberate: on a box that gets
+  // redeployed more often than once a day, a job that only fires after 24h
+  // of uptime never fires at all.
+  let lastPrunedAt = 0;
 
   while (running) {
     const started = Date.now();
@@ -70,6 +78,20 @@ async function main(): Promise<void> {
       logger.error('btc-watcher fail-stuck-awaiting-confirmation-orders pass failed', {
         error: e instanceof Error ? e.message : String(e),
       });
+    }
+
+    // Housekeeping on a much slower clock than the chain poll. Guarded by
+    // wall-clock rather than a tick count so a restart loop can't turn a
+    // daily job into a per-boot one.
+    if (Date.now() - lastPrunedAt >= PRUNE_INTERVAL_MS) {
+      lastPrunedAt = Date.now();
+      try {
+        await pruneAnalyticsEvents.execute();
+      } catch (e) {
+        logger.error('btc-watcher analytics prune failed', {
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
     }
 
     if (chainPassOk) {

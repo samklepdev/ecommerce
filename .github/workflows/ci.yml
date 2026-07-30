@@ -8,6 +8,24 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    # Only the migration step touches this. Everything else in the job runs
+    # without infra by design — the unit suite has no database at all.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: migrationcheck
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -46,6 +64,22 @@ jobs:
 
       - name: Test
         run: npm test
+
+      # A vulnerable dependency is only cheap to fix before it ships. Scoped
+      # to production deps and high+ severity on purpose: dev-only advisories
+      # and low-severity noise would make this fail constantly and get
+      # ignored, which is worse than not having it.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      # Catches the migration that only fails when applied. `db:migrate`
+      # against a real (empty) Postgres proves every file in drizzle/ still
+      # runs in order from nothing — the case a fresh environment hits and
+      # nobody's laptop does.
+      - name: Apply migrations against a clean database
+        run: npm run db:migrate
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/migrationcheck
 
       # Every route in this app renders dynamically (something in the tree —
       # the Header's session check — calls `cookies()`, which opts the whole

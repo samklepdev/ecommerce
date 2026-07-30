@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import { getContainer } from '@/composition/container';
 import { isStoreOpen, STORE_CLOSED_MESSAGE } from '@/app/lib/store-open';
+import { checkRateLimit, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
 import { isErr } from '@/shared/domain/result';
 import { requireUser } from '@/app/lib/session';
 
@@ -28,6 +29,13 @@ export async function submitReviewAction(
 ): Promise<SubmitReviewActionResult> {
   if (!(await isStoreOpen())) return { error: STORE_CLOSED_MESSAGE };
   const user = await requireUser();
+
+  // Keyed on the account, not the IP: reviews require a login, so the
+  // account is the thing worth limiting — and an IP limit would throttle
+  // everyone behind one office NAT while a single user with a script and a
+  // proxy pool sails past it.
+  const limit = await checkRateLimit(`review:${user.id}`, 5, 60 * 60);
+  if (!limit.allowed) return { error: tooManyAttemptsMessage(limit.retryAfterSeconds) };
   const parsed = SubmitReviewSchema.safeParse({
     productId: formData.get('productId'),
     productSlug: formData.get('productSlug'),
