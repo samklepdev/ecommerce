@@ -30,11 +30,23 @@ export async function GET(request: Request): Promise<NextResponse> {
   const { getOnChainActivityReport } = getContainer();
   const { orders } = await getOnChainActivityReport.execute({ since, until });
 
-  const header = ['orderId', 'address', 'expectedBtc', 'confirmations', 'underpaid', 'overpaid', 'paidAt'];
+  // Both figures: an export that carried only one of them can't be reconciled,
+  // which is the main reason anyone downloads this.
+  const header = [
+    'orderId',
+    'address',
+    'receivedBtc',
+    'expectedBtc',
+    'confirmations',
+    'underpaid',
+    'overpaid',
+    'paidAt',
+  ];
   const rows = orders.map((o) =>
     [
       o.orderId,
       o.address,
+      satsToBtcString(o.confirmedSats || o.expectedSats),
       satsToBtcString(o.expectedSats),
       String(o.confirmations),
       String(o.underpaid),

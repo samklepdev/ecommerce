@@ -105,7 +105,15 @@ reserves inventory → calls `createPayment` → returns a `PaymentSession` carr
 - **Confirmations:** `BTC_REQUIRED_CONFIRMATIONS` (default 2). Seen-but-shallow →
   `awaiting_confirmation`, never fulfilled.
 - **Underpayment is not payment.** `confirmedSats < expectedSats − dustTolerance` stays in
-  `awaiting_confirmation` for review; never auto-fulfill it.
+  `awaiting_confirmation` for review; never auto-fulfill it. **The resolution is a top-up
+  against the same address** (decided 2026-07-31) — the order stays open and the customer is
+  told what's still owed, which works precisely because the address doesn't change across
+  re-quotes.
+- **What actually arrived is recorded** (`bitcoin_payment_intents.confirmed_sats`, 0030),
+  written by the watcher's `recordProgress` on every pass. `expectedSats` is what was asked
+  for; the difference is what says how short an underpaid order is or how much an overpaid one
+  sent, and it's the figure the revenue report totals. **One writer only** — `ConfirmPayment`
+  deliberately doesn't take or record it, because two writers could disagree.
 - **Refunds are manual, out-of-band** on-chain sends — crypto is irreversible. The `refunded`
   state exists but is driven from ops tooling, not an API call.
 - **Privacy:** the default Esplora provider is the public `mempool.space` API, which sees every

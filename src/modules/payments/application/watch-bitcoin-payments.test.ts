@@ -120,7 +120,13 @@ describe('WatchBitcoinPayments#runOnce', () => {
     expect(wasConfirmed()).toBe(false);
     // Still recorded, so "we looked and saw nothing" is distinguishable from
     // "we never looked".
-    expect(getProgress()).toEqual({ confirmations: 0, underpaid: false, overpaid: false });
+    expect(getProgress()).toEqual({
+      confirmations: 0,
+      // Nothing seen, and recorded as such rather than left unknown.
+      confirmedSats: 0,
+      underpaid: false,
+      overpaid: false,
+    });
   });
 
   it('marks awaiting_confirmation and records progress when underpaid', async () => {
@@ -132,7 +138,13 @@ describe('WatchBitcoinPayments#runOnce', () => {
     await makeWatcher(store, chain, repo).runOnce();
 
     expect(getStatus()).toBe('awaiting_confirmation');
-    expect(getProgress()).toEqual({ confirmations: 0, underpaid: true, overpaid: false });
+    expect(getProgress()).toEqual({
+      confirmations: 0,
+      // The shortfall is the actionable part: 5,000 against 100,000 expected.
+      confirmedSats: 5000,
+      underpaid: true,
+      overpaid: false,
+    });
     expect(wasConfirmed()).toBe(false);
   });
 
@@ -145,7 +157,12 @@ describe('WatchBitcoinPayments#runOnce', () => {
     await makeWatcher(store, chain, repo).runOnce();
 
     expect(getStatus()).toBe('awaiting_confirmation');
-    expect(getProgress()).toEqual({ confirmations: 1, underpaid: false, overpaid: false });
+    expect(getProgress()).toEqual({
+      confirmations: 1,
+      confirmedSats: 100000,
+      underpaid: false,
+      overpaid: false,
+    });
     expect(wasConfirmed()).toBe(false);
   });
 
@@ -164,6 +181,7 @@ describe('WatchBitcoinPayments#runOnce', () => {
     expect(getStatus()).toBe('paid');
     expect(getProgress()).toEqual({
       confirmations: REQUIRED_CONFIRMATIONS,
+      confirmedSats: 100000,
       underpaid: false,
       overpaid: false,
     });
@@ -185,6 +203,8 @@ describe('WatchBitcoinPayments#runOnce', () => {
     expect(getStatus()).toBe('paid');
     expect(getProgress()).toEqual({
       confirmations: REQUIRED_CONFIRMATIONS,
+      // Overpayment: how much extra arrived is exactly what an admin needs.
+      confirmedSats: 250000,
       underpaid: false,
       overpaid: true,
     });
@@ -212,6 +232,7 @@ describe('WatchBitcoinPayments#runOnce', () => {
     expect(getStatus()).toBe('paid');
     expect(getProgress()).toEqual({
       confirmations: REQUIRED_CONFIRMATIONS,
+      confirmedSats: 100000,
       underpaid: false,
       overpaid: false,
     });

@@ -9,9 +9,12 @@ import {
 describe('GetOnChainActivityReport', () => {
   it('sums sats, counts distinct addresses, and groups sats by day', async () => {
     const orders: OnChainOrderActivity[] = [
-      { orderId: 'o1', address: 'addr1', expectedSats: 100000, underpaid: false, overpaid: false, confirmations: 3, paidAt: new Date('2026-01-01T10:00:00Z') },
-      { orderId: 'o2', address: 'addr2', expectedSats: 50000, underpaid: true, overpaid: false, confirmations: 3, paidAt: new Date('2026-01-01T18:00:00Z') },
-      { orderId: 'o3', address: 'addr1', expectedSats: 25000, underpaid: false, overpaid: false, confirmations: 3, paidAt: new Date('2026-01-02T09:00:00Z') },
+      { orderId: 'o1', address: 'addr1', expectedSats: 100000,
+        confirmedSats: 100000, underpaid: false, overpaid: false, confirmations: 3, paidAt: new Date('2026-01-01T10:00:00Z') },
+      { orderId: 'o2', address: 'addr2', expectedSats: 50000,
+        confirmedSats: 50000, underpaid: true, overpaid: false, confirmations: 3, paidAt: new Date('2026-01-01T18:00:00Z') },
+      { orderId: 'o3', address: 'addr1', expectedSats: 25000,
+        confirmedSats: 25000, underpaid: false, overpaid: false, confirmations: 3, paidAt: new Date('2026-01-02T09:00:00Z') },
     ];
     const repo: OnChainActivityReportRepository = {
       async listConfirmedWithOrderInfo(since, until) {
