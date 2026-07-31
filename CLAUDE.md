@@ -269,6 +269,13 @@ Payment and fulfillment are **separate** machines that reference each other.
 - The watcher runs on a repeat schedule (~30–60s): `WatchBitcoinPayments.runOnce()`.
 - **Run exactly one watcher.** No lock, no leader election — a second replica only doubles
   load on the Esplora provider.
+- **Two reconcilers back the sourcing path, and they cover different failures.**
+  `ConfirmPayment` only marks its event seen once every side effect completed, so an enqueue
+  that *fails* is retried by the next watcher pass. `ReconcileUnsourcedPaidOrders` covers an
+  enqueue that *succeeded* and whose job was then lost: it re-queues any `paid` order with a
+  line no supplier order covers and no fulfillment issue. The unflagged part is the whole
+  trick — a flagged line is a known problem already in `/admin/fulfillment`, and re-queueing
+  it would log forever and fix nothing.
 - **Expiry stops promising, not looking.** `listWatchable` drops an intent once the order
   closes, so `SweepLatePayments` re-checks recently `expired`/`cancelled` addresses on an
   hourly clock and flags anything holding coins (`bitcoin_payment_intents.late_payment_sats`,

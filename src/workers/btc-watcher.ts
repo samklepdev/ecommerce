@@ -44,6 +44,7 @@ async function main(): Promise<void> {
     expireStaleCheckouts,
     pruneAnalyticsEvents,
     failStuckAwaitingConfirmationOrders,
+    reconcileUnsourcedPaidOrders,
     sweepLatePayments,
     heartbeats,
   } = container;
@@ -119,6 +120,17 @@ async function main(): Promise<void> {
           error: e instanceof Error ? e.message : String(e),
         });
       }
+    }
+
+    // Every pass, like the two above: one indexed query whose result set should
+    // always be empty. When it isn't, a paid order is sitting unfulfilled and
+    // invisible, and every pass it waits is a customer waiting.
+    try {
+      await reconcileUnsourcedPaidOrders.execute();
+    } catch (e) {
+      logger.error('btc-watcher reconcile-unsourced-paid-orders pass failed', {
+        error: e instanceof Error ? e.message : String(e),
+      });
     }
 
     // Housekeeping on a much slower clock than the chain poll. Guarded by

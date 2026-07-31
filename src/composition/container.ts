@@ -29,6 +29,7 @@ import { UpdateOrderContact } from '@/modules/orders/application/use-cases/updat
 import { ListOrderEvents } from '@/modules/orders/application/use-cases/list-order-events';
 import { GetRevenueSummary } from '@/modules/orders/application/use-cases/get-revenue-summary';
 import { FailStuckAwaitingConfirmationOrders } from '@/modules/orders/application/use-cases/fail-stuck-awaiting-confirmation-orders';
+import { ReconcileUnsourcedPaidOrders } from '@/modules/orders/application/use-cases/reconcile-unsourced-paid-orders';
 import { FailOrder } from '@/modules/orders/application/use-cases/fail-order';
 import { PlaceOrder } from '@/modules/orders/application/use-cases/place-order';
 import { DrizzleCouponRepository } from '@/modules/coupons/infrastructure/drizzle-coupon-repository';
@@ -263,6 +264,7 @@ export interface Container {
   recordAnalyticsEvent: RecordAnalyticsEvent;
   pruneAnalyticsEvents: PruneAnalyticsEvents;
   sweepLatePayments: SweepLatePayments;
+  reconcileUnsourcedPaidOrders: ReconcileUnsourcedPaidOrders;
   countLatePayments: CountLatePayments;
   getWebAnalyticsSummary: GetWebAnalyticsSummary;
   listAnalyticsEvents: ListAnalyticsEvents;
@@ -724,6 +726,9 @@ function build(): Container {
   // Finds money that landed after an order closed and the watcher stopped
   // polling its address. Runs on its own slow clock in the worker.
   const sweepLatePayments = new SweepLatePayments(paymentStore, chain);
+  // Catches a paid order whose sourcing job went missing after being enqueued —
+  // the one gap ConfirmPayment's own retry can't see.
+  const reconcileUnsourcedPaidOrders = new ReconcileUnsourcedPaidOrders(orders, fulfillment);
   const countLatePayments = new CountLatePayments(paymentStore);
   const getPaymentProgress = new GetPaymentProgress(orders, paymentStore, effectiveRequiredConfirmations);
 
@@ -766,6 +771,7 @@ function build(): Container {
     recordAnalyticsEvent,
     pruneAnalyticsEvents,
     sweepLatePayments,
+    reconcileUnsourcedPaidOrders,
     countLatePayments,
     getWebAnalyticsSummary,
     listAnalyticsEvents,

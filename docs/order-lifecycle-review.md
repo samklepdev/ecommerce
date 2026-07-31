@@ -56,9 +56,18 @@ evidence that a previous attempt didn't finish, so the remaining work is
 completed rather than skipped, and the enqueue is deliberately left outside
 try/catch so a failure keeps the event unfinished for the next pass.
 
-**Still open:** the narrower case where the enqueue *succeeded* and the job was
-later lost (Redis wiped). A reconcile pass — find `paid` orders with unsourced
-and unflagged lines, re-enqueue — would cover it, and is not built.
+**Also fixed:** the narrower case where the enqueue *succeeded* and the job was
+later lost (Redis wiped, or a queue drained by hand).
+`ReconcileUnsourcedPaidOrders` runs every watcher pass and re-enqueues any
+`paid` order holding a line that no supplier order covers **and** that carries
+no fulfillment issue — the second condition being what separates "work went
+missing" from "known unsourceable, already in the admin queue". Orders idle for
+less than fifteen minutes are left alone so the pass doesn't race the job it's
+backstopping.
+
+That state was previously invisible from every angle: the event was marked
+seen, the order looked normal, and unflagged lines don't appear in the admin's
+unsourced queue. This reconciler is now the only thing that would ever notice.
 
 ## 2. A payment arriving after the deadline is invisible — FIXED
 
