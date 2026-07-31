@@ -113,10 +113,10 @@ export function OrderDetailView({
                       {line.imageUrl && (
                         // Supplier image hosts are dynamic/admin-added, not known at build time.
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={line.imageUrl} alt={line.sku} className={styles.lineThumb} />
+                        <img src={line.imageUrl} alt={line.productName} className={styles.lineThumb} />
                       )}
                       <span>
-                        {line.sku} × {line.quantity}
+                        {line.productName} × {line.quantity}
                       </span>
                     </span>
                     <span>
@@ -172,7 +172,7 @@ export function OrderDetailView({
               const label = carrierLabel(s.carrier);
               return (
                 <div key={s.id} className={styles.trackingRow}>
-                  <span>{s.lines.map((l) => l.sku).join(', ')}</span>
+                  <span>{s.lines.map((l) => l.productName).join(', ')}</span>
                   <span>
                     {trackingUrl ? (
                       <a href={trackingUrl} target="_blank" rel="noreferrer">

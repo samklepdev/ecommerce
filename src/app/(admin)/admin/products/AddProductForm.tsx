@@ -144,9 +144,6 @@ export function AddProductForm({ suppliers, categories, onSuccess }: AddProductF
         </Field>
 
         <div className={styles.row}>
-          <Field label="SKU" htmlFor="sku" className={styles.rowField}>
-            <Input type="text" id="sku" name="sku" />
-          </Field>
           <Field
             label="Sell price (minor units)"
             htmlFor="unitAmountMinor"

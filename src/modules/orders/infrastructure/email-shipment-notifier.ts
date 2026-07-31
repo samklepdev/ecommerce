@@ -43,7 +43,7 @@ export class EmailShipmentNotifier implements ShipmentNotifier {
           trackingNumber: s.trackingNumber!,
           carrierLabel: carrierLabel(s.carrier),
           trackingUrl: buildCarrierTrackingUrl(s.carrier, s.trackingNumber!),
-          items: s.lines.map((l) => l.sku).join(', '),
+          items: s.lines.map((l) => l.productName).join(', '),
         })),
       });
 

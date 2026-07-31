@@ -7,10 +7,25 @@ import type { CartRepository } from '@/modules/cart/application/ports/cart-repos
 
 interface StoredLine {
   productId: string;
-  sku: string;
+  productName?: string;
+  /** What pre-0028 carts stored instead of `productName`. Read, never
+   * written — see `nameOf`. */
+  sku?: string;
   quantity: number;
   unitAmountMinor: number;
   currency: string;
+}
+
+/**
+ * A cart written before 0028 holds the product's SKU where its name now goes.
+ * That's read as the name rather than discarding the cart, unlike the
+ * variant-era shape below: a SKU is a poor label but a *valid* one, it's only
+ * ever a fallback (every cart view prefers the live catalogue name), and
+ * emptying every cart in existence on deploy is a far worse trade than one
+ * ugly string on a product that has since been deleted.
+ */
+function nameOf(line: StoredLine): string | undefined {
+  return line.productName ?? line.sku;
 }
 
 interface StoredCart {
@@ -44,7 +59,9 @@ export class RedisCartRepository implements CartRepository {
     // be re-priced or ordered. There's nothing to migrate it to from here, and
     // a cart is cheap to rebuild, so drop it rather than hand back lines that
     // would fail at checkout.
-    if (stored.lines.some((l) => typeof l.productId !== 'string')) {
+    // A line carrying neither name nor legacy sku isn't a shape this app ever
+    // wrote, so it goes the same way as the variant-era one.
+    if (stored.lines.some((l) => typeof l.productId !== 'string' || nameOf(l) === undefined)) {
       await this.delete(owner);
       return null;
     }
@@ -55,7 +72,8 @@ export class RedisCartRepository implements CartRepository {
       lines: stored.lines.map((l) =>
         CartLine.create({
           productId: l.productId,
-          sku: l.sku,
+          // Non-null: the guard above rejected the whole cart otherwise.
+          productName: nameOf(l)!,
           quantity: l.quantity,
           unitPrice: Money.of(l.unitAmountMinor, l.currency),
         }),
@@ -68,7 +86,7 @@ export class RedisCartRepository implements CartRepository {
       id: cart.id,
       lines: cart.lines.map((l) => ({
         productId: l.productId,
-        sku: l.sku,
+        productName: l.productName,
         quantity: l.quantity,
         unitAmountMinor: l.unitPrice.amountMinor,
         currency: l.unitPrice.currency,

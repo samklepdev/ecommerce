@@ -66,10 +66,10 @@ export interface ReorderActionResult {
   error?: string;
 }
 
-function reorderResultMessage(addedCount: number, unavailableSkus: string[]): string {
+function reorderResultMessage(addedCount: number, unavailableNames: string[]): string {
   if (addedCount === 0) return 'None of the items in that order are available anymore.';
-  if (unavailableSkus.length === 0) return `Added ${addedCount} item(s) to your cart.`;
-  return `Added ${addedCount} item(s) to your cart. ${unavailableSkus.length} item(s) are no longer available (${unavailableSkus.join(', ')}).`;
+  if (unavailableNames.length === 0) return `Added ${addedCount} item(s) to your cart.`;
+  return `Added ${addedCount} item(s) to your cart. ${unavailableNames.length} item(s) are no longer available (${unavailableNames.join(', ')}).`;
 }
 
 /** Account-scoped path — mirrors cancelOwnOrderAction. Always resolves
@@ -92,7 +92,7 @@ export async function reorderOwnOrderAction(
   // See cart.ts — the Header's cart-count badge lives in the root layout
   // and needs an explicit revalidation whenever cart contents change.
   revalidatePath('/', 'layout');
-  return { message: reorderResultMessage(result.value.addedCount, result.value.unavailableSkus) };
+  return { message: reorderResultMessage(result.value.addedCount, result.value.unavailableNames) };
 }
 
 /** Guest/id-only path — mirrors cancelOrderByIdAction, no auth check. */
@@ -112,7 +112,7 @@ export async function reorderOrderByIdAction(
   // See cart.ts — the Header's cart-count badge lives in the root layout
   // and needs an explicit revalidation whenever cart contents change.
   revalidatePath('/', 'layout');
-  return { message: reorderResultMessage(result.value.addedCount, result.value.unavailableSkus) };
+  return { message: reorderResultMessage(result.value.addedCount, result.value.unavailableNames) };
 }
 
 const FindOrderSchema = z.object({

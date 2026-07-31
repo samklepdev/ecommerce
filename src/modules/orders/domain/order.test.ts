@@ -21,7 +21,7 @@ function makeLine(unitAmountMinor: number, quantity: number) {
   return OrderLine.create({
     id: randomUUID(),
     productId: randomUUID(),
-    sku: 'TEST-SKU',
+    productName: 'Test Widget',
     quantity,
     unitPrice: Money.of(unitAmountMinor, 'USD'),
   });

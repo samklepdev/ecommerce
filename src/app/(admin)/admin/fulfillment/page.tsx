@@ -128,7 +128,7 @@ export default async function AdminFulfillmentPage({ searchParams }: AdminFulfil
               {unfulfillableLines.map((line) => (
                 <li key={line.orderLineId} className={styles.lineItem}>
                   <span>
-                    Order {line.orderId.slice(0, 8)} — {line.sku}
+                    Order {line.orderId.slice(0, 8)} — {line.productName}
                   </span>
                   <span className={styles.lineActions}>
                     <Link href="/admin/products">Add supplier offer →</Link>
@@ -202,7 +202,7 @@ export default async function AdminFulfillmentPage({ searchParams }: AdminFulfil
                             {so.lines.map((line, i) => (
                               <li key={i} className={styles.lineItem}>
                                 <span>
-                                  {line.sku} × {line.quantity}
+                                  {line.productName} × {line.quantity}
                                 </span>
                                 <span>{((line.unitCostMinor * line.quantity) / 100).toFixed(2)}</span>
                               </li>

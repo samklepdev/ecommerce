@@ -361,9 +361,22 @@ Worth knowing rather than rediscovering:
 - **Migrations are in `drizzle/`** (22 so far). `db:generate` prompts
   interactively when it can't tell a rename from a drop, so a migration that
   needs data moved between steps is hand-written with a matching snapshot —
-  see `0021_remove_product_variants.sql`.
+  see `0021_remove_product_variants.sql` and `0028_remove_product_sku.sql`.
+- **A hand-written migration's `_journal.json` `when` must exceed every entry
+  already there, not just the last one.** The journal is *not* in chronological
+  order (`0021`'s `when` is the largest in it), and `migrate()` skips anything
+  whose `when` is below the newest already-applied `created_at` — silently, with
+  no error and no DDL. A migration numbered later but timestamped earlier
+  simply never runs.
 - **There are no product variants.** The product is the sellable unit and
-  carries its own sku and price. Anything still saying otherwise is stale.
+  carries its own price. Anything still saying otherwise is stale.
+- **There is no SKU** (0028). This is a dropship store: no warehouse, no
+  supplier catalogue keyed by our identifier, so the field was written at
+  creation and read by nobody. An order line snapshots
+  `product_name` instead — what the product was called when it was bought, so
+  a later rename can't rewrite an old receipt. A supplier *feed* may still
+  carry its own `sku` column; `feed-row-mapper.ts` reads it as one candidate
+  for an external id, which is someone else's identifier, not ours.
 - **Categories are a table**, not a string on the product (0022/0023).
   `products.category_id` is the FK; `Product.category` is the display name,
   hydrated on read, and `Product.categoryId` is what writes use. The

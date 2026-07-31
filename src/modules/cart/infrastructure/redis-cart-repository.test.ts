@@ -36,7 +36,13 @@ describe('RedisCartRepository', () => {
       JSON.stringify({
         id: 'cart-1',
         lines: [
-          { productId: 'p1', sku: 'SKU-1', quantity: 2, unitAmountMinor: 1000, currency: 'USD' },
+          {
+            productId: 'p1',
+            productName: 'Blue Widget',
+            quantity: 2,
+            unitAmountMinor: 1000,
+            currency: 'USD',
+          },
         ],
       }),
     );
@@ -44,7 +50,41 @@ describe('RedisCartRepository', () => {
     const cart = await repo.get(owner);
     expect(cart?.lines).toHaveLength(1);
     expect(cart?.lines[0]?.productId).toBe('p1');
+    expect(cart?.lines[0]?.productName).toBe('Blue Widget');
     expect(cart?.lines[0]?.quantity).toBe(2);
+  });
+
+  // 0028 replaced the line's sku snapshot with a product-name snapshot. Unlike
+  // the variant change below, the old value is still usable — so a cart in
+  // flight at deploy time keeps its contents instead of emptying itself.
+  it('reads a pre-0028 cart, taking the stored sku as the name', async () => {
+    const { redis, store } = makeFakeRedis({
+      [key]: JSON.stringify({
+        id: 'cart-legacy',
+        lines: [{ productId: 'p1', sku: 'WIDGET-BLUE-01', quantity: 3, unitAmountMinor: 1000, currency: 'USD' }],
+      }),
+    });
+    const repo = new RedisCartRepository(redis);
+
+    const cart = await repo.get(owner);
+    expect(cart?.lines).toHaveLength(1);
+    expect(cart?.lines[0]?.productName).toBe('WIDGET-BLUE-01');
+    expect(cart?.lines[0]?.quantity).toBe(3);
+    // Kept, not discarded — the distinction from the variant-era shape.
+    expect(store.has(key)).toBe(true);
+  });
+
+  it('discards a cart line carrying neither a name nor a legacy sku', async () => {
+    const { redis, store } = makeFakeRedis({
+      [key]: JSON.stringify({
+        id: 'cart-broken',
+        lines: [{ productId: 'p1', quantity: 1, unitAmountMinor: 1000, currency: 'USD' }],
+      }),
+    });
+    const repo = new RedisCartRepository(redis);
+
+    expect(await repo.get(owner)).toBeNull();
+    expect(store.has(key)).toBe(false);
   });
 
   // Removing variants changed what a cart line points at. A cart written

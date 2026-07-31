@@ -45,7 +45,6 @@ export interface AdminProductRow {
   categoryId: string | null;
   imageUrl: string | null;
   additionalImages: { id: string; url: string }[];
-  sku: string;
   priceAmountMinor: number;
   currency: string;
   hasNoOffers: boolean;
@@ -142,7 +141,6 @@ export function AdminProductsTable({
               <th className={styles.selectCol}></th>
               <th>Product</th>
               <th>Status</th>
-              <th>SKU</th>
               <th className={styles.numCol}>Price</th>
               <th>Sourcing</th>
               <th className={styles.editCol}></th>
@@ -180,7 +178,6 @@ export function AdminProductsTable({
                     <td>
                       <Badge tone={p.status === 'active' ? 'success' : 'neutral'}>{p.status}</Badge>
                     </td>
-                    <td className={styles.skuCell}>{p.sku}</td>
                     <td className={styles.numCol}>{formatMoney(p.priceAmountMinor, p.currency)}</td>
                     <td>
                       {p.hasNoOffers ? (

@@ -56,7 +56,7 @@ export default async function CartPage() {
         <Stack gap={3}>
           {cart.lines.map((line) => {
             // A deleted/archived product still has an order-independent
-            // cart line — fall back to the sku rather than hiding the row.
+            // cart line — fall back to the name snapshotted on the line.
             const product = productsById.get(line.productId) ?? null;
             return (
               <Card key={line.productId} className={styles.lineCard}>
@@ -69,7 +69,7 @@ export default async function CartPage() {
                     <div className={styles.lineImagePlaceholder} aria-hidden />
                   )}
                   <div>
-                    <p className={styles.name}>{product?.name ?? line.sku}</p>
+                    <p className={styles.name}>{product?.name ?? line.productName}</p>
                     <p className={styles.price}>{line.subtotal.toDisplayString()}</p>
                   </div>
                 </div>

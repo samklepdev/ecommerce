@@ -1,5 +1,5 @@
 export interface OrderConfirmationEmailLine {
-  sku: string;
+  productName: string;
   quantity: number;
 }
 
@@ -28,7 +28,7 @@ export function renderOrderConfirmationEmailHtml({
   orderUrl,
 }: OrderConfirmationEmailInput): string {
   const lineItems = lines
-    .map((line) => `<li>${line.sku} × ${line.quantity}</li>`)
+    .map((line) => `<li>${line.productName} × ${line.quantity}</li>`)
     .join('\n');
 
   return `

@@ -20,7 +20,7 @@ describe('SendOrderConfirmationEmail', () => {
     await new SendOrderConfirmationEmail(sender).execute({
       customerEmail: 'buyer@example.com',
       orderId: 'order-1234',
-      lines: [{ sku: 'SKU-1', quantity: 2 }],
+      lines: [{ productName: 'Blue Widget', quantity: 2 }],
       totalDisplay: '$42.00',
       orderUrl: 'https://shop.example.com/orders/order-1234',
     });
@@ -28,7 +28,7 @@ describe('SendOrderConfirmationEmail', () => {
     expect(sent).toHaveLength(1);
     expect(sent[0]?.to).toBe('buyer@example.com');
     expect(sent[0]?.subject).toMatch(/order/i);
-    expect(sent[0]?.html).toContain('SKU-1');
+    expect(sent[0]?.html).toContain('Blue Widget');
     expect(sent[0]?.html).toContain('$42.00');
     expect(sent[0]?.html).toContain('https://shop.example.com/orders/order-1234');
   });

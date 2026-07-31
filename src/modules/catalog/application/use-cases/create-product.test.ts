@@ -14,13 +14,12 @@ function makeFakeProducts() {
   return { repo: repo as ProductRepository, created };
 }
 
-/** Sku and price are required now that the product is the sellable unit, so
+/** Price is required now that the product is the sellable unit, so
  * every case supplies them — only the field under test varies. */
 function makeInput(overrides: Partial<CreateProductInput> = {}): CreateProductInput {
   return {
     slug: 'widget-x',
     name: 'Widget X',
-    sku: 'WIDGET-X',
     unitAmountMinor: 1999,
     currency: 'USD',
     ...overrides,
@@ -39,14 +38,13 @@ describe('CreateProduct', () => {
     expect(created).toEqual([product]);
   });
 
-  it('carries the sku and price onto the product', async () => {
+  it('carries the price onto the product', async () => {
     const { repo } = makeFakeProducts();
 
     const product = await new CreateProduct(repo).execute(
-      makeInput({ sku: 'WIDGET-PRO', unitAmountMinor: 4550, currency: 'EUR' }),
+      makeInput({ unitAmountMinor: 4550, currency: 'EUR' }),
     );
 
-    expect(product.sku).toBe('WIDGET-PRO');
     expect(product.price.amountMinor).toBe(4550);
     expect(product.price.currency).toBe('EUR');
   });

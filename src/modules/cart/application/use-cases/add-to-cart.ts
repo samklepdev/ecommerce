@@ -34,7 +34,7 @@ export class AddToCart implements UseCase<AddToCartInput, Result<Cart, AddToCart
     const updated = cart.addLine(
       CartLine.create({
         productId: product.id,
-        sku: product.sku,
+        productName: product.name,
         quantity: input.quantity,
         unitPrice: product.price,
       }),

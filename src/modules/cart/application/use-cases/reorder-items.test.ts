@@ -14,14 +14,13 @@ import type {
   OrderHistoryRepository,
 } from '@/modules/orders/application/ports/order-history-repository';
 
-function makeProduct(id: string, unitAmountMinor: number, sku = `SKU-${id.slice(0, 4)}`) {
+function makeProduct(id: string, unitAmountMinor: number, name = `Widget ${id.slice(0, 4)}`) {
   return Product.create({
     id,
     slug: Slug.create(`widget-${id.slice(0, 4)}`),
-    name: 'Widget',
+    name,
     description: null,
     status: 'active',
-    sku,
     price: Money.of(unitAmountMinor, 'USD'),
   });
 }
@@ -91,7 +90,7 @@ describe('ReorderItems', () => {
   it('adds every reorderable line to a fresh cart, re-priced from the catalog', async () => {
     const productId = randomUUID();
     const order = makeOrderDetail({
-      lines: [{ id: 'order-line-1', productId, sku: 'OLD-SKU', quantity: 2, unitAmountMinor: 1, imageUrl: null }], // stale price on purpose
+      lines: [{ id: 'order-line-1', productId, productName: 'Stale Name', quantity: 2, unitAmountMinor: 1, imageUrl: null }], // stale price on purpose
     });
     const { repo: orders } = makeFakeOrderHistory(order);
     const { repo: carts, saved } = makeFakeCarts(null);
@@ -106,7 +105,7 @@ describe('ReorderItems', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.addedCount).toBe(1);
-      expect(result.value.unavailableSkus).toEqual([]);
+      expect(result.value.unavailableNames).toEqual([]);
     }
     expect(saved).toHaveLength(1);
     expect(saved[0]?.lines[0]?.unitPrice.amountMinor).toBe(1999); // catalog price, not the stale 1
@@ -117,7 +116,7 @@ describe('ReorderItems', () => {
     const productId = randomUUID();
     const existingProductId = randomUUID();
     const order = makeOrderDetail({
-      lines: [{ id: 'order-line-1', productId, sku: 'SKU-A', quantity: 1, unitAmountMinor: 500, imageUrl: null }],
+      lines: [{ id: 'order-line-1', productId, productName: 'Widget A', quantity: 1, unitAmountMinor: 500, imageUrl: null }],
     });
     const { repo: orders } = makeFakeOrderHistory(order);
     const existingCart = Cart.create({
@@ -126,14 +125,14 @@ describe('ReorderItems', () => {
       lines: [
         CartLine.create({
           productId: existingProductId,
-          sku: 'SKU-EXISTING',
+          productName: 'Existing Widget',
           quantity: 1,
           unitPrice: Money.of(300, 'USD'),
         }),
       ],
     });
     const { repo: carts, saved } = makeFakeCarts(existingCart);
-    const products = makeFakeProducts(new Map([[productId, makeProduct(productId, 500, 'SKU-A')]]));
+    const products = makeFakeProducts(new Map([[productId, makeProduct(productId, 500, 'Widget A')]]));
 
     await new ReorderItems(orders, carts, products).execute({ owner, orderId: 'order-1', ownerUserId: null });
 
@@ -143,7 +142,7 @@ describe('ReorderItems', () => {
   it('skips lines whose product no longer exists, reporting them rather than failing', async () => {
     const goneProductId = randomUUID();
     const order = makeOrderDetail({
-      lines: [{ id: 'order-line-1', productId: goneProductId, sku: 'GONE-SKU', quantity: 1, unitAmountMinor: 100, imageUrl: null }],
+      lines: [{ id: 'order-line-1', productId: goneProductId, productName: 'Gone Widget', quantity: 1, unitAmountMinor: 100, imageUrl: null }],
     });
     const { repo: orders } = makeFakeOrderHistory(order);
     const { repo: carts, saved } = makeFakeCarts(null);
@@ -158,7 +157,7 @@ describe('ReorderItems', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.addedCount).toBe(0);
-      expect(result.value.unavailableSkus).toEqual(['GONE-SKU']);
+      expect(result.value.unavailableNames).toEqual(['Gone Widget']);
     }
     expect(saved).toHaveLength(1);
     expect(saved[0]?.lines).toHaveLength(0);

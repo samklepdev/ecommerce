@@ -60,7 +60,6 @@ const CreateProductSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   categoryId: z.string().optional(),
-  sku: z.string().min(1),
   unitAmountMinor: z.coerce.number().int().positive(),
   currency: z.string().length(3),
   supplierId: z.string().min(1),
@@ -85,7 +84,6 @@ export async function createProductWithOfferAction(
     name: formData.get('name'),
     description: formData.get('description') || undefined,
     categoryId: formData.get('categoryId') || undefined,
-    sku: formData.get('sku'),
     unitAmountMinor: formData.get('unitAmountMinor'),
     currency: formData.get('currency') || 'USD',
     supplierId: formData.get('supplierId'),
@@ -108,7 +106,6 @@ export async function createProductWithOfferAction(
     description: parsed.data.description ?? null,
     status: 'draft',
     categoryId: parsed.data.categoryId ?? null,
-    sku: parsed.data.sku,
     unitAmountMinor: parsed.data.unitAmountMinor,
     currency: parsed.data.currency,
   });

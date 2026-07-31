@@ -27,7 +27,6 @@ function makeProduct(overrides: Partial<AdminProductRow> = {}): AdminProductRow 
     categoryId: 'cat-1',
     imageUrl: null,
     additionalImages: [],
-    sku: 'SKU-1',
     priceAmountMinor: 2499,
     currency: 'USD',
     hasNoOffers: false,

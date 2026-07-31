@@ -8,7 +8,7 @@ import { Money } from '@/shared/domain/money';
 function makeLine(productId: string, quantity: number, unitAmountMinor = 1000) {
   return CartLine.create({
     productId,
-    sku: `SKU-${productId.slice(0, 4)}`,
+    productName: `Widget ${productId.slice(0, 4)}`,
     quantity,
     unitPrice: Money.of(unitAmountMinor, 'USD'),
   });

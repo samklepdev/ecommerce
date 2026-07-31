@@ -27,7 +27,7 @@ export interface OrderDetailLine {
   /** The order_lines row id — what an admin edit targets. */
   id: string;
   productId: string;
-  sku: string;
+  productName: string;
   quantity: number;
   unitAmountMinor: number;
   /** The product's primary image at read time — not snapshotted, so it

@@ -105,7 +105,7 @@ export class DrizzleSupplierOrderRepository implements SupplierOrderRepository {
         productId: supplierOrderLines.productId,
         quantity: supplierOrderLines.quantity,
         unitCostMinor: supplierOrderLines.unitCostMinor,
-        sku: orderLines.sku,
+        productName: orderLines.productName,
       })
       .from(supplierOrderLines)
       .innerJoin(orderLines, eq(supplierOrderLines.orderLineId, orderLines.id))
@@ -121,7 +121,7 @@ export class DrizzleSupplierOrderRepository implements SupplierOrderRepository {
       const list = linesBySupplierOrder.get(line.supplierOrderId) ?? [];
       list.push({
         productId: line.productId,
-        sku: line.sku,
+        productName: line.productName,
         quantity: line.quantity,
         unitCostMinor: line.unitCostMinor,
       });

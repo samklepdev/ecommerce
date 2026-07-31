@@ -37,7 +37,6 @@ export async function makeProduct(
     status: 'active' | 'draft' | 'archived';
     name: string;
     slug: string;
-    sku: string;
     unitAmountMinor: number;
     currency: string;
     categoryId: string | null;
@@ -53,7 +52,6 @@ export async function makeProduct(
     status: overrides.status ?? 'active',
     source: 'manual',
     categoryId: overrides.categoryId ?? null,
-    sku: overrides.sku ?? `SKU-${short}`,
     unitAmountMinor: overrides.unitAmountMinor ?? 1999,
     currency: overrides.currency ?? 'USD',
   };

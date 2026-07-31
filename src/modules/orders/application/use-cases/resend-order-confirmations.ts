@@ -39,7 +39,7 @@ export class ResendOrderConfirmations implements UseCase<ResendOrderConfirmation
         await this.sendOrderConfirmationEmail.execute({
           customerEmail: input.email,
           orderId: order.id,
-          lines: order.lines.map((l) => ({ sku: l.sku, quantity: l.quantity })),
+          lines: order.lines.map((l) => ({ productName: l.productName, quantity: l.quantity })),
           // `toDisplayString`, not `toString` — this reaches a customer, and
           // `toString` is the debug form ("4200 USD"). The queued
           // order-confirmation path already formats it this way, and the same

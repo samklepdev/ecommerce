@@ -13,7 +13,6 @@ export interface CreateProductInput {
   status?: ProductStatus;
   source?: ProductSource;
   categoryId?: string | null;
-  sku: string;
   unitAmountMinor: number;
   currency: string;
 }
@@ -36,7 +35,6 @@ export class CreateProduct implements UseCase<CreateProductInput, Product> {
       status: input.status ?? 'draft',
       source: input.source ?? 'manual',
       categoryId: input.categoryId ?? null,
-      sku: input.sku,
       price: Money.of(input.unitAmountMinor, input.currency),
     });
     await this.products.createProduct(product);

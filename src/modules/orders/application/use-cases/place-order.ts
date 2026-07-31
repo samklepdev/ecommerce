@@ -59,7 +59,7 @@ export class PlaceOrder implements UseCase<PlaceOrderInput, Result<Order, PlaceO
         OrderLine.create({
           id: randomUUID(),
           productId: product.id,
-          sku: product.sku,
+          productName: product.name,
           quantity: line.quantity,
           unitPrice: product.price,
         }),

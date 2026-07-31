@@ -16,14 +16,14 @@ const initialState: EditOrderLinesActionResult = {};
 
 export interface OrderLinesEditorLine {
   id: string;
-  sku: string;
+  productName: string;
   quantity: number;
 }
 
 export interface OrderLinesEditorProps {
   orderId: string;
   lines: OrderLinesEditorLine[];
-  products: { id: string; name: string; sku: string }[];
+  products: { id: string; name: string }[];
   /** False once the chain has seen a payment. The panel then explains why
    * rather than disappearing — "no edit controls" and "editing is closed"
    * look identical otherwise. */
@@ -75,7 +75,7 @@ export function OrderLinesEditor({
       <ul className={styles.editorList}>
         {lines.map((line) => (
           <li key={line.id} className={styles.editorRow}>
-            <span className={styles.editorSku}>{line.sku}</span>
+            <span className={styles.editorProductName}>{line.productName}</span>
             <form action={quantityAction} className={styles.editorInline}>
               <input type="hidden" name="orderId" value={orderId} />
               <input type="hidden" name="orderLineId" value={line.id} />
@@ -85,7 +85,7 @@ export function OrderLinesEditor({
                 defaultValue={line.quantity}
                 min={0}
                 max={99}
-                aria-label={`Quantity for ${line.sku}`}
+                aria-label={`Quantity for ${line.productName}`}
                 className={styles.editorQuantity}
               />
               <Button type="submit" variant="secondary" disabled={isPending}>
@@ -110,7 +110,7 @@ export function OrderLinesEditor({
           <option value="">Add a product…</option>
           {products.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.name} ({p.sku})
+              {p.name}
             </option>
           ))}
         </Select>

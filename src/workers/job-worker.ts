@@ -28,7 +28,7 @@ export interface JobWorkerDeps {
   appUrl: string;
   getOrderDetail: {
     execute(input: { orderId: string }): Promise<{
-      lines: { sku: string; quantity: number }[];
+      lines: { productName: string; quantity: number }[];
       amountMinor: number;
       currency: string;
     } | null>;
@@ -106,7 +106,7 @@ export function createJobWorker(redisUrl: string, deps: JobWorkerDeps): Worker {
         await deps.sendOrderConfirmationEmail.execute({
           customerEmail,
           orderId,
-          lines: order.lines.map((line) => ({ sku: line.sku, quantity: line.quantity })),
+          lines: order.lines.map((line) => ({ productName: line.productName, quantity: line.quantity })),
           totalDisplay: Money.of(order.amountMinor, order.currency).toDisplayString(),
           orderUrl: `${deps.appUrl}/orders/${orderId}`,
         });

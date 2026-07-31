@@ -115,9 +115,6 @@ export class ImportProductsFromFeed
           description: listing.description,
           status: 'draft',
           source: 'feed_import',
-          // The feed's own slug doubles as the sku — it's the only stable
-          // per-listing identifier a feed is guaranteed to carry.
-          sku: listing.slug,
           unitAmountMinor: listing.priceMinor,
           currency: listing.currency,
         });

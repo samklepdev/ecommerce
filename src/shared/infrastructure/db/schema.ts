@@ -218,10 +218,10 @@ export const products = pgTable(
     categoryId: text('category_id').references(() => categories.id, { onDelete: 'set null' }),
     status: text('status').notNull().default('draft'), // draft | active | archived
     source: text('source').notNull().default('manual'), // manual | feed_import
-    // The product is the sellable unit — these came off `product_variants`
+    // The product is the sellable unit — this came off `product_variants`
     // when that table was dropped (see 0021), which was 1:1 with products
-    // in practice anyway.
-    sku: text('sku').notNull(),
+    // in practice anyway. There is no `sku`: this store never used one
+    // (dropship, no warehouse to reconcile against), and 0028 dropped it.
     unitAmountMinor: bigint('unit_amount_minor', { mode: 'number' }).notNull(),
     currency: text('currency').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -229,7 +229,6 @@ export const products = pgTable(
   },
   (t) => ({
     slugUnique: uniqueIndex('products_slug_unique').on(t.slug),
-    skuUnique: uniqueIndex('products_sku_unique').on(t.sku),
     // The storefront filters by category on every catalog page.
     categoryIdx: index('products_category_id_idx').on(t.categoryId),
   }),
@@ -519,8 +518,10 @@ export const orderLines = pgTable(
       .notNull()
       .references(() => products.id),
     // Denormalized snapshot at order time — never re-read from the catalog
-    // after the order is placed, even if the product's price/sku later changes.
-    sku: text('sku').notNull(),
+    // after the order is placed, even if the product is later renamed,
+    // repriced or deleted. This is what the customer's receipt and the
+    // fulfillment queue say was bought, so it has to keep saying it.
+    productName: text('product_name').notNull(),
     quantity: integer('quantity').notNull(),
     unitAmountMinor: bigint('unit_amount_minor', { mode: 'number' }).notNull(),
     // Set when CreateSupplierOrdersForPaidOrder can't source this line (no

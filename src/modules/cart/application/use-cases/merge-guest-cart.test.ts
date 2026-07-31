@@ -35,7 +35,7 @@ describe('MergeGuestCart', () => {
   it('merges guest lines into the user cart and deletes the guest cart', async () => {
     const productA = randomUUID();
     const guestCart = makeCart({ type: 'guest', sessionId: 's1' }, [
-      CartLine.create({ productId: productA, sku: 'A', quantity: 1, unitPrice: Money.of(1000, 'USD') }),
+      CartLine.create({ productId: productA, productName: 'Widget A', quantity: 1, unitPrice: Money.of(1000, 'USD') }),
     ]);
     const userCart = makeCart({ type: 'user', userId: 'user-1' }, []);
     const { repo, deleted, saved } = makeFakeCarts(
@@ -56,10 +56,10 @@ describe('MergeGuestCart', () => {
   it('sums quantities on a product collision between guest and user carts', async () => {
     const productA = randomUUID();
     const guestCart = makeCart({ type: 'guest', sessionId: 's1' }, [
-      CartLine.create({ productId: productA, sku: 'A', quantity: 2, unitPrice: Money.of(1000, 'USD') }),
+      CartLine.create({ productId: productA, productName: 'Widget A', quantity: 2, unitPrice: Money.of(1000, 'USD') }),
     ]);
     const userCart = makeCart({ type: 'user', userId: 'user-1' }, [
-      CartLine.create({ productId: productA, sku: 'A', quantity: 3, unitPrice: Money.of(1000, 'USD') }),
+      CartLine.create({ productId: productA, productName: 'Widget A', quantity: 3, unitPrice: Money.of(1000, 'USD') }),
     ]);
     const { repo } = makeFakeCarts(
       new Map([
@@ -77,7 +77,7 @@ describe('MergeGuestCart', () => {
   it('creates a new user cart when the user has none yet', async () => {
     const productA = randomUUID();
     const guestCart = makeCart({ type: 'guest', sessionId: 's1' }, [
-      CartLine.create({ productId: productA, sku: 'A', quantity: 1, unitPrice: Money.of(1000, 'USD') }),
+      CartLine.create({ productId: productA, productName: 'Widget A', quantity: 1, unitPrice: Money.of(1000, 'USD') }),
     ]);
     const { repo } = makeFakeCarts(new Map([['guest:s1', guestCart]]));
 
@@ -89,7 +89,7 @@ describe('MergeGuestCart', () => {
 
   it('returns the existing user cart unchanged when there is no guest cart', async () => {
     const userCart = makeCart({ type: 'user', userId: 'user-1' }, [
-      CartLine.create({ productId: randomUUID(), sku: 'X', quantity: 1, unitPrice: Money.of(500, 'USD') }),
+      CartLine.create({ productId: randomUUID(), productName: 'Widget X', quantity: 1, unitPrice: Money.of(500, 'USD') }),
     ]);
     const { repo, deleted } = makeFakeCarts(new Map([['user:user-1', userCart]]));
 
@@ -102,7 +102,7 @@ describe('MergeGuestCart', () => {
   it('returns the existing user cart unchanged when the guest cart is empty', async () => {
     const emptyGuestCart = makeCart({ type: 'guest', sessionId: 's1' }, []);
     const userCart = makeCart({ type: 'user', userId: 'user-1' }, [
-      CartLine.create({ productId: randomUUID(), sku: 'X', quantity: 1, unitPrice: Money.of(500, 'USD') }),
+      CartLine.create({ productId: randomUUID(), productName: 'Widget X', quantity: 1, unitPrice: Money.of(500, 'USD') }),
     ]);
     const { repo, deleted } = makeFakeCarts(
       new Map([
