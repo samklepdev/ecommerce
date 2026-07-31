@@ -16,8 +16,15 @@ export interface FulfillmentQueue {
 export interface ConfirmPaymentInput {
   orderId: string;
   eventId: string;
-  confirmedSats: number;
 }
+
+/*
+ * No `confirmedSats` here, deliberately. It used to be accepted and never read,
+ * which made it look as though this recorded the amount when nothing did. The
+ * watcher persists it via `recordProgress` before reaching this point, on every
+ * pass and in every branch, so adding a second writer would only create a way
+ * for the two to disagree.
+ */
 
 /**
  * The ONLY place an order moves to `paid`, driven by the chain-watcher.

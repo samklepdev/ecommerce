@@ -3,12 +3,12 @@ import type { UseCase } from '@/shared/application/use-case';
 export interface OnChainOrderActivity {
   orderId: string;
   address: string;
-  /** Proxy for actually-received sats — accurate in the common exact-payment
-   * case; `underpaid`/`overpaid` are surfaced per-row so an admin can see
-   * where this might be off, rather than presenting a falsely-precise
-   * total. Deliberately not derived from live chain data — see
-   * `GetOnChainActivityReport`'s doc comment. */
+  /** What was asked for. Kept alongside `confirmedSats` so a discrepancy is
+   * legible rather than implied by a flag. */
   expectedSats: number;
+  /** What actually arrived. 0 only for orders confirmed before this was
+   * recorded (0030) — a paid order cannot genuinely have received nothing. */
+  confirmedSats: number;
   underpaid: boolean;
   overpaid: boolean;
   confirmations: number;
@@ -40,12 +40,19 @@ export interface GetOnChainActivityReportResult {
 
 /**
  * Deliberately read-only, built entirely from already-durable data — never
- * touches ConfirmPayment, the gateway, or the chain watcher. Actual
- * confirmed sats aren't persisted anywhere (computed in-memory by the
- * watcher and discarded); persisting them would mean instrumenting the
- * most sensitive part of this codebase for a reporting nice-to-have, which
- * isn't worth the risk. `expectedSats` on a paid order is an accurate
- * stand-in in the overwhelming common exact-payment case.
+ * touches ConfirmPayment, the gateway, or the chain watcher.
+ *
+ * Totals on **`confirmedSats`**, what actually arrived. This used to total
+ * `expectedSats` and say so, on the grounds that persisting the real figure
+ * meant instrumenting the most sensitive code here for a reporting
+ * nice-to-have. That reasoning didn't hold: the substitution is exact only when
+ * the payment was exact, so the revenue number was quietly wrong for precisely
+ * the underpaid and overpaid orders worth investigating — and with no refund
+ * mechanism, the discrepancy is the only evidence there's anything to resolve.
+ *
+ * Falls back to `expectedSats` for rows confirmed before 0030, which have no
+ * observation to report. A paid order cannot genuinely have received 0 sats, so
+ * 0 is an unambiguous "not recorded".
  */
 export class GetOnChainActivityReport
   implements UseCase<GetOnChainActivityReportInput, GetOnChainActivityReportResult>
@@ -55,7 +62,7 @@ export class GetOnChainActivityReport
   async execute(input: GetOnChainActivityReportInput): Promise<GetOnChainActivityReportResult> {
     const orders = await this.report.listConfirmedWithOrderInfo(input.since, input.until);
 
-    const totalSats = orders.reduce((sum, o) => sum + o.expectedSats, 0);
+    const totalSats = orders.reduce((sum, o) => sum + (o.confirmedSats || o.expectedSats), 0);
     const addressCount = new Set(orders.map((o) => o.address)).size;
 
     const byDay = new Map<string, number>();

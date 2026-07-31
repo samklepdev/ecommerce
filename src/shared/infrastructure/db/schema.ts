@@ -606,6 +606,14 @@ export const bitcoinPaymentIntents = pgTable(
     // telemetry for the customer-facing status widget, not a status-enum
     // transition itself.
     confirmations: integer('confirmations').notNull().default(0),
+    // What actually arrived, as opposed to `expectedSats`, which is what we
+    // asked for. The watcher used to compute this every pass and throw it
+    // away, which left the business unable to say how short an underpaid
+    // order was or how much an overpaid one owes back — the only figure that
+    // matters when deciding what to do about either. Defaults to 0 rather
+    // than null: "we have polled and seen nothing" is the honest starting
+    // state, and it matches `confirmations`.
+    confirmedSats: bigint('confirmed_sats', { mode: 'number' }).notNull().default(0),
     underpaid: boolean('underpaid').notNull().default(false),
     overpaid: boolean('overpaid').notNull().default(false),
     // Money that arrived after this intent stopped being watched — the order

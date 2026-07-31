@@ -14,10 +14,15 @@ export interface BitcoinPaymentIntent {
   satsPerFiatUnit: number;
   expiresAt: Date;
   status: BitcoinPaymentIntentStatus;
-  /** Last confirmation count / underpayment/overpayment flags the watcher
-   * observed — absent at creation time (DB defaults to 0/false), always
-   * present once read back via `getByOrderId`/`listWatchable`. */
+  /** Last confirmation count / observed amount / underpayment-overpayment
+   * flags the watcher recorded — absent at creation time (DB defaults to
+   * 0/false), always present once read back via
+   * `getByOrderId`/`listWatchable`. */
   confirmations?: number;
+  /** Satoshis actually seen at `address`, as against `expectedSats`, which is
+   * what was asked for. The difference is the whole point: it's what says how
+   * short an underpaid order is, and how much an overpaid one sent. */
+  confirmedSats?: number;
   underpaid?: boolean;
   overpaid?: boolean;
 }
@@ -46,7 +51,12 @@ export interface BitcoinPaymentStore {
    * into `markConfirmed`/`markExpired`. */
   recordProgress(
     orderId: string,
-    progress: { confirmations: number; underpaid: boolean; overpaid: boolean },
+    progress: {
+      confirmations: number;
+      confirmedSats: number;
+      underpaid: boolean;
+      overpaid: boolean;
+    },
   ): Promise<void>;
   /**
    * Closed intents worth one more look: `expired` or `cancelled`, created no

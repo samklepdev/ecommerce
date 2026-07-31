@@ -21,6 +21,7 @@ export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore, OnChainA
         orderId: orders.id,
         address: bitcoinPaymentIntents.address,
         expectedSats: bitcoinPaymentIntents.expectedSats,
+        confirmedSats: bitcoinPaymentIntents.confirmedSats,
         underpaid: bitcoinPaymentIntents.underpaid,
         overpaid: bitcoinPaymentIntents.overpaid,
         confirmations: bitcoinPaymentIntents.confirmations,
@@ -178,12 +179,18 @@ export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore, OnChainA
 
   async recordProgress(
     orderId: string,
-    progress: { confirmations: number; underpaid: boolean; overpaid: boolean },
+    progress: {
+      confirmations: number;
+      confirmedSats: number;
+      underpaid: boolean;
+      overpaid: boolean;
+    },
   ): Promise<void> {
     await this.db
       .update(bitcoinPaymentIntents)
       .set({
         confirmations: progress.confirmations,
+        confirmedSats: progress.confirmedSats,
         underpaid: progress.underpaid,
         overpaid: progress.overpaid,
       })
@@ -203,6 +210,7 @@ function toIntent(row: Row): BitcoinPaymentIntent {
     expiresAt: row.expiresAt,
     status: row.status as BitcoinPaymentIntent['status'],
     confirmations: row.confirmations,
+    confirmedSats: row.confirmedSats,
     underpaid: row.underpaid,
     overpaid: row.overpaid,
   };

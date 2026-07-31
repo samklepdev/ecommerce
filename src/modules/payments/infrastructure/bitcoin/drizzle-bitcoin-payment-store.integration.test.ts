@@ -109,6 +109,33 @@ describe('DrizzleBitcoinPaymentStore late payments (integration)', () => {
     expect(await store().countLatePayments()).toBe(1);
   });
 
+  it('round-trips the observed amount, not just the flags', async () => {
+    // Finding 3: the watcher used to compute this every pass and discard it, so
+    // an underpaid order recorded *that* it was short and never *by how much*.
+    const orderId = await seedIntent(db as DB, { status: 'awaiting' });
+
+    await store().recordProgress(orderId, {
+      confirmations: 2,
+      confirmedSats: 62_500,
+      underpaid: true,
+      overpaid: false,
+    });
+
+    const intent = await store().getByOrderId(orderId);
+    expect(intent?.confirmedSats).toBe(62_500);
+    expect(intent?.expectedSats).toBe(100_000);
+    expect(intent?.underpaid).toBe(true);
+  });
+
+  it('defaults the observed amount to 0 rather than null', async () => {
+    // 0 says "polled and saw nothing" honestly, and matches `confirmations`.
+    // A paid order still reading 0 therefore means "recorded before 0030",
+    // which is what lets the revenue report fall back safely.
+    const orderId = await seedIntent(db as DB, { status: 'awaiting' });
+
+    expect((await store().getByOrderId(orderId))?.confirmedSats).toBe(0);
+  });
+
   it('counts zero when nothing has been flagged', async () => {
     await seedIntent(db as DB, { status: 'expired' });
 

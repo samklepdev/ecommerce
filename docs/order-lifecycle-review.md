@@ -98,7 +98,7 @@ drops an intent out of `listWatchable`, so the state machine's `cancelled ->
 paid` recovery path — which exists precisely for "they cancelled but paid
 anyway" — had nothing that could ever reach it. The same sweep covers both.
 
-## 3. The amount actually received is never stored
+## 3. The amount actually received is never stored — FIXED
 
 `ConfirmPayment` accepts `confirmedSats` (`confirm-payment.ts:19`) and **never
 reads it**. The watcher computes the real figure and discards it;
@@ -110,11 +110,18 @@ business has no record of what actually arrived — which is the only number
 that matters when deciding what to do about it. It also means the revenue
 figure is quietly wrong for exactly the orders where accuracy matters most.
 
-**Fix.** Persist confirmed sats on the payment intent at confirmation and use
-it in the report. The original decision not to ("instrumenting the most
-sensitive part of this codebase for a reporting nice-to-have") was defensible,
-but it isn't a reporting nice-to-have — with refunds removed it's the only
-evidence of a discrepancy.
+**Fixed.** `bitcoin_payment_intents.confirmed_sats` (0030) is written by the
+watcher's existing `recordProgress` call, on every pass and in every branch, so
+there's one writer and no way for two records to disagree. The revenue report
+totals it and falls back to `expectedSats` only for rows confirmed before the
+column existed — a paid order cannot genuinely have received 0 sats, so 0 is an
+unambiguous "not recorded". The admin ledger and CSV export show received and
+expected side by side, since a discrepancy is unreadable with only one figure.
+
+`ConfirmPayment`'s `confirmedSats` parameter is **gone** rather than wired up.
+It was accepted and never read, which made it look as though something recorded
+the amount when nothing did; the watcher already persists it before
+`ConfirmPayment` runs, so a second writer would only add a way to disagree.
 
 ## 4. Underpayment has no ending
 
@@ -127,7 +134,13 @@ ships, no record exists of how much arrived (finding 3), and **no email is
 ever sent** (finding 6). Removing refunds removes the only mechanism the app
 nominally had for resolving it.
 
-This needs a product decision, not just code. The realistic options:
+**Decided 2026-07-31: top-up against the same address.** The order stays open
+and the customer is told what's still owed. It fits the existing model — the
+address is already stable across re-quotes, which is exactly what makes a
+top-up possible — and it's the only option that ends with a paid order and a
+customer who got what they bought.
+
+The options as they were weighed:
 
 - **Top-up.** The order stays open and the customer is told what's still
   owed against the same address. Fits the existing model — the address is
@@ -137,8 +150,9 @@ This needs a product decision, not just code. The realistic options:
 - **Hold for manual resolution**, but record the shortfall and notify the
   customer, so it's a conversation rather than silence.
 
-Doing nothing is the current behaviour, and it is the one option that
-guarantees a complaint with no data to answer it.
+Doing nothing was the behaviour at the time of writing, and the one option that
+guaranteed a complaint with no data to answer it. Finding 3 is now in place, so
+the shortfall is a real number the top-up flow can quote.
 
 ## 5. Overpayment is flagged and then ignored
 

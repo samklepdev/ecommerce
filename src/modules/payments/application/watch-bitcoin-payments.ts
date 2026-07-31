@@ -48,6 +48,10 @@ export class WatchBitcoinPayments {
         // full-confirm would leave a stale underpaid flag on a paid order.
         await this.paymentStore.recordProgress(intent.orderId, {
           confirmations: status.confirmations,
+          // Persisted, not just used to derive the two flags above. Those say
+          // *that* something is wrong; this says by how much, which is the
+          // only figure anyone can act on.
+          confirmedSats: status.confirmedSats,
           underpaid,
           overpaid,
         });
@@ -77,7 +81,6 @@ export class WatchBitcoinPayments {
           // via ProcessedEventStore even if ConfirmPayment succeeded but this
           // process crashed before markConfirmed below.
           eventId: `btc-confirmed:${intent.orderId}`,
-          confirmedSats: status.confirmedSats,
         });
         await this.paymentStore.markConfirmed(intent.orderId);
       } catch (e) {

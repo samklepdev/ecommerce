@@ -22,7 +22,7 @@ export function PaidOrdersLedger({ orders, requiredConfirmations }: PaidOrdersLe
         <tr>
           <th>Order</th>
           <th>Receiving address</th>
-          <th className={styles.rt}>Amount</th>
+          <th className={styles.rt}>Received</th>
           <th>Confirmations</th>
           <th className={styles.rt}>Flags</th>
         </tr>
@@ -40,9 +40,18 @@ export function PaidOrdersLedger({ orders, requiredConfirmations }: PaidOrdersLe
             <td data-label="Address">
               <Address value={o.address} />
             </td>
-            <td data-label="Amount" className={`${styles.rt} ${styles.amount}`}>
-              {satsToBtcString(o.expectedSats)}
+            {/* What actually arrived, not what was asked for. They differ only
+                on a flagged row, and on those the expected figure is shown
+                underneath — a discrepancy is unreadable without both numbers.
+                A 0 means the order was confirmed before 0030 recorded this. */}
+            <td data-label="Received" className={`${styles.rt} ${styles.amount}`}>
+              {satsToBtcString(o.confirmedSats || o.expectedSats)}
               <span className={styles.unit}> BTC</span>
+              {o.confirmedSats > 0 && o.confirmedSats !== o.expectedSats && (
+                <div className={styles.expected}>
+                  expected {satsToBtcString(o.expectedSats)}
+                </div>
+              )}
             </td>
             <td data-label="Confirmations">
               <Confirmations confirmations={o.confirmations} target={requiredConfirmations} />

@@ -70,7 +70,7 @@ describe('ConfirmPayment', () => {
     const { notifier, notified } = makeFakeNotifier();
     const confirmPayment = new ConfirmPayment(repo, processedEvents, queue, notifier);
 
-    await confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-1', confirmedSats: 100000 });
+    await confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-1' });
 
     expect(getStatus()).toBe('paid');
     expect(enqueued).toEqual(['order-1']);
@@ -85,8 +85,8 @@ describe('ConfirmPayment', () => {
     const { notifier, notified } = makeFakeNotifier();
     const confirmPayment = new ConfirmPayment(repo, processedEvents, queue, notifier);
 
-    await confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-1', confirmedSats: 100000 });
-    await confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-1', confirmedSats: 100000 });
+    await confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-1' });
+    await confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-1' });
 
     expect(getStatus()).toBe('paid');
     expect(enqueued).toEqual(['order-1']); // only enqueued once
@@ -110,7 +110,7 @@ describe('ConfirmPayment', () => {
     const { notifier, notified } = makeFakeNotifier();
     const confirmPayment = new ConfirmPayment(repo, processedEvents, queue, notifier);
 
-    await confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-2', confirmedSats: 100000 });
+    await confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-2' });
 
     expect(getStatus()).toBe('paid');
     expect(enqueued).toEqual(['order-1']);
@@ -128,7 +128,7 @@ describe('ConfirmPayment', () => {
     const confirmPayment = new ConfirmPayment(repo, processedEvents, queue, notifier);
 
     await expect(
-      confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-8', confirmedSats: 1 }),
+      confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-8' }),
     ).resolves.toBeUndefined();
     expect(recoveries).toEqual([]);
   });
@@ -145,7 +145,7 @@ describe('ConfirmPayment', () => {
     const { queue, enqueued } = makeFakeFulfillment(1);
     const { notifier } = makeFakeNotifier();
     const confirmPayment = new ConfirmPayment(repo, processedEvents, queue, notifier);
-    const event = { orderId: 'order-1', eventId: 'btc-confirmed-order-1', confirmedSats: 100000 };
+    const event = { orderId: 'order-1', eventId: 'btc-confirmed-order-1' };
 
     // First pass: status commits, enqueue blows up, so nothing is marked done.
     await expect(confirmPayment.execute(event)).rejects.toThrow(/redis/i);
@@ -170,7 +170,7 @@ describe('ConfirmPayment', () => {
     const confirmPayment = new ConfirmPayment(repo, processedEvents, queue, notifier);
 
     await expect(
-      confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-9', confirmedSats: 1 }),
+      confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-9' }),
     ).rejects.toThrow();
 
     expect(await processedEvents.seen('evt-9')).toBe(false);
@@ -183,7 +183,7 @@ describe('ConfirmPayment', () => {
     const { notifier, notified } = makeFakeNotifier();
     const confirmPayment = new ConfirmPayment(repo, processedEvents, queue, notifier);
 
-    await confirmPayment.execute({ orderId: 'missing', eventId: 'evt-3', confirmedSats: 100000 });
+    await confirmPayment.execute({ orderId: 'missing', eventId: 'evt-3' });
 
     expect(enqueued).toEqual([]);
     expect(notified).toEqual([]);
@@ -197,7 +197,7 @@ describe('ConfirmPayment', () => {
     const confirmPayment = new ConfirmPayment(repo, processedEvents, queue, notifier);
 
     await expect(
-      confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-4', confirmedSats: 100000 }),
+      confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-4' }),
     ).rejects.toThrow();
   });
 
@@ -209,7 +209,7 @@ describe('ConfirmPayment', () => {
     const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
     const confirmPayment = new ConfirmPayment(repo, processedEvents, queue, notifier);
 
-    await confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-6', confirmedSats: 100000 });
+    await confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-6' });
 
     expect(getStatus()).toBe('paid');
     expect(enqueued).toEqual(['order-1']);
@@ -229,7 +229,7 @@ describe('ConfirmPayment', () => {
     const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
     const confirmPayment = new ConfirmPayment(repo, processedEvents, queue, notifier);
 
-    await confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-7', confirmedSats: 100000 });
+    await confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-7' });
 
     expect(getStatus()).toBe('paid');
     expect(enqueued).toEqual(['order-1']);
@@ -248,7 +248,7 @@ describe('ConfirmPayment', () => {
     const { notifier } = makeFakeNotifier(true);
     const confirmPayment = new ConfirmPayment(repo, processedEvents, queue, notifier);
 
-    await confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-5', confirmedSats: 100000 });
+    await confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-5' });
 
     expect(getStatus()).toBe('paid');
     expect(enqueued).toEqual(['order-1']);
