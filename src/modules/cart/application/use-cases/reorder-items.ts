@@ -17,7 +17,9 @@ export interface ReorderItemsInput {
 
 export interface ReorderItemsResult {
   addedCount: number;
-  unavailableSkus: string[];
+  /** Names as snapshotted on the order line, since the products they refer
+   * to no longer exist to be looked up. */
+  unavailableNames: string[];
 }
 
 export type ReorderItemsError = { code: 'order_not_found' };
@@ -42,18 +44,20 @@ export class ReorderItems implements UseCase<ReorderItemsInput, Result<ReorderIt
 
     let cart = (await this.carts.get(input.owner)) ?? Cart.create({ id: randomUUID(), owner: input.owner, lines: [] });
 
-    const unavailableSkus: string[] = [];
+    const unavailableNames: string[] = [];
     let addedCount = 0;
     for (const line of order.lines) {
       const product = await this.products.findById(line.productId);
       if (!product) {
-        unavailableSkus.push(line.sku);
+        // The snapshot, not a lookup — the product is gone, which is
+        // exactly why this line is unavailable.
+        unavailableNames.push(line.productName);
         continue;
       }
       cart = cart.addLine(
         CartLine.create({
           productId: product.id,
-          sku: product.sku,
+          productName: product.name,
           quantity: line.quantity,
           unitPrice: product.price,
         }),
@@ -62,6 +66,6 @@ export class ReorderItems implements UseCase<ReorderItemsInput, Result<ReorderIt
     }
 
     await this.carts.save(cart);
-    return ok({ addedCount, unavailableSkus });
+    return ok({ addedCount, unavailableNames });
   }
 }

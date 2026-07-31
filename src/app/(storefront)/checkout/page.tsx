@@ -25,7 +25,8 @@ export default async function CheckoutPage() {
   const user = await getSessionUser();
   const savedAddresses = user ? await listSavedAddresses.execute({ userId: user.id }) : [];
 
-  // One query for the whole summary; the cart line only carries a sku.
+  // One query for the whole summary; the cart line carries a name snapshot,
+  // used when a product has since gone.
   const products = await getProductsByIds.execute({
     productIds: cart.lines.map((line) => line.productId),
   });
@@ -75,7 +76,7 @@ export default async function CheckoutPage() {
                         <div className={styles.lineImagePlaceholder} aria-hidden />
                       )}
                       <span className={styles.lineText}>
-                        <span className={styles.lineName}>{product?.name ?? line.sku}</span>
+                        <span className={styles.lineName}>{product?.name ?? line.productName}</span>
                         <span className={styles.lineMeta}>
                           {line.unitPrice.toDisplayString()} × {line.quantity}
                         </span>

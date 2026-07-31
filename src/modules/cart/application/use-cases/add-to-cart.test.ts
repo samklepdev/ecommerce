@@ -24,14 +24,13 @@ function makeFakeEvents() {
   return { repo: repo as AnalyticsEventRepository, recorded };
 }
 
-function makeProduct(id: string, unitAmountMinor: number, sku = `SKU-${id.slice(0, 4)}`) {
+function makeProduct(id: string, unitAmountMinor: number, name = `Widget ${id.slice(0, 4)}`) {
   return Product.create({
     id,
     slug: Slug.create(`widget-${id.slice(0, 4)}`),
-    name: 'Widget',
+    name,
     description: null,
     status: 'active',
-    sku,
     price: Money.of(unitAmountMinor, 'USD'),
   });
 }
@@ -86,7 +85,7 @@ describe('AddToCart', () => {
     const existingCart = Cart.create({
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
-      lines: [CartLine.create({ productId, sku: product.sku, quantity: 1, unitPrice: product.price })],
+      lines: [CartLine.create({ productId, productName: product.name, quantity: 1, unitPrice: product.price })],
     });
     const { repo: carts, saved } = makeFakeCarts(existingCart);
     const products = makeFakeProducts(new Map([[productId, product]]));

@@ -29,8 +29,9 @@ export interface ProductProps {
    * and the storefront filter use. */
   category?: string | null;
   /** The product *is* the sellable unit — there is no variant beneath it, so
-   * the stock-keeping identity and the price live here. */
-  sku: string;
+   * the price lives here. There is no SKU: this store is dropship, with no
+   * warehouse and no supplier catalogue keyed by our own identifier, so it
+   * was a field nothing read (dropped in 0028). */
   price: Money;
 }
 
@@ -44,7 +45,6 @@ export class Product extends AggregateRoot<string> {
   readonly source: ProductSource;
   readonly categoryId: string | null;
   readonly category: string | null;
-  readonly sku: string;
   readonly price: Money;
 
   private constructor(props: ProductProps) {
@@ -58,7 +58,6 @@ export class Product extends AggregateRoot<string> {
     this.source = props.source ?? 'manual';
     this.categoryId = props.categoryId ?? null;
     this.category = props.category ?? null;
-    this.sku = props.sku;
     this.price = props.price;
   }
 
@@ -69,7 +68,6 @@ export class Product extends AggregateRoot<string> {
 
   static create(props: ProductProps): Product {
     if (!props.name.trim()) throw new Error('Product requires a non-empty name');
-    if (!props.sku.trim()) throw new Error('Product requires a non-empty sku');
     return new Product(props);
   }
 

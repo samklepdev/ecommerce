@@ -7,7 +7,7 @@ import { Money } from '@/shared/domain/money';
 function makeProps(overrides: Partial<Parameters<typeof CartLine.create>[0]> = {}) {
   return {
     productId: randomUUID(),
-    sku: 'WIDGET-X',
+    productName: 'Blue Widget',
     quantity: 2,
     unitPrice: Money.of(1000, 'USD'),
     ...overrides,

@@ -65,7 +65,7 @@ describe('the money path (integration)', () => {
         lines: [
           CartLine.create({
             productId: product.id,
-            sku: product.sku,
+            productName: product.name,
             quantity: 1,
             unitPrice: Money.of(unitAmountMinor, 'USD'),
           }),
@@ -137,7 +137,7 @@ describe('the money path (integration)', () => {
     const supplierOrders = await path.supplierOrders.listByOrderId(orderId);
     expect(supplierOrders).toHaveLength(1);
     expect(supplierOrders[0]!.supplierId).toBe(supplier.id);
-    expect(supplierOrders[0]!.lines[0]!.sku).toBe(product.sku);
+    expect(supplierOrders[0]!.lines[0]!.productName).toBe(product.name);
   });
 
   it('gives two orders two different addresses', async () => {

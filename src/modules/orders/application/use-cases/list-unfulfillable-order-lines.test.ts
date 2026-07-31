@@ -17,7 +17,7 @@ function makeFakeRepo(lines: UnfulfillableOrderLine[]): UnfulfillableOrderLinesR
 describe('ListUnfulfillableOrderLines', () => {
   it('returns the flagged lines from the repository', async () => {
     const lines: UnfulfillableOrderLine[] = [
-      { orderLineId: 'line-1', orderId: 'order-1', sku: 'SKU-1', productId: 'v1', reason: 'no_supplier_offer' },
+      { orderLineId: 'line-1', orderId: 'order-1', productName: 'Widget One', productId: 'v1', reason: 'no_supplier_offer' },
     ];
     const repo = makeFakeRepo(lines);
 

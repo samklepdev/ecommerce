@@ -78,7 +78,6 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
       categoryId: p.categoryId,
       imageUrl: p.imageUrl,
       additionalImages: p.additionalImages,
-      sku: p.sku,
       priceAmountMinor: p.price.amountMinor,
       currency: p.price.currency,
       hasNoOffers: offers.length === 0,

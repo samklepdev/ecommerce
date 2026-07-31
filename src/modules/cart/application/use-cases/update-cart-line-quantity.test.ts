@@ -41,7 +41,7 @@ describe('UpdateCartLineQuantity', () => {
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
-      lines: [CartLine.create({ productId, sku: 'A', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
+      lines: [CartLine.create({ productId, productName: 'Widget A', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
     });
     const { repo, saved } = makeFakeCarts(cart);
 
@@ -60,7 +60,7 @@ describe('UpdateCartLineQuantity', () => {
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
-      lines: [CartLine.create({ productId, sku: 'A', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
+      lines: [CartLine.create({ productId, productName: 'Widget A', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
     });
     const { repo } = makeFakeCarts(cart);
 
@@ -91,7 +91,7 @@ describe('UpdateCartLineQuantity', () => {
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'user', userId: 'u1' },
-      lines: [CartLine.create({ productId, sku: 'A', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
+      lines: [CartLine.create({ productId, productName: 'Widget A', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
     });
     const { repo } = makeFakeCarts(cart);
     const { repo: events, recorded } = makeFakeEvents();
@@ -117,7 +117,7 @@ describe('UpdateCartLineQuantity', () => {
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'user', userId: 'u1' },
-      lines: [CartLine.create({ productId, sku: 'A', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
+      lines: [CartLine.create({ productId, productName: 'Widget A', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
     });
     const { repo, saved } = makeFakeCarts(cart);
     const failingEvents: Partial<AnalyticsEventRepository> = {

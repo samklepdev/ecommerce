@@ -191,7 +191,7 @@ export class DrizzleOrderRepository
             id: randomUUID(),
             orderId: order.id,
             productId: line.productId,
-            sku: line.sku,
+            productName: line.productName,
             quantity: line.quantity,
             unitAmountMinor: line.unitPrice.amountMinor,
           })),
@@ -277,7 +277,7 @@ export class DrizzleOrderRepository
     return rows.map((r) => ({
       orderLineId: r.id,
       orderId: r.orderId,
-      sku: r.sku,
+      productName: r.productName,
       productId: r.productId,
       reason: r.fulfillmentIssue!,
     }));
@@ -574,7 +574,7 @@ export class DrizzleOrderRepository
       lines: lines.map((l) => ({
         id: l.id,
         productId: l.productId,
-        sku: l.sku,
+        productName: l.productName,
         quantity: l.quantity,
         unitAmountMinor: l.unitAmountMinor,
       })),
@@ -632,7 +632,7 @@ export class DrizzleOrderRepository
             id: randomUUID(),
             orderId,
             productId: line.productId,
-            sku: line.sku,
+            productName: line.productName,
             quantity: line.quantity,
             unitAmountMinor: line.unitAmountMinor,
           });
@@ -728,7 +728,7 @@ export class DrizzleOrderRepository
       lines: lines.map((l) => ({
         id: l.id,
         productId: l.productId,
-        sku: l.sku,
+        productName: l.productName,
         quantity: l.quantity,
         unitAmountMinor: l.unitAmountMinor,
         imageUrl: imageUrlByProductId.get(l.productId) ?? null,

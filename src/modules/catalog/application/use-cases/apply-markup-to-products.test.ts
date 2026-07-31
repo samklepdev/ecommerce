@@ -14,7 +14,6 @@ function makeProduct(id: string, unitAmountMinor: number, currency = 'USD') {
     name: 'Widget',
     description: null,
     status: 'active',
-    sku: `SKU-${id.slice(0, 4)}`,
     price: Money.of(unitAmountMinor, currency),
   });
 }

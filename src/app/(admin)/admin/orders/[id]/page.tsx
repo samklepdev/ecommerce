@@ -72,10 +72,10 @@ export default async function AdminOrderDetailPage({ params }: AdminOrderDetailP
         orderId={order.id}
         lines={order.lines.map((line) => ({
           id: line.id,
-          sku: line.sku,
+          productName: line.productName,
           quantity: line.quantity,
         }))}
-        products={catalog.items.map((p) => ({ id: p.id, name: p.name, sku: p.sku }))}
+        products={catalog.items.map((p) => ({ id: p.id, name: p.name }))}
         editable={linesEditable}
         paymentStatus={order.paymentStatus}
       />

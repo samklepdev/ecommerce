@@ -16,14 +16,13 @@ import type { ShippingRateRepository } from '@/modules/shipping/application/port
 import { Coupon } from '@/modules/coupons/domain/coupon';
 import type { CouponRepository } from '@/modules/coupons/application/ports/coupon-repository';
 
-function makeProduct(id: string, unitAmountMinor: number, sku = `SKU-${id.slice(0, 4)}`) {
+function makeProduct(id: string, unitAmountMinor: number, name = `Widget ${id.slice(0, 4)}`) {
   return Product.create({
     id,
     slug: Slug.create(`widget-${id.slice(0, 4)}`),
-    name: 'Widget',
+    name,
     description: null,
     status: 'active',
-    sku,
     price: Money.of(unitAmountMinor, 'USD'),
   });
 }
@@ -106,7 +105,7 @@ describe('PlaceOrder', () => {
       owner: { type: 'guest', sessionId: 's1' },
       // Cart's own stored price is stale/wrong on purpose — PlaceOrder must
       // never trust it.
-      lines: [CartLine.create({ productId, sku: 'OLD-SKU', quantity: 2, unitPrice: Money.of(1, 'USD') })],
+      lines: [CartLine.create({ productId, productName: 'Stale Name', quantity: 2, unitPrice: Money.of(1, 'USD') })],
     });
 
     const { repo: carts, deletedOwners } = makeFakeCarts(cart);
@@ -128,7 +127,7 @@ describe('PlaceOrder', () => {
     expect(order.lines).toHaveLength(1);
     // Priced from the catalog (1999), not the cart's stale stored price (1).
     expect(order.lines[0]?.unitPrice.amountMinor).toBe(1999);
-    expect(order.lines[0]?.sku).toBe(product.sku); // catalog sku, not the cart's stale one
+    expect(order.lines[0]?.productName).toBe(product.name); // catalog name, not the cart's stale one
     expect(order.paymentStatus).toBe('pending');
     expect(order.fulfillmentStatus).toBe('unfulfilled');
     // The cart is cleared once its contents become a durable order.
@@ -179,7 +178,7 @@ describe('PlaceOrder', () => {
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
-      lines: [CartLine.create({ productId, sku: 'GONE', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
+      lines: [CartLine.create({ productId, productName: 'Gone Widget', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
     });
     const { repo: carts } = makeFakeCarts(cart);
     const products = makeFakeProducts(new Map()); // product not found
@@ -208,7 +207,7 @@ describe('PlaceOrder', () => {
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'user', userId: 'user-1' },
-      lines: [CartLine.create({ productId, sku: 'X', quantity: 1, unitPrice: Money.of(500, 'USD') })],
+      lines: [CartLine.create({ productId, productName: 'Widget X', quantity: 1, unitPrice: Money.of(500, 'USD') })],
     });
     const { repo: carts } = makeFakeCarts(cart);
     const products = makeFakeProducts(new Map([[productId, product]]));
@@ -232,7 +231,7 @@ describe('PlaceOrder', () => {
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
-      lines: [CartLine.create({ productId, sku: 'X', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
+      lines: [CartLine.create({ productId, productName: 'Widget X', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
     });
     const { repo: carts } = makeFakeCarts(cart);
     const products = makeFakeProducts(new Map([[productId, product]]));
@@ -257,7 +256,7 @@ describe('PlaceOrder', () => {
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
-      lines: [CartLine.create({ productId, sku: 'X', quantity: 1, unitPrice: Money.of(2000, 'USD') })],
+      lines: [CartLine.create({ productId, productName: 'Widget X', quantity: 1, unitPrice: Money.of(2000, 'USD') })],
     });
     const { repo: carts } = makeFakeCarts(cart);
     const products = makeFakeProducts(new Map([[productId, product]]));
@@ -291,7 +290,7 @@ describe('PlaceOrder', () => {
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
-      lines: [CartLine.create({ productId, sku: 'X', quantity: 1, unitPrice: Money.of(2000, 'USD') })],
+      lines: [CartLine.create({ productId, productName: 'Widget X', quantity: 1, unitPrice: Money.of(2000, 'USD') })],
     });
     const { repo: carts } = makeFakeCarts(cart);
     const products = makeFakeProducts(new Map([[productId, product]]));
@@ -318,7 +317,7 @@ describe('PlaceOrder', () => {
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
-      lines: [CartLine.create({ productId, sku: 'X', quantity: 1, unitPrice: Money.of(2000, 'USD') })],
+      lines: [CartLine.create({ productId, productName: 'Widget X', quantity: 1, unitPrice: Money.of(2000, 'USD') })],
     });
     const { repo: carts } = makeFakeCarts(cart);
     const products = makeFakeProducts(new Map([[productId, product]]));
@@ -355,7 +354,7 @@ describe('PlaceOrder', () => {
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
       lines: [
-        CartLine.create({ productId, sku: 'SKU-1', quantity: 1, unitPrice: Money.of(1999, 'USD') }),
+        CartLine.create({ productId, productName: 'Widget One', quantity: 1, unitPrice: Money.of(1999, 'USD') }),
       ],
     });
 

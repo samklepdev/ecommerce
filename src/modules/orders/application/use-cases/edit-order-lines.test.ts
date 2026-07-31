@@ -23,8 +23,8 @@ function makeOrder(overrides: Partial<EditableOrder> = {}): EditableOrder {
     shippingAmountMinor: 500,
     discountAmountMinor: 0,
     lines: [
-      { id: 'line-1', productId: 'prod-1', sku: 'SKU-1', quantity: 2, unitAmountMinor: 1000 },
-      { id: 'line-2', productId: 'prod-2', sku: 'SKU-2', quantity: 1, unitAmountMinor: 2500 },
+      { id: 'line-1', productId: 'prod-1', productName: 'Widget One', quantity: 2, unitAmountMinor: 1000 },
+      { id: 'line-2', productId: 'prod-2', productName: 'Widget Two', quantity: 1, unitAmountMinor: 2500 },
     ],
     ...overrides,
   };
@@ -64,7 +64,6 @@ function makeProduct(id: string, amountMinor: number, currency = 'USD') {
     name: 'Widget',
     description: null,
     status: 'active',
-    sku: `SKU-${id}`,
     price: Money.of(amountMinor, currency),
   });
 }
@@ -128,7 +127,7 @@ describe('EditOrderLines', () => {
     // An order with no lines has nothing to fulfil and no meaningful total.
     it('refuses to remove the last line', async () => {
       const order = makeOrder({
-        lines: [{ id: 'line-1', productId: 'prod-1', sku: 'SKU-1', quantity: 1, unitAmountMinor: 1000 }],
+        lines: [{ id: 'line-1', productId: 'prod-1', productName: 'Widget One', quantity: 1, unitAmountMinor: 1000 }],
       });
       const { repo, writes } = makeFakeOrders(order);
       const { gateway } = makeFakeGateway();

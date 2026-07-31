@@ -12,7 +12,6 @@ function makeProps(overrides: Partial<Parameters<typeof Product.create>[0]> = {}
     name: 'Widget X',
     description: null,
     status: 'draft' as const,
-    sku: 'WIDGET-X',
     price: Money.of(1999, 'USD'),
     ...overrides,
   };
@@ -34,12 +33,6 @@ describe('Product.create', () => {
     expect(() => Product.create(makeProps({ name: '   ' }))).toThrow(/non-empty name/);
   });
 
-  // The sku moved here when variants were removed, and it carries the same
-  // invariant it had on the variant: a product with no stock-keeping identity
-  // can't be ordered from a supplier.
-  it('throws for an empty sku', () => {
-    expect(() => Product.create(makeProps({ sku: '  ' }))).toThrow(/non-empty sku/);
-  });
 });
 
 describe('Product#isActive', () => {

@@ -147,7 +147,7 @@ export class EditOrderLines
       {
         id: null,
         productId: product.id,
-        sku: product.sku,
+        productName: product.name,
         quantity,
         unitAmountMinor: product.price.amountMinor,
       },

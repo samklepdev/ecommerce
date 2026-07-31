@@ -17,7 +17,6 @@ function makeProduct(id: string) {
     name: `Product ${id}`,
     description: null,
     status: 'active',
-    sku: `SKU-${id}`,
     price: Money.of(1000, 'USD'),
   });
 }

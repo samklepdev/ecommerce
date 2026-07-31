@@ -144,7 +144,10 @@ feature" checklist).
   order-confirmation email, payment-confirmed email. Sent via Resend when
   `RESEND_API_KEY` is set, and a console-log stub otherwise (the dev/local
   default). All of them are queued rather than sent in the request path, so a
-  provider having a bad minute retries instead of losing the mail.
+  provider having a bad minute retries instead of losing the mail. Line items
+  in a receipt are named ("Blue Widget × 2"), from a snapshot taken when the
+  order was placed — so renaming or deleting a product never changes what an
+  already-sent receipt says was bought.
 
 ## Admin (`/admin/*`, requires an admin account)
 
@@ -204,7 +207,7 @@ feature" checklist).
   JSON, or an uploaded spreadsheet); a "paste a product URL" helper that
   scrapes and prefills the add-product form; bulk publish/unpublish/
   delete/assign-category. The table lists one row per product — image,
-  name, status, SKU, price and where it's sourced from — with an "Edit"
+  name, status, price and where it's sourced from — with an "Edit"
   toggle that opens a panel for that row (one at a time). The panel saves
   name, price, category and description together under a single "Save
   changes"; the slug is shown but never editable, so existing product

@@ -10,14 +10,13 @@ import { Money } from '@/shared/domain/money';
 import type { CartRepository } from '@/modules/cart/application/ports/cart-repository';
 import type { ProductRepository } from '@/modules/catalog/application/ports/product-repository';
 
-function makeProduct(id: string, unitAmountMinor: number, sku = `SKU-${id.slice(0, 4)}`) {
+function makeProduct(id: string, unitAmountMinor: number, name = `Widget ${id.slice(0, 4)}`) {
   return Product.create({
     id,
     slug: Slug.create(`widget-${id.slice(0, 4)}`),
-    name: 'Widget',
+    name,
     description: null,
     status: 'active',
-    sku,
     price: Money.of(unitAmountMinor, 'USD'),
   });
 }
@@ -63,8 +62,8 @@ describe('RepriceCart', () => {
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
       lines: [
-        CartLine.create({ productId: productA, sku: 'A', quantity: 2, unitPrice: Money.of(1000, 'USD') }), // stale
-        CartLine.create({ productId: productB, sku: 'B', quantity: 1, unitPrice: Money.of(500, 'USD') }), // current
+        CartLine.create({ productId: productA, productName: 'Widget A', quantity: 2, unitPrice: Money.of(1000, 'USD') }), // stale
+        CartLine.create({ productId: productB, productName: 'Widget B', quantity: 1, unitPrice: Money.of(500, 'USD') }), // current
       ],
     });
     const carts = makeFakeCarts(cart);
@@ -90,7 +89,7 @@ describe('RepriceCart', () => {
     const cart = Cart.create({
       id: randomUUID(),
       owner: { type: 'guest', sessionId: 's1' },
-      lines: [CartLine.create({ productId: goneProduct, sku: 'GONE', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
+      lines: [CartLine.create({ productId: goneProduct, productName: 'Gone Widget', quantity: 1, unitPrice: Money.of(1000, 'USD') })],
     });
     const carts = makeFakeCarts(cart);
     const products = makeFakeProducts(new Map());

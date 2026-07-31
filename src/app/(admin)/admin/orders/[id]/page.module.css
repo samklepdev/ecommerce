@@ -73,7 +73,7 @@
   border-top: 0;
 }
 
-.editorSku {
+.editorProductName {
   font-family: var(--ui-mono);
   font-size: 11.5px;
   color: var(--muted);

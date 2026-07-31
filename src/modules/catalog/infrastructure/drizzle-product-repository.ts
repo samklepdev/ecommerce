@@ -59,7 +59,6 @@ function toProduct(
     source: row.source as ProductSource,
     categoryId: row.categoryId,
     category: categoryName,
-    sku: row.sku,
     price: Money.of(row.unitAmountMinor, row.currency),
   });
 }
@@ -263,7 +262,6 @@ export class DrizzleProductRepository implements ProductRepository {
       status: product.status,
       source: product.source,
       categoryId: product.categoryId,
-      sku: product.sku,
       unitAmountMinor: product.price.amountMinor,
       currency: product.price.currency,
     });

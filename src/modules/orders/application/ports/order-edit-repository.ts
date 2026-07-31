@@ -6,7 +6,7 @@ export interface EditableOrderLine {
    * when it inserts. */
   id: string | null;
   productId: string;
-  sku: string;
+  productName: string;
   quantity: number;
   unitAmountMinor: number;
 }

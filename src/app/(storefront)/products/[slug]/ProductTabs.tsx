@@ -22,9 +22,8 @@ const TABS = [
  * Description and policy, one panel at a time.
  *
  * The prototype had a third "Specifications" tab. `Product` carries no spec
- * fields — only name, description, category, SKU and price —
- * so there was nothing to put in it that wasn't invented. Two real tabs beat
- * three with one empty.
+ * fields — only name, description, category and price — so there was nothing
+ * to put in it that wasn't invented. Two real tabs beat three with one empty.
  */
 export function ProductTabs({ description }: ProductTabsProps) {
   const [active, setActive] = useState<TabId>('description');

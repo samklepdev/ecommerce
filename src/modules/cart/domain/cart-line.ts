@@ -7,7 +7,9 @@ export const MAX_CART_LINE_QUANTITY = 99;
 
 interface CartLineProps {
   productId: string;
-  sku: string;
+  /** Snapshotted so a cart can render itself without a catalogue round-trip,
+   * and so a line whose product has since gone still says what it was. */
+  productName: string;
   quantity: number;
   unitPrice: Money;
 }
@@ -26,8 +28,8 @@ export class CartLine extends ValueObject<CartLineProps> {
     return this.props.productId;
   }
 
-  get sku(): string {
-    return this.props.sku;
+  get productName(): string {
+    return this.props.productName;
   }
 
   get quantity(): number {

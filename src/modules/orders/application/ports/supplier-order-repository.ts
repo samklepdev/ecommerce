@@ -16,7 +16,7 @@ export interface CreateSupplierOrderInput {
 
 export interface SupplierOrderSummaryLine {
   productId: string;
-  sku: string;
+  productName: string;
   quantity: number;
   unitCostMinor: number;
 }

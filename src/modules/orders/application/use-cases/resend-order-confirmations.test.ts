@@ -19,7 +19,7 @@ function makeOrder(overrides: Partial<OrderDetail> = {}): OrderDetail {
     couponCode: null,
     shippingAddress: null,
     shippingAmountMinor: 0,
-    lines: [{ id: 'order-line-1', productId: 'v1', sku: 'SKU-1', quantity: 2, unitAmountMinor: 2100, imageUrl: null }],
+    lines: [{ id: 'order-line-1', productId: 'v1', productName: 'Widget One', quantity: 2, unitAmountMinor: 2100, imageUrl: null }],
     ...overrides,
   };
 }
@@ -47,7 +47,7 @@ function makeFakeSender() {
 describe('ResendOrderConfirmations', () => {
   it('resends a confirmation email for every order under that email', async () => {
     const order1 = makeOrder({ id: 'order-1' });
-    const order2 = makeOrder({ id: 'order-2', lines: [{ id: 'order-line-1', productId: 'v2', sku: 'SKU-2', quantity: 1, unitAmountMinor: 500, imageUrl: null }] });
+    const order2 = makeOrder({ id: 'order-2', lines: [{ id: 'order-line-1', productId: 'v2', productName: 'Widget Two', quantity: 1, unitAmountMinor: 500, imageUrl: null }] });
     const orders = makeFakeOrders(
       { 'buyer@example.com': ['order-1', 'order-2'] },
       { 'order-1': order1, 'order-2': order2 },
@@ -62,7 +62,7 @@ describe('ResendOrderConfirmations', () => {
     expect(sent[0]).toEqual({
       customerEmail: 'buyer@example.com',
       orderId: 'order-1',
-      lines: [{ sku: 'SKU-1', quantity: 2 }],
+      lines: [{ productName: 'Widget One', quantity: 2 }],
       totalDisplay: '$42.00',
       orderUrl: 'https://shop.example.com/orders/order-1',
     });
