@@ -1,7 +1,7 @@
 import type { PaymentConfirmationNotifier } from '@/modules/orders/application/ports/payment-confirmation-notifier';
 import type { OrderHistoryRepository } from '@/modules/orders/application/ports/order-history-repository';
 import type { EmailSender } from '@/modules/notifications/application/ports/email-sender';
-import { renderPaymentConfirmedEmailHtml } from '@/modules/notifications/application/order-email-templates';
+import { renderPaymentConfirmedEmail } from '@/modules/notifications/application/order-email-templates';
 import { Money } from '@/shared/domain/money';
 
 /**
@@ -29,7 +29,7 @@ export class EmailPaymentConfirmationNotifier implements PaymentConfirmationNoti
     // amount the customer actually sent.
     const total = Money.of(order.amountMinor, order.currency);
 
-    const html = renderPaymentConfirmedEmailHtml({
+    const { html, text } = await renderPaymentConfirmedEmail({
       orderId: order.id,
       // Customer-facing, so the formatted form — `toString` is the debug
       // shape ("4200 USD"). See the same note in ResendOrderConfirmations.
@@ -38,6 +38,11 @@ export class EmailPaymentConfirmationNotifier implements PaymentConfirmationNoti
       supportEmail: this.supportEmail,
     });
 
-    await this.emailSender.send(order.customerEmail, 'Payment confirmed', html);
+    await this.emailSender.send({
+      to: order.customerEmail,
+      subject: 'Payment confirmed',
+      html,
+      text,
+    });
   }
 }

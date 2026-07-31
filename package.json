@@ -27,6 +27,7 @@
     "geo:fetch": "node scripts/fetch-geo-db.mjs"
   },
   "dependencies": {
+    "@react-email/components": "^1.0.12",
     "argon2": "^0.41.1",
     "bip32": "^4.0.0",
     "bitcoinjs-lib": "^6.1.7",

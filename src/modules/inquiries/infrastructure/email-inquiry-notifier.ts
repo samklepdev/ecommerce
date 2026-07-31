@@ -39,10 +39,10 @@ export class EmailInquiryNotifier implements InquiryNotifier {
     // Reply-to isn't available through the EmailSender port, so the sender's
     // address is in the body — the admin copies it to reply. Worth revisiting
     // if the port ever grows headers.
-    await this.emailSender.send(
-      this.supportEmail,
-      `Sourcing request: ${inquiry.subject}`,
+    await this.emailSender.send({
+      to: this.supportEmail,
+      subject: `Sourcing request: ${inquiry.subject}`,
       html,
-    );
+    });
   }
 }

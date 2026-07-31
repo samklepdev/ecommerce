@@ -1,5 +1,5 @@
 import { logger } from '@/shared/infrastructure/logger';
-import type { EmailSender } from '@/modules/notifications/application/ports/email-sender';
+import type { EmailMessage, EmailSender } from '@/modules/notifications/application/ports/email-sender';
 
 /**
  * Development stand-in used when `RESEND_API_KEY` is unset. It sends
@@ -25,11 +25,14 @@ export class ConsoleEmailSender implements EmailSender {
     }
   }
 
-  async send(to: string, subject: string, html: string): Promise<void> {
+  async send({ to, subject, html }: EmailMessage): Promise<void> {
     if (process.env.NODE_ENV === 'production') {
       logger.info('email: not sent (no provider configured)', { to, subject });
       return;
     }
+    // The HTML only, and only outside production. The text part would carry
+    // the same bearer-token links, so logging both just doubles the exposure
+    // for no extra diagnostic value.
     logger.info('email: sent (stub)', { to, subject, html });
   }
 }

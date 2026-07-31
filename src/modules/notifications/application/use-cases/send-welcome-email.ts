@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { UseCase } from '@/shared/application/use-case';
 import type { EmailSender } from '@/modules/notifications/application/ports/email-sender';
 import type { WelcomeEmailRepository } from '@/modules/notifications/application/ports/welcome-email-repository';
-import { renderWelcomeEmailHtml } from '@/modules/notifications/application/welcome-email-template';
+import { renderWelcomeEmail } from '@/modules/notifications/application/welcome-email-template';
 
 export interface SendWelcomeEmailInput {
   userId: string;
@@ -26,9 +26,9 @@ export class SendWelcomeEmail implements UseCase<SendWelcomeEmailInput, void> {
 
     const trackingToken = randomUUID();
     const trackingUrl = `${this.appUrl}/api/email/track/${trackingToken}`;
-    const html = renderWelcomeEmailHtml({ email: input.email, trackingUrl });
+    const { html, text } = await renderWelcomeEmail({ email: input.email, trackingUrl });
 
-    await this.emailSender.send(input.email, 'Welcome!', html);
+    await this.emailSender.send({ to: input.email, subject: 'Welcome', html, text });
     await this.welcomeEmails.create({ id: randomUUID(), userId: input.userId, trackingToken });
   }
 }

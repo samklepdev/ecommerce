@@ -1,4 +1,4 @@
-import type { EmailSender } from '@/modules/notifications/application/ports/email-sender';
+import type { EmailMessage, EmailSender } from '@/modules/notifications/application/ports/email-sender';
 
 /** Operator-configured constant, not a user- or feed-supplied URL, so a
  * bare `fetch` is the right call here (see CLAUDE.md on `safeFetch`). */
@@ -9,10 +9,9 @@ const RESEND_ENDPOINT = 'https://api.resend.com/emails';
  * `RESEND_API_KEY` is set; without it the app falls back to
  * `ConsoleEmailSender`, which logs and sends nothing.
  *
- * Sends inline rather than through a queue. CLAUDE.md wants side effects on
- * BullMQ, and email belongs there — but a queue is a larger change than this
- * fix, and every caller that can't tolerate a failed send already wraps it
- * in try/catch. Moving it is tracked separately in TODO.md.
+ * Called from a BullMQ job rather than the request path, so a failure here
+ * throws and is retried by the worker (five attempts, exponential backoff)
+ * instead of being swallowed by the caller.
  */
 export class ResendEmailSender implements EmailSender {
   constructor(
@@ -20,14 +19,17 @@ export class ResendEmailSender implements EmailSender {
     private readonly from: string,
   ) {}
 
-  async send(to: string, subject: string, html: string): Promise<void> {
+  async send({ to, subject, html, text }: EmailMessage): Promise<void> {
     const res = await fetch(RESEND_ENDPOINT, {
       method: 'POST',
       headers: {
         authorization: `Bearer ${this.apiKey}`,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ from: this.from, to, subject, html }),
+      // `text` is omitted rather than sent empty when absent: Resend treats a
+      // present-but-blank text part as the alternative and some clients then
+      // show a blank message.
+      body: JSON.stringify({ from: this.from, to, subject, html, ...(text ? { text } : {}) }),
     });
 
     if (!res.ok) {

@@ -1,7 +1,7 @@
 import type { UseCase } from '@/shared/application/use-case';
 import type { EmailSender } from '@/modules/notifications/application/ports/email-sender';
 import {
-  renderOrderConfirmationEmailHtml,
+  renderOrderConfirmationEmail,
   type OrderConfirmationEmailLine,
 } from '@/modules/notifications/application/order-email-templates';
 
@@ -20,12 +20,17 @@ export class SendOrderConfirmationEmail implements UseCase<SendOrderConfirmation
   constructor(private readonly emailSender: EmailSender) {}
 
   async execute(input: SendOrderConfirmationEmailInput): Promise<void> {
-    const html = renderOrderConfirmationEmailHtml({
+    const { html, text } = await renderOrderConfirmationEmail({
       orderId: input.orderId,
       lines: input.lines,
       totalDisplay: input.totalDisplay,
       orderUrl: input.orderUrl,
     });
-    await this.emailSender.send(input.customerEmail, 'Your order is confirmed', html);
+    await this.emailSender.send({
+      to: input.customerEmail,
+      subject: 'Your order is confirmed',
+      html,
+      text,
+    });
   }
 }
