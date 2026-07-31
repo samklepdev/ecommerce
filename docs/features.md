@@ -141,8 +141,10 @@ feature" checklist).
   emailed link (soft — unverified accounts can still log in and shop;
   it's just a reminder banner, not a login gate).
 - **Emails** — welcome email (with open-tracking), verification email,
-  order-confirmation email, payment-confirmed email. Sent via a
-  console-log stub in dev/local; nothing is wired to a real provider yet.
+  order-confirmation email, payment-confirmed email. Sent via Resend when
+  `RESEND_API_KEY` is set, and a console-log stub otherwise (the dev/local
+  default). All of them are queued rather than sent in the request path, so a
+  provider having a bad minute retries instead of losing the mail.
 
 ## Admin (`/admin/*`, requires an admin account)
 

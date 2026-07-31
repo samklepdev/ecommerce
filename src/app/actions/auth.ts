@@ -8,6 +8,7 @@ import { env } from '@/config/env';
 import { isErr } from '@/shared/domain/result';
 import { logger } from '@/shared/infrastructure/logger';
 import { getContainer } from '@/composition/container';
+import { jobIdFor } from '@/shared/application/ports/job-queue';
 import { isStoreOpen, STORE_CLOSED_MESSAGE } from '@/app/lib/store-open';
 import { newPasswordSchema } from '@/app/lib/password-schema';
 import { PASSWORD_RULE_TEXT } from '@/shared/domain/password-policy';
@@ -142,7 +143,7 @@ export async function signUpAction(
       await jobQueue.enqueue(
         job,
         { userId: result.value.id, email: result.value.email },
-        { jobId: `${job.replace('.', '-')}-${result.value.id}` },
+        { jobId: jobIdFor(job, result.value.id) },
       );
     } catch (e) {
       logger.error('signup: could not queue mail', {

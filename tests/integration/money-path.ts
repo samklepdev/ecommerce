@@ -32,8 +32,8 @@ import { MarkAwaitingConfirmation } from '@/modules/orders/application/use-cases
 import { CreateSupplierOrdersForPaidOrder } from '@/modules/orders/application/use-cases/create-supplier-orders-for-paid-order';
 import { QueuedFulfillmentQueue } from '@/modules/orders/infrastructure/queued-fulfillment-queue';
 import { QueuedPaymentConfirmationNotifier } from '@/modules/orders/infrastructure/queued-payment-confirmation-notifier';
-import { BullMqJobQueue, createQueueConnection, QUEUE_NAME } from '@/shared/infrastructure/queue/bullmq-job-queue';
-import { Worker } from 'bullmq';
+import { BullMqJobQueue } from '@/shared/infrastructure/queue/bullmq-job-queue';
+import { createJobWorker } from '@/workers/job-worker';
 import { TEST_REDIS_URL } from './config';
 import type { AssertStoreOpenForCheckout } from '@/shared/application/use-cases/assert-store-open-for-checkout';
 
@@ -137,23 +137,27 @@ export function buildMoneyPath(
 
   // The production wiring: confirming a payment enqueues the sourcing work
   // and the email rather than doing either on the watcher's thread. The
-  // worker below is the same handler shape the real worker process runs, so
-  // these tests cover the transport too — a refactor that broke the queue
-  // would break the money path here.
+  // worker below is the *actual* worker the process runs — not a re-implementation
+  // of it — so these tests cover the transport and the dispatch together, and
+  // a refactor that broke either breaks the money path here.
   const jobQueue = new BullMqJobQueue(TEST_REDIS_URL, { attempts: 1, backoffDelayMs: 10 });
 
-  const jobWorker = new Worker(
-    QUEUE_NAME,
-    async (job) => {
-      if (job.name === 'fulfillment.create-supplier-orders') {
-        await createSupplierOrders.execute({ orderId: job.data.orderId });
-      }
-      if (job.name === 'email.payment-confirmed') {
-        await notifier.notifyPaymentConfirmed(job.data.orderId);
-      }
-    },
-    { connection: createQueueConnection(TEST_REDIS_URL), concurrency: 1 },
-  );
+  /** The money path enqueues only sourcing and the payment-confirmed email.
+   * The rest of the worker's collaborators are wired to fail loudly, so a
+   * change that starts enqueueing one of them here can't pass quietly. */
+  const unexpected = (name: string) => async (): Promise<never> => {
+    throw new Error(`money-path test: ${name} was not expected to run`);
+  };
+
+  const jobWorker = createJobWorker(TEST_REDIS_URL, {
+    appUrl: 'https://shop.test',
+    createSupplierOrdersForPaidOrder: createSupplierOrders,
+    paymentConfirmationEmail: notifier,
+    getOrderDetail: { execute: unexpected('getOrderDetail') },
+    sendOrderConfirmationEmail: { execute: unexpected('sendOrderConfirmationEmail') },
+    sendWelcomeEmail: { execute: unexpected('sendWelcomeEmail') },
+    requestEmailVerification: { execute: unexpected('requestEmailVerification') },
+  });
 
   const confirmPayment = new ConfirmPayment(
     orders,

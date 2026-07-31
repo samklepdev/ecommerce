@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { getContainer } from '@/composition/container';
+import { jobIdFor } from '@/shared/application/ports/job-queue';
 import { isErr } from '@/shared/domain/result';
 import { logger } from '@/shared/infrastructure/logger';
 import { getSessionUser, resolveCartOwner } from '@/app/lib/session';
@@ -152,7 +153,7 @@ export async function startCheckoutAction(
     await jobQueue.enqueue(
       'email.order-confirmation',
       { orderId: placed.value.id, customerEmail: parsed.data.customerEmail },
-      { jobId: `order-confirmation-${placed.value.id}` },
+      { jobId: jobIdFor('order-confirmation', placed.value.id) },
     );
   } catch (e) {
     // Redis is down. The order exists and is payable — that matters more

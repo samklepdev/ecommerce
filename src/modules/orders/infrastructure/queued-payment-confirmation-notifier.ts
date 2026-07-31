@@ -1,5 +1,5 @@
 import type { PaymentConfirmationNotifier } from '@/modules/orders/application/ports/payment-confirmation-notifier';
-import type { JobQueue } from '@/shared/application/ports/job-queue';
+import { jobIdFor, type JobQueue } from '@/shared/application/ports/job-queue';
 
 /**
  * The "your payment confirmed" email, queued rather than sent from the
@@ -19,7 +19,7 @@ export class QueuedPaymentConfirmationNotifier implements PaymentConfirmationNot
     await this.jobs.enqueue(
       'email.payment-confirmed',
       { orderId },
-      { jobId: `payment-confirmed-${orderId}` },
+      { jobId: jobIdFor('payment-confirmed', orderId) },
     );
   }
 }
