@@ -55,8 +55,13 @@ lost:
 4. **Email provider.** `RESEND_API_KEY` + `EMAIL_FROM` switch on real
    delivery. Without them nothing is sent — a customer who loses their order
    link has no confirmation email to find it in, and password reset is dead
-   in the water. Sending is still inline in the request path rather than on a
-   queue; every caller that can't tolerate a failed send already catches.
+   in the water. Sending is on the BullMQ queue rather than in the request
+   path, so a provider having a bad minute is retried (five attempts,
+   exponential backoff) instead of losing the mail; whatever exhausts its
+   attempts stays in BullMQ's failed set, and `/api/health` reports the
+   depths. That means the `worker` process has to be running for any mail to
+   go out at all — a dead worker is now a silent mail outage as well as a
+   silent payment outage.
 5. **Mainnet cutover.** `BTC_NETWORK` defaults to `testnet`. Going live means
    setting `bitcoin` + a real watch-only mainnet xpub (`BTC_ACCOUNT_XPUB`) —
    never a seed, mnemonic, or private key on the server, enforced by a Zod
