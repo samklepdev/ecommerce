@@ -3,10 +3,12 @@ import {
   and,
   count as countRows,
   eq,
+  exists,
   gte,
   ilike,
   inArray,
   isNotNull,
+  isNull,
   lt,
   lte,
   notExists,
@@ -343,6 +345,43 @@ export class DrizzleOrderRepository
       ),
       columns: { id: true },
     });
+    return rows.map((r) => r.id);
+  }
+
+  async findPaidOrderIdsWithUnattemptedLines(idleSince: Date): Promise<string[]> {
+    // Two nested negatives, both load-bearing:
+    //   - no supplier_order_line  -> the line was never bought
+    //   - fulfillment_issue null  -> sourcing was never even attempted, because
+    //                               CreateSupplierOrdersForPaidOrder flags
+    //                               every line it tries and fails to source
+    // A flagged line is a known problem already in the admin's queue. An
+    // unflagged one is work that vanished, which is what this looks for.
+    const rows = await this.db
+      .select({ id: orders.id })
+      .from(orders)
+      .where(
+        and(
+          eq(orders.paymentStatus, 'paid'),
+          lt(orders.updatedAt, idleSince),
+          exists(
+            this.db
+              .select({ one: sql`1` })
+              .from(orderLines)
+              .where(
+                and(
+                  eq(orderLines.orderId, orders.id),
+                  isNull(orderLines.fulfillmentIssue),
+                  notExists(
+                    this.db
+                      .select({ one: sql`1` })
+                      .from(supplierOrderLines)
+                      .where(eq(supplierOrderLines.orderLineId, orderLines.id)),
+                  ),
+                ),
+              ),
+          ),
+        ),
+      );
     return rows.map((r) => r.id);
   }
 

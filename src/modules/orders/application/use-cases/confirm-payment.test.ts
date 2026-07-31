@@ -36,10 +36,15 @@ function makeFakeProcessedEvents() {
   return store;
 }
 
-function makeFakeFulfillment() {
+function makeFakeFulfillment(failFirstCalls = 0) {
   const enqueued: string[] = [];
+  let failuresLeft = failFirstCalls;
   const queue: FulfillmentQueue = {
     async enqueueOrderPaid(orderId) {
+      if (failuresLeft > 0) {
+        failuresLeft -= 1;
+        throw new Error('redis unavailable');
+      }
       enqueued.push(orderId);
     },
   };
@@ -88,7 +93,17 @@ describe('ConfirmPayment', () => {
     expect(notified).toEqual(['order-1']); // only notified once
   });
 
-  it('is a guarded no-op if the order is already paid (re-entrant, different event id)', async () => {
+  /**
+   * This used to assert the opposite — that an unseen event for an already-paid
+   * order did nothing at all. That was the bug: "already paid" and "already
+   * finished" are not the same state, and treating them as one is how
+   * fulfillment got dropped. An *unseen* event id is the evidence that a
+   * previous attempt didn't complete, so the remaining work is completed
+   * rather than skipped.
+   *
+   * The real no-op is a **seen** event id, covered by the de-dupe test above.
+   */
+  it('completes the outstanding work when the order is paid but the event is unseen', async () => {
     const { repo, getStatus } = makeFakeOrders('paid');
     const processedEvents = makeFakeProcessedEvents();
     const { queue, enqueued } = makeFakeFulfillment();
@@ -98,9 +113,67 @@ describe('ConfirmPayment', () => {
     await confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-2', confirmedSats: 100000 });
 
     expect(getStatus()).toBe('paid');
-    expect(enqueued).toEqual([]); // never re-enqueued
-    expect(notified).toEqual([]); // never re-notified
+    expect(enqueued).toEqual(['order-1']);
+    expect(notified).toEqual(['order-1']);
     expect(await processedEvents.seen('evt-2')).toBe(true);
+  });
+
+  it('does not re-run the status transition for an order already paid', async () => {
+    // `paid -> paid` is not a legal transition, so re-entry must skip the
+    // assertion rather than trip over it.
+    const { repo, recoveries } = makeFakeOrders('paid');
+    const processedEvents = makeFakeProcessedEvents();
+    const { queue } = makeFakeFulfillment();
+    const { notifier } = makeFakeNotifier();
+    const confirmPayment = new ConfirmPayment(repo, processedEvents, queue, notifier);
+
+    await expect(
+      confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-8', confirmedSats: 1 }),
+    ).resolves.toBeUndefined();
+    expect(recoveries).toEqual([]);
+  });
+
+  // The bug this guards: the order was committed as `paid` and then the
+  // enqueue threw (Redis down is exactly what makes it throw), so the event
+  // was never marked seen. The watcher re-polls because `markConfirmed` was
+  // never reached either — and the old code saw `status === 'paid'`, marked
+  // the event seen, and returned. Sourcing was never enqueued again, so a
+  // paid customer had nothing ordered and only an admin noticing recovered it.
+  it('recovers fulfillment when a previous attempt paid the order but failed before finishing', async () => {
+    const { repo, getStatus } = makeFakeOrders('awaiting_confirmation');
+    const processedEvents = makeFakeProcessedEvents();
+    const { queue, enqueued } = makeFakeFulfillment(1);
+    const { notifier } = makeFakeNotifier();
+    const confirmPayment = new ConfirmPayment(repo, processedEvents, queue, notifier);
+    const event = { orderId: 'order-1', eventId: 'btc-confirmed-order-1', confirmedSats: 100000 };
+
+    // First pass: status commits, enqueue blows up, so nothing is marked done.
+    await expect(confirmPayment.execute(event)).rejects.toThrow(/redis/i);
+    expect(getStatus()).toBe('paid');
+    expect(enqueued).toEqual([]);
+    expect(await processedEvents.seen(event.eventId)).toBe(false);
+
+    // Second pass, same event id — the watcher's id is stable per order.
+    await confirmPayment.execute(event);
+
+    expect(enqueued).toEqual(['order-1']);
+    expect(await processedEvents.seen(event.eventId)).toBe(true);
+  });
+
+  it('does not mark the event seen when the enqueue fails', async () => {
+    // `markSeen` means every side effect completed. If it were set before the
+    // enqueue succeeded, the retry above could never happen.
+    const { repo } = makeFakeOrders('awaiting_payment');
+    const processedEvents = makeFakeProcessedEvents();
+    const { queue } = makeFakeFulfillment(99);
+    const { notifier } = makeFakeNotifier();
+    const confirmPayment = new ConfirmPayment(repo, processedEvents, queue, notifier);
+
+    await expect(
+      confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-9', confirmedSats: 1 }),
+    ).rejects.toThrow();
+
+    expect(await processedEvents.seen('evt-9')).toBe(false);
   });
 
   it('does nothing if the order does not exist', async () => {

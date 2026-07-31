@@ -29,6 +29,14 @@ const INTERVAL_MS = env.BTC_WATCH_INTERVAL_MS;
 
 const PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * The late-payment sweep's clock. Hourly, not per-pass: it costs one provider
+ * call per recently-closed order, and nothing about it is time-critical — the
+ * money has already arrived and the order is already closed, so the question is
+ * whether anyone finds out today, not within the minute.
+ */
+const LATE_PAYMENT_SWEEP_INTERVAL_MS = 60 * 60 * 1000;
+
 async function main(): Promise<void> {
   const container = getContainer();
   const {
@@ -36,6 +44,8 @@ async function main(): Promise<void> {
     expireStaleCheckouts,
     pruneAnalyticsEvents,
     failStuckAwaitingConfirmationOrders,
+    reconcileUnsourcedPaidOrders,
+    sweepLatePayments,
     heartbeats,
   } = container;
   logger.info('btc-watcher starting', { intervalMs: INTERVAL_MS });
@@ -63,6 +73,11 @@ async function main(): Promise<void> {
   // redeployed more often than once a day, a job that only fires after 24h
   // of uptime never fires at all.
   let lastPrunedAt = 0;
+  // Deliberately starts at "now" rather than 0, unlike the prune above: on a
+  // box that restarts often, sweeping on every boot would hammer the chain
+  // provider for no benefit — nothing can have arrived since the last sweep
+  // moments ago.
+  let lastSweptAt = Date.now();
 
   while (running) {
     const started = Date.now();
@@ -90,6 +105,30 @@ async function main(): Promise<void> {
       await failStuckAwaitingConfirmationOrders.execute();
     } catch (e) {
       logger.error('btc-watcher fail-stuck-awaiting-confirmation-orders pass failed', {
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+
+    if (Date.now() - lastSweptAt >= LATE_PAYMENT_SWEEP_INTERVAL_MS) {
+      lastSweptAt = Date.now();
+      try {
+        await sweepLatePayments.execute();
+      } catch (e) {
+        // Housekeeping, like the passes above: a failed sweep must not stop
+        // the chain poll, which is what actually settles orders.
+        logger.error('btc-watcher late-payment sweep failed', {
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+
+    // Every pass, like the two above: one indexed query whose result set should
+    // always be empty. When it isn't, a paid order is sitting unfulfilled and
+    // invisible, and every pass it waits is a customer waiting.
+    try {
+      await reconcileUnsourcedPaidOrders.execute();
+    } catch (e) {
+      logger.error('btc-watcher reconcile-unsourced-paid-orders pass failed', {
         error: e instanceof Error ? e.message : String(e),
       });
     }

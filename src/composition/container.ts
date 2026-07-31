@@ -29,6 +29,7 @@ import { UpdateOrderContact } from '@/modules/orders/application/use-cases/updat
 import { ListOrderEvents } from '@/modules/orders/application/use-cases/list-order-events';
 import { GetRevenueSummary } from '@/modules/orders/application/use-cases/get-revenue-summary';
 import { FailStuckAwaitingConfirmationOrders } from '@/modules/orders/application/use-cases/fail-stuck-awaiting-confirmation-orders';
+import { ReconcileUnsourcedPaidOrders } from '@/modules/orders/application/use-cases/reconcile-unsourced-paid-orders';
 import { FailOrder } from '@/modules/orders/application/use-cases/fail-order';
 import { PlaceOrder } from '@/modules/orders/application/use-cases/place-order';
 import { DrizzleCouponRepository } from '@/modules/coupons/infrastructure/drizzle-coupon-repository';
@@ -59,6 +60,8 @@ import { GetOrderDetail } from '@/modules/orders/application/use-cases/get-order
 import { GetShipmentsForOrder } from '@/modules/orders/application/use-cases/get-shipments-for-order';
 import { GetPaymentSessionForOrder } from '@/modules/payments/application/use-cases/get-payment-session-for-order';
 import { WatchBitcoinPayments } from '@/modules/payments/application/watch-bitcoin-payments';
+import { SweepLatePayments } from '@/modules/payments/application/use-cases/sweep-late-payments';
+import { CountLatePayments } from '@/modules/payments/application/use-cases/count-late-payments';
 import { GetPaymentProgress } from '@/modules/payments/application/use-cases/get-payment-progress';
 import { PaymentGatewayRegistry } from '@/modules/payments/application/payment-gateway-registry';
 
@@ -260,6 +263,9 @@ export interface Container {
   recordAuditLogEntry: RecordAuditLogEntry;
   recordAnalyticsEvent: RecordAnalyticsEvent;
   pruneAnalyticsEvents: PruneAnalyticsEvents;
+  sweepLatePayments: SweepLatePayments;
+  reconcileUnsourcedPaidOrders: ReconcileUnsourcedPaidOrders;
+  countLatePayments: CountLatePayments;
   getWebAnalyticsSummary: GetWebAnalyticsSummary;
   listAnalyticsEvents: ListAnalyticsEvents;
   getEventsForIdentity: GetEventsForIdentity;
@@ -717,6 +723,13 @@ function build(): Container {
     markAwaitingConfirmation,
     effectiveRequiredConfirmations,
   );
+  // Finds money that landed after an order closed and the watcher stopped
+  // polling its address. Runs on its own slow clock in the worker.
+  const sweepLatePayments = new SweepLatePayments(paymentStore, chain);
+  // Catches a paid order whose sourcing job went missing after being enqueued —
+  // the one gap ConfirmPayment's own retry can't see.
+  const reconcileUnsourcedPaidOrders = new ReconcileUnsourcedPaidOrders(orders, fulfillment);
+  const countLatePayments = new CountLatePayments(paymentStore);
   const getPaymentProgress = new GetPaymentProgress(orders, paymentStore, effectiveRequiredConfirmations);
 
   return {
@@ -757,6 +770,9 @@ function build(): Container {
     recordAuditLogEntry,
     recordAnalyticsEvent,
     pruneAnalyticsEvents,
+    sweepLatePayments,
+    reconcileUnsourcedPaidOrders,
+    countLatePayments,
     getWebAnalyticsSummary,
     listAnalyticsEvents,
     getEventsForIdentity,

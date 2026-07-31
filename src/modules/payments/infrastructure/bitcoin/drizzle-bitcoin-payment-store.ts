@@ -1,4 +1,4 @@
-import { and, eq, gt, gte, lte, sql } from 'drizzle-orm';
+import { and, count, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { bitcoinPaymentIntents, orders } from '@/shared/infrastructure/db/schema';
@@ -134,6 +134,46 @@ export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore, OnChainA
       .update(bitcoinPaymentIntents)
       .set({ status: 'cancelled' })
       .where(eq(bitcoinPaymentIntents.orderId, orderId));
+  }
+
+  async listSweepable(createdSince: Date): Promise<BitcoinPaymentIntent[]> {
+    // `inArray` on the two closed states rather than `ne('awaiting')`: an
+    // intent that is `confirmed` was paid through the normal path and has
+    // nothing to explain, and lumping it in would re-query every settled
+    // order's address forever.
+    const rows = await this.db
+      .select()
+      .from(bitcoinPaymentIntents)
+      .where(
+        and(
+          inArray(bitcoinPaymentIntents.status, ['expired', 'cancelled']),
+          gte(bitcoinPaymentIntents.createdAt, createdSince),
+          isNull(bitcoinPaymentIntents.latePaymentSeenAt),
+        ),
+      );
+    return rows.map(toIntent);
+  }
+
+  async recordLatePayment(orderId: string, sats: number): Promise<void> {
+    // Guarded on `latePaymentSeenAt IS NULL` so this is write-once: a second
+    // sweep must not move the timestamp and make the discovery look fresh.
+    await this.db
+      .update(bitcoinPaymentIntents)
+      .set({ latePaymentSats: sats, latePaymentSeenAt: new Date() })
+      .where(
+        and(
+          eq(bitcoinPaymentIntents.orderId, orderId),
+          isNull(bitcoinPaymentIntents.latePaymentSeenAt),
+        ),
+      );
+  }
+
+  async countLatePayments(): Promise<number> {
+    const [row] = await this.db
+      .select({ value: count() })
+      .from(bitcoinPaymentIntents)
+      .where(isNotNull(bitcoinPaymentIntents.latePaymentSeenAt));
+    return row?.value ?? 0;
   }
 
   async recordProgress(

@@ -66,6 +66,13 @@ function makeFakePaymentStore(intent: BitcoinPaymentIntent) {
     async markExpired() {},
     async reprice() {},
     async markCancelled() {},
+    async listSweepable() {
+      return [];
+    },
+    async recordLatePayment() {},
+    async countLatePayments() {
+      return 0;
+    },
     async recordProgress(orderId, progress) {
       progressByOrderId.set(orderId, progress);
     },

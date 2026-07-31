@@ -29,7 +29,7 @@ misleading impression on its own. These are not assumptions — each was checked
 - **Sourcing refuses to spend on an unpaid order**, re-checked at the top of
   `CreateSupplierOrdersForPaidOrder` because an admin can retry it by hand.
 
-## 1. A paid order can be stranded with nothing ordered
+## 1. A paid order can be stranded with nothing ordered — FIXED
 
 `confirm-payment.ts:60-83`. The sequence is:
 
@@ -50,13 +50,26 @@ Redis being unavailable is exactly the condition that makes the enqueue fail,
 so this is not an exotic scenario. It is silent, permanent, and on the money
 path.
 
-**Fix.** Make the recovery structural rather than human. Either don't `markSeen`
-until fulfillment is enqueued (so the pass retries), or — better, because it
-also covers the case where the job itself is lost — have the watcher reconcile:
-a pass that finds a `paid` order with unsourced lines re-enqueues sourcing.
-The handler is already idempotent, so re-enqueueing is free.
+**Fixed** by making `markSeen` mean "every side effect completed". The
+`status === 'paid'` early return is gone: an *unseen* event id is precisely the
+evidence that a previous attempt didn't finish, so the remaining work is
+completed rather than skipped, and the enqueue is deliberately left outside
+try/catch so a failure keeps the event unfinished for the next pass.
 
-## 2. A payment arriving after the deadline is invisible
+**Also fixed:** the narrower case where the enqueue *succeeded* and the job was
+later lost (Redis wiped, or a queue drained by hand).
+`ReconcileUnsourcedPaidOrders` runs every watcher pass and re-enqueues any
+`paid` order holding a line that no supplier order covers **and** that carries
+no fulfillment issue — the second condition being what separates "work went
+missing" from "known unsourceable, already in the admin queue". Orders idle for
+less than fifteen minutes are left alone so the pass doesn't race the job it's
+backstopping.
+
+That state was previously invisible from every angle: the event was marked
+seen, the order looked normal, and unflagged lines don't appear in the admin's
+unsourced queue. This reconciler is now the only thing that would ever notice.
+
+## 2. A payment arriving after the deadline is invisible — FIXED
 
 `drizzle-bitcoin-payment-store.ts:65-87`. `listWatchable` requires
 `status = 'awaiting'` **and** `orders.paymentDeadlineAt > now − grace`. Once
@@ -72,11 +85,18 @@ The 24-hour window is a deliberate business rule and shouldn't change. The
 problem is that expiry currently means *stop looking*, when it should mean
 *stop promising*.
 
-**Fix.** A low-frequency sweep over intents expired within the last N days
-(30 is reasonable — it only needs to outlast how long someone might take to
-notice) that queries each address once and raises an admin alert for any with
-a balance. Cheap: one Esplora call per recently-expired order per sweep, and
-it can run hourly rather than every 45 seconds.
+**Fixed** by `SweepLatePayments`, hourly, over intents `expired` *or*
+`cancelled` within the last 30 days. Anything holding coins is recorded on the
+intent (`late_payment_sats`, write-once) and surfaced as the first tile on the
+admin dashboard, above unsettled payments.
+
+It deliberately does not confirm the payment or move the order — see finding 4;
+resurrecting a closed order because coins arrived would decide that by accident.
+
+**`cancelled` turned out to matter as much as `expired`.** `markCancelled` also
+drops an intent out of `listWatchable`, so the state machine's `cancelled ->
+paid` recovery path — which exists precisely for "they cancelled but paid
+anyway" — had nothing that could ever reach it. The same sweep covers both.
 
 ## 3. The amount actually received is never stored
 
