@@ -274,10 +274,16 @@ feature" checklist).
   - *Storefront* — the global flat-rate shipping fee (changing it only
     affects orders placed after; existing orders keep the rate they were
     placed under), and **coupons**, which used to be their own sidebar page.
-    Create a percentage or fixed-amount code and activate/deactivate it;
-    there's no editing an existing code's discount — deactivate and create a
-    new one, so past orders that used it are never retroactively
-    reinterpreted. `/admin/coupons` redirects here.
+    Create a percentage or fixed-amount code, activate/deactivate it, or
+    delete it outright; there's no editing an existing code's discount —
+    deactivate and create a new one, so past orders that used it are never
+    retroactively reinterpreted. Deleting needs your password re-typed (like
+    every destructive admin action) and is safe even for a code orders have
+    already used: an order snapshots the code and the discount it was given,
+    so its total and receipt don't change — only the code stops working.
+    Deactivating is still the reversible option. Creating, activating,
+    deactivating and deleting are all audit-logged, since a coupon changes
+    what a customer is charged. `/admin/coupons` redirects here.
   - *Payments* — read-only, and named as the environment variables they come
     from: network, confirmations + settlement buffer, quote TTL, watcher
     interval, and the chain/rate provider hosts. Deliberately not editable

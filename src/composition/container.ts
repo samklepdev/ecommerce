@@ -35,6 +35,7 @@ import { DrizzleCouponRepository } from '@/modules/coupons/infrastructure/drizzl
 import { CreateCoupon } from '@/modules/coupons/application/use-cases/create-coupon';
 import { ListCoupons } from '@/modules/coupons/application/use-cases/list-coupons';
 import { SetCouponActive } from '@/modules/coupons/application/use-cases/set-coupon-active';
+import { DeleteCoupon } from '@/modules/coupons/application/use-cases/delete-coupon';
 import { CreateSupplierOrdersForPaidOrder } from '@/modules/orders/application/use-cases/create-supplier-orders-for-paid-order';
 import { MarkSupplierOrderOrdered } from '@/modules/orders/application/use-cases/mark-supplier-order-ordered';
 import { MarkSupplierOrderShipped } from '@/modules/orders/application/use-cases/mark-supplier-order-shipped';
@@ -338,6 +339,7 @@ export interface Container {
   createCoupon: CreateCoupon;
   listCoupons: ListCoupons;
   setCouponActive: SetCouponActive;
+  deleteCoupon: DeleteCoupon;
   startCheckout: StartCheckout;
   expireStaleCheckouts: ExpireStaleCheckouts;
   refreshPaymentQuote: RefreshPaymentQuote;
@@ -617,6 +619,7 @@ function build(): Container {
   const createCoupon = new CreateCoupon(coupons);
   const listCoupons = new ListCoupons(coupons);
   const setCouponActive = new SetCouponActive(coupons);
+  const deleteCoupon = new DeleteCoupon(coupons);
   const placeOrder = new PlaceOrder(
     carts,
     products,
@@ -827,6 +830,7 @@ function build(): Container {
     createCoupon,
     listCoupons,
     setCouponActive,
+    deleteCoupon,
     startCheckout,
     expireStaleCheckouts,
     refreshPaymentQuote,
