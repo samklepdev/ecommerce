@@ -43,7 +43,16 @@ services:
     healthcheck:
       # Hits /api/health, which checks Postgres, Redis and the watcher's
       # heartbeat, and answers 503 when any of them is down.
-      test: ['CMD-SHELL', 'node -e "fetch(\'http://localhost:3000/api/health\').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"']
+      # A block scalar, not a quoted flow sequence: this command needs both
+      # double and single quotes, and YAML escapes a single quote inside a
+      # single-quoted string by doubling it, never with a backslash. Written
+      # as `\'` it silently ends the string and breaks the whole file — which
+      # it did, taking `docker compose` with it for every service, not just
+      # this one. Here nothing needs escaping at all.
+      test:
+        - CMD-SHELL
+        - >-
+          node -e "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
       interval: 30s
       timeout: 5s
       retries: 3
