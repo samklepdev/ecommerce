@@ -1,5 +1,5 @@
 import type { FulfillmentQueue } from '@/modules/orders/application/use-cases/confirm-payment';
-import type { JobQueue } from '@/shared/application/ports/job-queue';
+import { jobIdFor, type JobQueue } from '@/shared/application/ports/job-queue';
 
 /**
  * "Order paid" → a job, instead of doing the sourcing work inline.
@@ -21,7 +21,7 @@ export class QueuedFulfillmentQueue implements FulfillmentQueue {
     await this.jobs.enqueue(
       'fulfillment.create-supplier-orders',
       { orderId },
-      { jobId: `fulfillment-${orderId}` },
+      { jobId: jobIdFor('fulfillment', orderId) },
     );
   }
 }

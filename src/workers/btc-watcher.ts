@@ -44,7 +44,7 @@ async function main(): Promise<void> {
   // to deploy and monitor is worse than one for a shop this size, and the
   // job worker is idle most of the time. Split them when the queue's volume
   // starts competing with the poll for the interval.
-  const jobWorker = createJobWorker(env.REDIS_URL, container);
+  const jobWorker = createJobWorker(env.REDIS_URL, { ...container, appUrl: env.APP_URL });
   logger.info('job worker started');
 
   let running = true;

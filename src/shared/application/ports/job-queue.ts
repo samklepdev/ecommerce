@@ -31,9 +31,38 @@ export interface EnqueueOptions {
    * **No colons.** BullMQ rejects them outright ("Custom Id cannot contain
    * :"), because it builds its own Redis keys with colon separators. The
    * obvious `type:id` shape therefore throws at enqueue time rather than
-   * failing a check — use hyphens.
+   * failing a check — so don't build this by hand, use `jobIdFor` below.
+   *
+   * Omit it entirely for work a caller can legitimately repeat (a resend
+   * button); see the note on `jobIdFor`.
    */
   jobId?: string;
+}
+
+/**
+ * Builds a job id, and is the only thing that should.
+ *
+ * The no-colon rule above used to be enforced by a comment, with four call
+ * sites assembling ids by hand — which is how every id shipped as `type:id`
+ * and threw at enqueue time. Routing them through here makes the rule
+ * structural: a colon can't reach BullMQ because this replaces it.
+ *
+ * Dots go the same way, so a job name can be passed straight in
+ * (`jobIdFor('email.welcome', userId)` → `email-welcome-<userId>`), which is
+ * what the call sites were already spelling out longhand.
+ *
+ * Sanitising rather than throwing on a colon is deliberate: a throw here
+ * would reproduce the original failure — invisible to types, discovered at
+ * runtime in the request path. An empty part *does* throw, because unlike a
+ * colon it can't be corrected: it collapses `fulfillment-<orderId>` to
+ * `fulfillment-` for every order, deduping unrelated money-touching jobs
+ * into one another.
+ */
+export function jobIdFor(...parts: string[]): string {
+  if (parts.length === 0 || parts.some((part) => part.trim() === '')) {
+    throw new Error(`jobIdFor: refusing to build an id from an empty part (${JSON.stringify(parts)})`);
+  }
+  return parts.join('-').replaceAll(/[:.]/g, '-');
 }
 
 export interface JobQueue {

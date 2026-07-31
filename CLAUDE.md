@@ -236,7 +236,14 @@ Payment and fulfillment are **separate** machines that reference each other.
   Five attempts with exponential backoff; whatever exhausts them stays in BullMQ's failed set,
   which is the dead-letter queue, and `/api/health` reports the depths.
 - **Job ids must not contain `:`** — BullMQ builds its own keys with colons and rejects a
-  custom id containing one *at enqueue time*.
+  custom id containing one *at enqueue time*. **Build every id with `jobIdFor`** (in the
+  `JobQueue` port), which replaces colons and dots so the rule can't be broken by hand; it
+  refuses an empty part, because that collapses `fulfillment-<orderId>` to `fulfillment-` for
+  every order.
+- **Job payloads are parsed, not cast** (`job-payload-schemas.ts`). `job.data` is `any` off
+  Redis and may have been enqueued by a previous deploy, so it crosses a boundary like any
+  other external input. A payload that fails to parse is **dropped, not retried** — it won't
+  parse on the fifth attempt either.
 - **A deterministic job id is a second line of defence, not the guard.** BullMQ dedupes a
   repeated id only while that job still exists in Redis, and completed jobs are evicted on
   `removeOnComplete` (an hour, or 1000 jobs) — past that the same id enqueues again. So the
