@@ -142,3 +142,85 @@ describe('DrizzleBitcoinPaymentStore late payments (integration)', () => {
     expect(await store().countLatePayments()).toBe(0);
   });
 });
+
+/**
+ * Whether an address is still being polled decides whether a top-up can ever
+ * land. `findExpiredAwaitingOrderIds` only expires `pending` and
+ * `awaiting_payment`, so an underpaid order stays *open* until the 48-hour
+ * stuck-fail — but this query used to drop it from watching at the 24-hour order
+ * deadline. Between those two points the order invited a top-up nobody would see.
+ */
+describe('DrizzleBitcoinPaymentStore#listWatchable (integration)', () => {
+  const { db } = useTestInfrastructure();
+  const store = () => new DrizzleBitcoinPaymentStore(db as DB);
+
+  const future = new Date(Date.now() + 60 * 60 * 1000);
+  const wellPast = new Date(Date.now() - 48 * 60 * 60 * 1000);
+
+  let n = 0;
+  async function seed(paymentStatus: string, paymentDeadlineAt: Date, intentStatus = 'awaiting') {
+    n += 1;
+    const orderId = `w-order-${n}`;
+    await db.insert(orders).values({
+      id: orderId,
+      currency: 'USD',
+      amountMinor: 1999,
+      shippingAmountMinor: 0,
+      discountAmountMinor: 0,
+      customerEmail: 'buyer@example.com',
+      paymentStatus,
+      paymentDeadlineAt,
+    });
+    await db.insert(bitcoinPaymentIntents).values({
+      orderId,
+      address: `bc1qwatch${n}`,
+      addressIndex: 1000 + n,
+      expectedSats: 100_000,
+      fiatCurrency: 'USD',
+      satsPerFiatUnit: 1_000,
+      expiresAt: new Date('2026-07-01T00:00:00Z'),
+      status: intentStatus,
+    });
+    return orderId;
+  }
+
+  it('watches an order still inside its payment window', async () => {
+    const orderId = await seed('awaiting_payment', future);
+
+    expect((await store().listWatchable()).map((i) => i.orderId)).toEqual([orderId]);
+  });
+
+  it('stops watching an unpaid order past its deadline', async () => {
+    // Nothing was ever seen on-chain, so the order is about to be expired and
+    // there is nothing to wait for. SweepLatePayments covers it from here.
+    await seed('awaiting_payment', wellPast);
+
+    expect(await store().listWatchable()).toEqual([]);
+  });
+
+  it('keeps watching an underpaid order past its deadline, so a top-up can land', async () => {
+    // The point of the whole change: money has already arrived, the order stays
+    // open until the stuck-fail, and the customer has been told to send the
+    // rest to this address.
+    const orderId = await seed('awaiting_confirmation', wellPast);
+
+    expect((await store().listWatchable()).map((i) => i.orderId)).toEqual([orderId]);
+  });
+
+  it('stops watching once the order has been failed', async () => {
+    // The bound is automatic: FailStuckAwaitingConfirmationOrders moves it out
+    // of awaiting_confirmation at 48h, and it drops out here with no separate
+    // horizon to keep in sync.
+    await seed('failed', wellPast);
+
+    expect(await store().listWatchable()).toEqual([]);
+  });
+
+  it('never watches an intent that is no longer awaiting', async () => {
+    await seed('awaiting_confirmation', future, 'confirmed');
+    await seed('awaiting_confirmation', future, 'expired');
+    await seed('awaiting_confirmation', future, 'cancelled');
+
+    expect(await store().listWatchable()).toEqual([]);
+  });
+});
