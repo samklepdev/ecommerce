@@ -79,6 +79,9 @@ import { DrizzleSupplierOrderRepository } from '@/modules/orders/infrastructure/
 import { RedisProcessedEventStore } from '@/modules/orders/infrastructure/redis-processed-event-store';
 import { QueuedFulfillmentQueue } from '@/modules/orders/infrastructure/queued-fulfillment-queue';
 import { QueuedPaymentConfirmationNotifier } from '@/modules/orders/infrastructure/queued-payment-confirmation-notifier';
+import { QueuedUnderpaymentNotifier } from '@/modules/orders/infrastructure/queued-underpayment-notifier';
+import { EmailUnderpaymentNotifier } from '@/modules/orders/infrastructure/email-underpayment-notifier';
+import { NotifyUnderpaidOnce } from '@/modules/orders/application/use-cases/notify-underpaid-once';
 import { BullMqJobQueue } from '@/shared/infrastructure/queue/bullmq-job-queue';
 import type { JobQueue } from '@/shared/application/ports/job-queue';
 import { EmailPaymentConfirmationNotifier } from '@/modules/orders/infrastructure/email-payment-confirmation-notifier';
@@ -231,6 +234,7 @@ export interface Container {
    * concrete adapter. */
   jobQueue: JobQueue;
   paymentConfirmationEmail: EmailPaymentConfirmationNotifier;
+  underpaymentEmail: EmailUnderpaymentNotifier;
   getStoreAvailability: GetStoreAvailability;
   setStoreAvailability: SetStoreAvailability;
   assertStoreOpenForCheckout: AssertStoreOpenForCheckout;
@@ -716,12 +720,26 @@ function build(): Container {
   // env.BTC_REQUIRED_CONFIRMATIONS through on its own below this point.
   const effectiveRequiredConfirmations =
     env.BTC_REQUIRED_CONFIRMATIONS + env.BTC_SETTLEMENT_BUFFER_CONFIRMATIONS;
+  // The queued side is what the watcher calls; the email side is what the job
+  // handler calls. Same port, one enqueues and one sends.
+  const underpaymentEmail = new EmailUnderpaymentNotifier(
+    orders,
+    paymentStore,
+    emailSender,
+    env.APP_URL,
+    env.SUPPORT_EMAIL,
+  );
+  const notifyUnderpaidOnce = new NotifyUnderpaidOnce(
+    processed,
+    new QueuedUnderpaymentNotifier(jobQueue),
+  );
   const watchBitcoinPayments = new WatchBitcoinPayments(
     paymentStore,
     chain,
     confirmPayment,
     markAwaitingConfirmation,
     effectiveRequiredConfirmations,
+    notifyUnderpaidOnce,
   );
   // Finds money that landed after an order closed and the watcher stopped
   // polling its address. Runs on its own slow clock in the worker.
@@ -739,6 +757,7 @@ function build(): Container {
     checkSystemHealth,
     jobQueue,
     paymentConfirmationEmail,
+    underpaymentEmail,
     getStoreAvailability,
     setStoreAvailability,
     assertStoreOpenForCheckout,

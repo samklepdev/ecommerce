@@ -45,6 +45,7 @@ export interface JobWorkerDeps {
   sendWelcomeEmail: { execute(input: { userId: string; email: string }): Promise<void> };
   requestEmailVerification: { execute(input: { userId: string; email: string }): Promise<void> };
   paymentConfirmationEmail: { notifyPaymentConfirmed(orderId: string): Promise<void> };
+  underpaymentEmail: { notifyUnderpaid(orderId: string): Promise<void> };
   createSupplierOrdersForPaidOrder: { execute(input: { orderId: string }): Promise<void> };
 }
 
@@ -123,6 +124,10 @@ export function createJobWorker(redisUrl: string, deps: JobWorkerDeps): Worker {
 
     'email.payment-confirmed': parsedHandler('email.payment-confirmed', async ({ orderId }) => {
       await deps.paymentConfirmationEmail.notifyPaymentConfirmed(orderId);
+    }),
+
+    'email.underpaid': parsedHandler('email.underpaid', async ({ orderId }) => {
+      await deps.underpaymentEmail.notifyUnderpaid(orderId);
     }),
 
     'fulfillment.create-supplier-orders': parsedHandler(

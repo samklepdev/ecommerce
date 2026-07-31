@@ -29,6 +29,7 @@ import { PlaceOrder } from '@/modules/orders/application/use-cases/place-order';
 import { StartCheckout } from '@/modules/checkout/application/use-cases/start-checkout';
 import { ConfirmPayment } from '@/modules/orders/application/use-cases/confirm-payment';
 import { MarkAwaitingConfirmation } from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
+import { NotifyUnderpaidOnce } from '@/modules/orders/application/use-cases/notify-underpaid-once';
 import { CreateSupplierOrdersForPaidOrder } from '@/modules/orders/application/use-cases/create-supplier-orders-for-paid-order';
 import { QueuedFulfillmentQueue } from '@/modules/orders/infrastructure/queued-fulfillment-queue';
 import { QueuedPaymentConfirmationNotifier } from '@/modules/orders/infrastructure/queued-payment-confirmation-notifier';
@@ -119,6 +120,8 @@ export function buildMoneyPath(
 
   const chain = new FakeChain();
   const notifier = new RecordingNotifier();
+  /** Orders the watcher decided to tell the customer were short. */
+  const underpaidNotices: string[] = [];
 
   const gateway = new OnChainBitcoinPaymentGateway(
     new HdAddressDeriver(TEST_XPUB, networks.testnet),
@@ -154,6 +157,7 @@ export function buildMoneyPath(
     createSupplierOrdersForPaidOrder: createSupplierOrders,
     paymentConfirmationEmail: notifier,
     getOrderDetail: { execute: unexpected('getOrderDetail') },
+    underpaymentEmail: { notifyUnderpaid: unexpected('underpaymentEmail') },
     sendOrderConfirmationEmail: { execute: unexpected('sendOrderConfirmationEmail') },
     sendWelcomeEmail: { execute: unexpected('sendWelcomeEmail') },
     requestEmailVerification: { execute: unexpected('requestEmailVerification') },
@@ -204,7 +208,17 @@ export function buildMoneyPath(
       confirmPayment,
       new MarkAwaitingConfirmation(orders),
       requiredConfirmations,
+      // Real Redis is available here, so the once-only guard is the production
+      // one. The notifier itself records rather than mails: what this harness
+      // asserts is the money path, and a real enqueue would need a worker for
+      // a job none of these tests read.
+      new NotifyUnderpaidOnce(processed, {
+        async notifyUnderpaid(orderId) {
+          underpaidNotices.push(orderId);
+        },
+      }),
     ),
+    underpaidNotices,
     requiredConfirmations,
   };
 }

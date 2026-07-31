@@ -17,6 +17,7 @@ export interface JobPayloads {
   'email.welcome': { userId: string; email: string };
   'email.verification': { userId: string; email: string };
   'email.payment-confirmed': { orderId: string };
+  'email.underpaid': { orderId: string };
   'fulfillment.create-supplier-orders': { orderId: string };
 }
 

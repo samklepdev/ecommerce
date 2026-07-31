@@ -5,6 +5,7 @@ import type {
 } from '@/modules/payments/application/ports/bitcoin-ports';
 import type { ConfirmPayment } from '@/modules/orders/application/use-cases/confirm-payment';
 import type { MarkAwaitingConfirmation } from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
+import type { NotifyUnderpaidOnce } from '@/modules/orders/application/use-cases/notify-underpaid-once';
 
 const DUST_TOLERANCE_SATS = 1000;
 
@@ -21,6 +22,7 @@ export class WatchBitcoinPayments {
     private readonly confirmPayment: ConfirmPayment,
     private readonly markAwaitingConfirmation: MarkAwaitingConfirmation,
     private readonly requiredConfirmations: number,
+    private readonly notifyUnderpaid: NotifyUnderpaidOnce,
   ) {}
 
   async runOnce(): Promise<void> {
@@ -66,6 +68,12 @@ export class WatchBitcoinPayments {
 
         if (underpaid) {
           await this.markAwaitingConfirmation.execute({ orderId: intent.orderId });
+          // Only this branch, not the shallow-confirmation one below: a shallow
+          // payment resolves itself in a few blocks and needs no action from
+          // the customer, whereas a short one is stuck until they send the
+          // rest. `NotifyUnderpaidOnce` owns the once-per-order guard, because
+          // this pass runs every 45 seconds for as long as the order is short.
+          await this.notifyUnderpaid.execute({ orderId: intent.orderId });
           continue;
         }
 

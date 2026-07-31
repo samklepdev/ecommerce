@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { WatchBitcoinPayments } from './watch-bitcoin-payments';
+import { NotifyUnderpaidOnce } from '@/modules/orders/application/use-cases/notify-underpaid-once';
 import { ConfirmPayment } from '@/modules/orders/application/use-cases/confirm-payment';
 import {
   MarkAwaitingConfirmation,
@@ -94,13 +95,48 @@ function makeIntent(overrides: Partial<BitcoinPaymentIntent> = {}): BitcoinPayme
   };
 }
 
-function makeWatcher(paymentStore: BitcoinPaymentStore, chain: ChainDataProvider, orders: FakeOrders) {
+/** `notifyUnderpaid` is injectable so the one test that cares about the
+ * customer being told can assert on it; every other test gets a throwaway. */
+function makeWatcher(
+  paymentStore: BitcoinPaymentStore,
+  chain: ChainDataProvider,
+  orders: FakeOrders,
+  notifyUnderpaid: NotifyUnderpaidOnce = makeNotifyUnderpaid().notify,
+) {
   const processedEvents = { seen: async () => false, markSeen: async () => {} };
   const fulfillment = { enqueueOrderPaid: async () => {} };
   const paymentConfirmationNotifier = { notifyPaymentConfirmed: async () => {} };
   const confirmPayment = new ConfirmPayment(orders, processedEvents, fulfillment, paymentConfirmationNotifier);
   const markAwaitingConfirmation = new MarkAwaitingConfirmation(orders);
-  return new WatchBitcoinPayments(paymentStore, chain, confirmPayment, markAwaitingConfirmation, REQUIRED_CONFIRMATIONS);
+  return new WatchBitcoinPayments(
+    paymentStore,
+    chain,
+    confirmPayment,
+    markAwaitingConfirmation,
+    REQUIRED_CONFIRMATIONS,
+    notifyUnderpaid,
+  );
+}
+
+function makeNotifyUnderpaid() {
+  const notified: string[] = [];
+  const seenIds = new Set<string>();
+  const notify = new NotifyUnderpaidOnce(
+    {
+      async seen(id) {
+        return seenIds.has(id);
+      },
+      async markSeen(id) {
+        seenIds.add(id);
+      },
+    },
+    {
+      async notifyUnderpaid(orderId) {
+        notified.push(orderId);
+      },
+    },
+  );
+  return { notify, notified };
 }
 
 describe('WatchBitcoinPayments#runOnce', () => {
@@ -146,6 +182,49 @@ describe('WatchBitcoinPayments#runOnce', () => {
       overpaid: false,
     });
     expect(wasConfirmed()).toBe(false);
+  });
+
+  it('tells the customer once when their payment is short', async () => {
+    const intent = makeIntent();
+    const paymentStore = makeFakePaymentStore(intent);
+    const chain = makeFakeChain({ address: intent.address, confirmedSats: 5000, confirmations: 0 });
+    const { repo: orders } = makeFakeOrders('awaiting_payment');
+    const { notify, notified } = makeNotifyUnderpaid();
+    const watcher = makeWatcher(paymentStore.store, chain, orders, notify);
+
+    // Three passes, as the real loop would do inside two minutes.
+    await watcher.runOnce();
+    await watcher.runOnce();
+    await watcher.runOnce();
+
+    // Once. A short payment stays short until they act, so the naive call would
+    // mail them every 45 seconds for up to 48 hours.
+    expect(notified).toEqual([intent.orderId]);
+  });
+
+  it('does not tell the customer anything when the payment is merely shallow', async () => {
+    // Nothing is owed and nothing is needed from them — it just needs blocks.
+    const intent = makeIntent();
+    const paymentStore = makeFakePaymentStore(intent);
+    const chain = makeFakeChain({ address: intent.address, confirmedSats: 100000, confirmations: 1 });
+    const { repo: orders } = makeFakeOrders('awaiting_payment');
+    const { notify, notified } = makeNotifyUnderpaid();
+
+    await makeWatcher(paymentStore.store, chain, orders, notify).runOnce();
+
+    expect(notified).toEqual([]);
+  });
+
+  it('does not tell the customer anything when nothing has arrived', async () => {
+    const intent = makeIntent();
+    const paymentStore = makeFakePaymentStore(intent);
+    const chain = makeFakeChain({ address: intent.address, confirmedSats: 0, confirmations: 0 });
+    const { repo: orders } = makeFakeOrders('awaiting_payment');
+    const { notify, notified } = makeNotifyUnderpaid();
+
+    await makeWatcher(paymentStore.store, chain, orders, notify).runOnce();
+
+    expect(notified).toEqual([]);
   });
 
   it('marks awaiting_confirmation and records progress when seen but shallow (not underpaid)', async () => {

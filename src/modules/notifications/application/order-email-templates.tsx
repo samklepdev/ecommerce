@@ -103,6 +103,78 @@ export function PaymentConfirmedEmail({
   );
 }
 
+export interface UnderpaidEmailInput {
+  orderId: string;
+  orderUrl: string;
+  /** All three as BTC strings, formatted by the caller — the template does no
+   * money arithmetic, and sats-to-BTC conversion is display-only. */
+  receivedBtc: string;
+  expectedBtc: string;
+  outstandingBtc: string;
+  address: string;
+  supportEmail: string;
+}
+
+/**
+ * "You've paid some of it" — the email that makes a top-up possible for someone
+ * who has closed the tab.
+ *
+ * Deliberately not an apology or a problem report. The order is still open, the
+ * address hasn't changed, and the customer can finish paying; the useful content
+ * is the outstanding number and where to send it. It also says the amount is
+ * fixed, because the obvious worry on reading this is that the price has moved
+ * while they were away.
+ */
+export function UnderpaidEmail({
+  orderId,
+  orderUrl,
+  receivedBtc,
+  expectedBtc,
+  outstandingBtc,
+  address,
+  supportEmail,
+}: UnderpaidEmailInput) {
+  return (
+    <EmailLayout
+      preview={`${outstandingBtc} BTC still owed on order ${shortId(orderId)}`}
+      footerNote={
+        <>
+          Questions? Email{' '}
+          <Link href={`mailto:${supportEmail}`} style={emailStyles.link}>
+            {supportEmail}
+          </Link>
+          .
+        </>
+      }
+    >
+      <Heading style={emailStyles.heading}>Your payment was short</Heading>
+      <Text style={emailStyles.paragraph}>
+        We received {receivedBtc} BTC for order {shortId(orderId)}, and the total is{' '}
+        {expectedBtc} BTC.
+      </Text>
+      <Text style={emailStyles.paragraph}>
+        Send the remaining <strong>{outstandingBtc} BTC</strong> to the same address to
+        complete your order:
+      </Text>
+      {/* The address in the body, not only behind a link: a customer paying from
+          a phone wallet needs something to copy, and an email client may not
+          render the order page's QR. */}
+      <Text style={{ ...emailStyles.detail, fontFamily: 'monospace', wordBreak: 'break-all' }}>
+        {address}
+      </Text>
+      <Text style={emailStyles.paragraph}>
+        The amount owed is fixed at the rate you were originally quoted — it won&apos;t move
+        while you finish paying.
+      </Text>
+      <Text style={emailStyles.paragraph}>
+        <Link href={orderUrl} style={emailStyles.link}>
+          View your order
+        </Link>
+      </Text>
+    </EmailLayout>
+  );
+}
+
 export interface ShipmentEmailInput {
   orderId: string;
   orderUrl: string;
@@ -180,4 +252,8 @@ export function renderPaymentConfirmedEmail(
 
 export function renderShipmentEmail(input: ShipmentEmailInput): Promise<RenderedEmail> {
   return renderEmail(<ShipmentEmail {...input} />);
+}
+
+export function renderUnderpaidEmail(input: UnderpaidEmailInput): Promise<RenderedEmail> {
+  return renderEmail(<UnderpaidEmail {...input} />);
 }
