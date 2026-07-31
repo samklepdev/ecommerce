@@ -38,6 +38,11 @@ export class DrizzleCouponRepository implements CouponRepository {
     return row ? toCoupon(row) : null;
   }
 
+  async findById(id: string): Promise<Coupon | null> {
+    const row = await this.db.query.coupons.findFirst({ where: eq(coupons.id, id) });
+    return row ? toCoupon(row) : null;
+  }
+
   async create(coupon: Coupon): Promise<void> {
     await this.db.insert(coupons).values({
       id: coupon.id,
@@ -52,5 +57,9 @@ export class DrizzleCouponRepository implements CouponRepository {
 
   async setActive(id: string, isActive: boolean): Promise<void> {
     await this.db.update(coupons).set({ isActive }).where(eq(coupons.id, id));
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.db.delete(coupons).where(eq(coupons.id, id));
   }
 }
