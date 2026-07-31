@@ -147,7 +147,12 @@ feature" checklist).
   provider having a bad minute retries instead of losing the mail. Line items
   in a receipt are named ("Blue Widget × 2"), from a snapshot taken when the
   order was placed — so renaming or deleting a product never changes what an
-  already-sent receipt says was bought.
+  already-sent receipt says was bought. Every message goes out as both HTML and
+  plain text: a text alternative is what stops the whole batch being scored as
+  spam, and it's the version that renders in a client with images and styling
+  turned off. The look is deliberately plain — system fonts, black on white, no
+  logo — and lives in one shared layout, so branding is a single edit rather
+  than six.
 
 ## Admin (`/admin/*`, requires an admin account)
 

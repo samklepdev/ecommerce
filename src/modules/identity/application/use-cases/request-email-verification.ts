@@ -3,7 +3,7 @@ import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import type { UseCase } from '@/shared/application/use-case';
 import type { EmailVerificationRepository } from '@/modules/identity/application/ports/email-verification-repository';
 import type { EmailSender } from '@/modules/notifications/application/ports/email-sender';
-import { renderVerifyEmailHtml } from '@/modules/identity/application/verify-email-template';
+import { renderVerifyEmail } from '@/modules/identity/application/verify-email-template';
 
 export interface RequestEmailVerificationInput {
   userId: string;
@@ -39,10 +39,15 @@ export class RequestEmailVerification implements UseCase<RequestEmailVerificatio
     });
 
     const verifyUrl = `${this.appUrl}/verify-email/${rawToken}`;
-    const html = renderVerifyEmailHtml({
+    const { html, text } = await renderVerifyEmail({
       verifyUrl,
       expiresInMinutes: Math.round(this.ttlSeconds / 60),
     });
-    await this.emailSender.send(input.email, 'Verify your email', html);
+    await this.emailSender.send({
+      to: input.email,
+      subject: 'Verify your email',
+      html,
+      text,
+    });
   }
 }

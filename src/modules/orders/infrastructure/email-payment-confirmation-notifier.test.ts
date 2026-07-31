@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { EmailPaymentConfirmationNotifier } from './email-payment-confirmation-notifier';
 import type { OrderDetail, OrderHistoryRepository } from '@/modules/orders/application/ports/order-history-repository';
-import type { EmailSender } from '@/modules/notifications/application/ports/email-sender';
+import type { EmailMessage, EmailSender } from '@/modules/notifications/application/ports/email-sender';
 
 function makeFakeOrderHistory(order: OrderDetail | null) {
   const repo: Partial<OrderHistoryRepository> = {
@@ -14,10 +14,10 @@ function makeFakeOrderHistory(order: OrderDetail | null) {
 }
 
 function makeFakeEmailSender() {
-  const sent: { to: string; subject: string; html: string }[] = [];
+  const sent: EmailMessage[] = [];
   const sender: EmailSender = {
-    async send(to, subject, html) {
-      sent.push({ to, subject, html });
+    async send(message) {
+      sent.push(message);
     },
   };
   return { sender, sent };

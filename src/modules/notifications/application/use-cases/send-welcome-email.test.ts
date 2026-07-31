@@ -6,7 +6,7 @@ import type {
   WelcomeEmailRepository,
   WelcomeEmailStatus,
 } from '@/modules/notifications/application/ports/welcome-email-repository';
-import type { EmailSender } from '@/modules/notifications/application/ports/email-sender';
+import type { EmailMessage, EmailSender } from '@/modules/notifications/application/ports/email-sender';
 
 function makeFakeWelcomeEmails(existing: WelcomeEmailStatus | null) {
   const created: CreateWelcomeEmailInput[] = [];
@@ -25,10 +25,10 @@ function makeFakeWelcomeEmails(existing: WelcomeEmailStatus | null) {
 }
 
 function makeFakeEmailSender() {
-  const sent: { to: string; subject: string; html: string }[] = [];
+  const sent: EmailMessage[] = [];
   const sender: EmailSender = {
-    async send(to, subject, html) {
-      sent.push({ to, subject, html });
+    async send(message) {
+      sent.push(message);
     },
   };
   return { sender, sent };
@@ -47,6 +47,10 @@ describe('SendWelcomeEmail', () => {
     expect(sent).toHaveLength(1);
     expect(sent[0]?.to).toBe('buyer@example.com');
     expect(sent[0]?.html).toContain('https://shop.example.com/api/email/track/');
+    // The text alternative goes out too, and carries the address rather than
+    // the pixel — a text part can't have one, which is fine: an unopened
+    // welcome email is not a business event worth breaking rendering for.
+    expect(sent[0]?.text).toContain('buyer@example.com');
     expect(created).toHaveLength(1);
     expect(created[0]?.userId).toBe('user-1');
   });

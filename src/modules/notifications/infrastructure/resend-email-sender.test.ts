@@ -16,11 +16,12 @@ describe('ResendEmailSender', () => {
   it('posts the message to Resend with the configured sender and key', async () => {
     const fetchMock = stubFetch(new Response('{"id":"re_1"}', { status: 200 }));
 
-    await new ResendEmailSender('re_test_key', 'orders@shop.example').send(
-      'buyer@example.com',
-      'Payment confirmed',
-      '<p>Thanks</p>',
-    );
+    await new ResendEmailSender('re_test_key', 'orders@shop.example').send({
+      to: 'buyer@example.com',
+      subject: 'Payment confirmed',
+      html: '<p>Thanks</p>',
+      text: 'Thanks',
+    });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
@@ -32,7 +33,23 @@ describe('ResendEmailSender', () => {
       to: 'buyer@example.com',
       subject: 'Payment confirmed',
       html: '<p>Thanks</p>',
+      text: 'Thanks',
     });
+  });
+
+  // Resend treats a present-but-blank text part as the alternative, and some
+  // clients then render an empty message. Absent has to mean absent.
+  it('omits the text part entirely when there is none', async () => {
+    const fetchMock = stubFetch(new Response('{"id":"re_1"}', { status: 200 }));
+
+    await new ResendEmailSender('re_test_key', 'orders@shop.example').send({
+      to: 'buyer@example.com',
+      subject: 'Hi',
+      html: '<p>Hi</p>',
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).not.toHaveProperty('text');
   });
 
   // A rejected send has to be loud. Callers that can tolerate it (signup)
@@ -41,7 +58,11 @@ describe('ResendEmailSender', () => {
     stubFetch(new Response('{"message":"domain not verified"}', { status: 403 }));
 
     await expect(
-      new ResendEmailSender('re_test_key', 'orders@shop.example').send('b@example.com', 'Hi', '<p/>'),
+      new ResendEmailSender('re_test_key', 'orders@shop.example').send({
+        to: 'b@example.com',
+        subject: 'Hi',
+        html: '<p/>',
+      }),
     ).rejects.toThrow(/403/);
   });
 
@@ -50,11 +71,12 @@ describe('ResendEmailSender', () => {
   it('does not put the message body in the error it throws', async () => {
     stubFetch(new Response('{"message":"nope"}', { status: 500 }));
 
-    const send = new ResendEmailSender('re_test_key', 'orders@shop.example').send(
-      'b@example.com',
-      'Reset your password',
-      '<a href="https://shop.example/reset-password/SECRET-TOKEN">Reset</a>',
-    );
+    const send = new ResendEmailSender('re_test_key', 'orders@shop.example').send({
+      to: 'b@example.com',
+      subject: 'Reset your password',
+      html: '<a href="https://shop.example/reset-password/SECRET-TOKEN">Reset</a>',
+      text: 'Reset: https://shop.example/reset-password/SECRET-TOKEN',
+    });
 
     await expect(send).rejects.toThrow();
     await send.catch((e: unknown) => {

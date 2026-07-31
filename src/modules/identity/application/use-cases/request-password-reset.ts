@@ -4,7 +4,7 @@ import type { UseCase } from '@/shared/application/use-case';
 import type { UserRepository } from '@/modules/identity/application/ports/user-repository';
 import type { PasswordResetRepository } from '@/modules/identity/application/ports/password-reset-repository';
 import type { EmailSender } from '@/modules/notifications/application/ports/email-sender';
-import { renderResetPasswordEmailHtml } from '@/modules/identity/application/reset-password-email-template';
+import { renderResetPasswordEmail } from '@/modules/identity/application/reset-password-email-template';
 
 export interface RequestPasswordResetInput {
   email: string;
@@ -47,10 +47,15 @@ export class RequestPasswordReset implements UseCase<RequestPasswordResetInput, 
     });
 
     const resetUrl = `${this.appUrl}/reset-password/${rawToken}`;
-    const html = renderResetPasswordEmailHtml({
+    const { html, text } = await renderResetPasswordEmail({
       resetUrl,
       expiresInMinutes: Math.round(this.ttlSeconds / 60),
     });
-    await this.emailSender.send(user.email, 'Reset your password', html);
+    await this.emailSender.send({
+      to: user.email,
+      subject: 'Reset your password',
+      html,
+      text,
+    });
   }
 }

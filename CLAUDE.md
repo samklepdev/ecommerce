@@ -24,6 +24,9 @@ chain-watcher poller. No third-party processor, no custody of funds, no card rai
 - **bitcoinjs-lib + bip32 + tiny-secp256k1** for HD address derivation; **qrcode.react** for
   the checkout QR
 - **Zod** for validation at every boundary
+- **react-email** (`@react-email/components`) for outbound email. Templates are `.tsx`
+  components next to the use cases that send them, sharing one `EmailLayout`; see
+  *Email* below
 
 ## Architecture rules (non-negotiable)
 
@@ -268,6 +271,30 @@ Payment and fulfillment are **separate** machines that reference each other.
   load on the Esplora provider.
 - It records a heartbeat after every successful chain pass; `/api/health` fails when that
   goes stale. This process dying is otherwise silent: orders just stop settling.
+
+## Email
+
+- **Templates are react-email `.tsx` components**, never hand-written HTML strings. They
+  live beside the use case that sends them and all wrap `EmailLayout`
+  (`notifications/application/emails/`), which owns the shell — plain, system fonts, no
+  branding, one place to add a logo.
+- **This is a correctness rule, not a styling one.** The string templates interpolated
+  values straight into markup, so an admin-entered tracking number or carrier label
+  containing `<` broke the email or injected into it. **JSX escapes its children**, so
+  don't reintroduce a template literal to "just add one line".
+- **Every email ships an HTML *and* a plain-text part.** `renderEmail` returns both
+  (`render(node, { plainText: true })` gives the text one). A message with no text part
+  scores worse with spam filters, and these are the emails a customer must receive — an
+  order confirmation carries the only link back to a guest's order.
+- **`render` is async**, so every `renderXEmail` returns a promise. Every caller is
+  already an async use case, so this costs an `await`.
+- **Set `preview` on every template.** Unset, clients scrape the first words of the body,
+  which for a receipt is the greeting repeated back next to the subject.
+- Templates stay **pure** — no repositories, no `env`, no I/O — so `npm test` renders them
+  for real without a database or network. The only remaining hand-written HTML email is
+  `inquiries/infrastructure/email-inquiry-notifier.ts` (admin-facing, escapes by hand).
+- `EmailSender.send` takes one `EmailMessage` object. Resend omits `text` when absent
+  rather than sending it blank, which some clients render as an empty message.
 
 ## Conventions
 

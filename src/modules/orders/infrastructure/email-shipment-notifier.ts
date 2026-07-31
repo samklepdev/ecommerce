@@ -1,6 +1,6 @@
 import { logger } from '@/shared/infrastructure/logger';
 import { buildCarrierTrackingUrl, carrierLabel } from '@/shared/domain/carrier-tracking';
-import { renderShipmentEmailHtml } from '@/modules/notifications/application/order-email-templates';
+import { renderShipmentEmail } from '@/modules/notifications/application/order-email-templates';
 import type { EmailSender } from '@/modules/notifications/application/ports/email-sender';
 import type { OrderHistoryRepository } from '@/modules/orders/application/ports/order-history-repository';
 import type {
@@ -35,7 +35,7 @@ export class EmailShipmentNotifier implements ShipmentNotifier {
       const shipped = all.filter((s) => s.status === 'shipped' && s.trackingNumber);
       if (shipped.length === 0) return;
 
-      const html = renderShipmentEmailHtml({
+      const { html, text } = await renderShipmentEmail({
         orderId: order.id,
         orderUrl: `${this.appUrl}/orders/${order.id}`,
         isComplete: shipped.length === all.length,
@@ -47,7 +47,12 @@ export class EmailShipmentNotifier implements ShipmentNotifier {
         })),
       });
 
-      await this.emailSender.send(order.customerEmail, 'Your order has shipped', html);
+      await this.emailSender.send({
+        to: order.customerEmail,
+        subject: 'Your order has shipped',
+        html,
+        text,
+      });
     } catch (e) {
       logger.error('shipment email failed', {
         orderId,

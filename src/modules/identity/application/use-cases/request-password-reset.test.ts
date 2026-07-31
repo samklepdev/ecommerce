@@ -8,7 +8,7 @@ import type {
   CreatePasswordResetTokenInput,
   PasswordResetRepository,
 } from '@/modules/identity/application/ports/password-reset-repository';
-import type { EmailSender } from '@/modules/notifications/application/ports/email-sender';
+import type { EmailMessage, EmailSender } from '@/modules/notifications/application/ports/email-sender';
 
 const TTL_SECONDS = 3600;
 const APP_URL = 'https://shop.test';
@@ -55,10 +55,10 @@ function makeFakePasswordResets() {
 }
 
 function makeFakeEmailSender() {
-  const sent: { to: string; subject: string; html: string }[] = [];
+  const sent: EmailMessage[] = [];
   const sender: EmailSender = {
-    async send(to, subject, html) {
-      sent.push({ to, subject, html });
+    async send(message) {
+      sent.push(message);
     },
   };
   return { sender, sent };

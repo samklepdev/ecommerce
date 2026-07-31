@@ -6,7 +6,7 @@ import type {
   CreateEmailVerificationTokenInput,
   EmailVerificationRepository,
 } from '@/modules/identity/application/ports/email-verification-repository';
-import type { EmailSender } from '@/modules/notifications/application/ports/email-sender';
+import type { EmailMessage, EmailSender } from '@/modules/notifications/application/ports/email-sender';
 
 const TTL_SECONDS = 3600;
 const APP_URL = 'https://shop.test';
@@ -32,10 +32,10 @@ function makeFakeEmailVerifications() {
 }
 
 function makeFakeEmailSender() {
-  const sent: { to: string; subject: string; html: string }[] = [];
+  const sent: EmailMessage[] = [];
   const sender: EmailSender = {
-    async send(to, subject, html) {
-      sent.push({ to, subject, html });
+    async send(message) {
+      sent.push(message);
     },
   };
   return { sender, sent };
