@@ -48,6 +48,26 @@ export interface BitcoinPaymentStore {
     orderId: string,
     progress: { confirmations: number; underpaid: boolean; overpaid: boolean },
   ): Promise<void>;
+  /**
+   * Closed intents worth one more look: `expired` or `cancelled`, created no
+   * earlier than `createdSince`, and not already flagged.
+   *
+   * The counterpart to `listWatchable`, which deliberately stops returning an
+   * intent once its order closes. That's right for the confirmation path — we
+   * stop *promising* — but it also means we stop *looking*, and a customer who
+   * pays late has still sent real bitcoin to an address we handed them.
+   *
+   * Bounded by age because an address can't stop existing: without a cutoff
+   * this grows into a full wallet rescan on every sweep.
+   */
+  listSweepable(createdSince: Date): Promise<BitcoinPaymentIntent[]>;
+  /** Flags an intent as having received money after it closed. Write-once —
+   * re-flagging would reset `latePaymentSeenAt` and make the discovery look
+   * newer than it is. */
+  recordLatePayment(orderId: string, sats: number): Promise<void>;
+  /** How many closed intents have unexplained money against them. Drives the
+   * admin dashboard tile; expected to be 0. */
+  countLatePayments(): Promise<number>;
 }
 
 export interface BtcRateProvider {

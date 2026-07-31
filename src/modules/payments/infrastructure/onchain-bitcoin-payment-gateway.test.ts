@@ -74,6 +74,13 @@ function makeFakeStoreThatLosesTheRace(winningIntent: BitcoinPaymentIntent): Bit
     async markExpired() {},
     async reprice() {},
     async markCancelled() {},
+    async listSweepable() {
+      return [];
+    },
+    async recordLatePayment() {},
+    async countLatePayments() {
+      return 0;
+    },
     async recordProgress() {},
   };
 }
@@ -97,6 +104,13 @@ function makeFakeStoreEmpty(): { store: BitcoinPaymentStore; saved: BitcoinPayme
     async markExpired() {},
     async reprice() {},
     async markCancelled() {},
+    async listSweepable() {
+      return [];
+    },
+    async recordLatePayment() {},
+    async countLatePayments() {
+      return 0;
+    },
     async recordProgress() {},
   };
   return { store, saved };

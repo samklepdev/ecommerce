@@ -608,6 +608,13 @@ export const bitcoinPaymentIntents = pgTable(
     confirmations: integer('confirmations').notNull().default(0),
     underpaid: boolean('underpaid').notNull().default(false),
     overpaid: boolean('overpaid').notNull().default(false),
+    // Money that arrived after this intent stopped being watched — the order
+    // had expired or been cancelled, so `listWatchable` no longer returns it
+    // and the normal confirmation path can never see it. Written only by the
+    // late-payment sweep. Null is the overwhelmingly normal case; non-null
+    // means real bitcoin is sitting at `address` against a closed order.
+    latePaymentSats: bigint('late_payment_sats', { mode: 'number' }),
+    latePaymentSeenAt: timestamp('late_payment_seen_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({

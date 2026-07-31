@@ -204,6 +204,13 @@
       "when": 1785600000001,
       "tag": "0028_remove_product_sku",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1785600000002,
+      "tag": "0029_late_payment_detection",
+      "breakpoints": true
     }
   ]
 }

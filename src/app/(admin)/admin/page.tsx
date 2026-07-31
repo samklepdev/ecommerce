@@ -25,6 +25,7 @@ export default async function AdminDashboardPage() {
     getRevenueSummary,
     getWebAnalyticsSummary,
     countOpenInquiries,
+    countLatePayments,
   } = getContainer();
 
   const [
@@ -35,6 +36,7 @@ export default async function AdminDashboardPage() {
     revenue,
     web,
     openInquiries,
+    latePayments,
   ] =
     await Promise.all([
       listUnfulfillableOrderLines.execute(),
@@ -46,6 +48,7 @@ export default async function AdminDashboardPage() {
       getRevenueSummary.execute({ since, until }),
       getWebAnalyticsSummary.execute({ since, until }),
       countOpenInquiries.execute(),
+      countLatePayments.execute(),
     ]);
 
   const { awaitingConfirmation, recovered } = orderCounts;
@@ -53,6 +56,14 @@ export default async function AdminDashboardPage() {
   // Ordered by how much a delay costs: money that may never settle first,
   // then orders that can't ship, then everything else.
   const queues: AttentionQueue[] = [
+    // First, and above even unsettled payments: this is money already received
+    // for an order that will never ship on its own. Expected to be 0.
+    {
+      label: 'Late payments on closed orders',
+      count: latePayments,
+      href: '/admin/orders',
+      hint: 'Bitcoin arrived after the order expired or was cancelled',
+    },
     {
       label: 'Orders awaiting confirmation',
       count: awaitingConfirmation,

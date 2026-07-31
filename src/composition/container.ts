@@ -59,6 +59,8 @@ import { GetOrderDetail } from '@/modules/orders/application/use-cases/get-order
 import { GetShipmentsForOrder } from '@/modules/orders/application/use-cases/get-shipments-for-order';
 import { GetPaymentSessionForOrder } from '@/modules/payments/application/use-cases/get-payment-session-for-order';
 import { WatchBitcoinPayments } from '@/modules/payments/application/watch-bitcoin-payments';
+import { SweepLatePayments } from '@/modules/payments/application/use-cases/sweep-late-payments';
+import { CountLatePayments } from '@/modules/payments/application/use-cases/count-late-payments';
 import { GetPaymentProgress } from '@/modules/payments/application/use-cases/get-payment-progress';
 import { PaymentGatewayRegistry } from '@/modules/payments/application/payment-gateway-registry';
 
@@ -260,6 +262,8 @@ export interface Container {
   recordAuditLogEntry: RecordAuditLogEntry;
   recordAnalyticsEvent: RecordAnalyticsEvent;
   pruneAnalyticsEvents: PruneAnalyticsEvents;
+  sweepLatePayments: SweepLatePayments;
+  countLatePayments: CountLatePayments;
   getWebAnalyticsSummary: GetWebAnalyticsSummary;
   listAnalyticsEvents: ListAnalyticsEvents;
   getEventsForIdentity: GetEventsForIdentity;
@@ -717,6 +721,10 @@ function build(): Container {
     markAwaitingConfirmation,
     effectiveRequiredConfirmations,
   );
+  // Finds money that landed after an order closed and the watcher stopped
+  // polling its address. Runs on its own slow clock in the worker.
+  const sweepLatePayments = new SweepLatePayments(paymentStore, chain);
+  const countLatePayments = new CountLatePayments(paymentStore);
   const getPaymentProgress = new GetPaymentProgress(orders, paymentStore, effectiveRequiredConfirmations);
 
   return {
@@ -757,6 +765,8 @@ function build(): Container {
     recordAuditLogEntry,
     recordAnalyticsEvent,
     pruneAnalyticsEvents,
+    sweepLatePayments,
+    countLatePayments,
     getWebAnalyticsSummary,
     listAnalyticsEvents,
     getEventsForIdentity,
