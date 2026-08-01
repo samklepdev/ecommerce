@@ -232,6 +232,13 @@
       "when": 1785600000005,
       "tag": "0032_pending_sats",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1785600000006,
+      "tag": "0033_orders_paid_at",
+      "breakpoints": true
     }
   ]
 }

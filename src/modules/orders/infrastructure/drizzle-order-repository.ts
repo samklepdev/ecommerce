@@ -18,6 +18,7 @@ import {
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import {
+  bitcoinPaymentIntents,
   orderLines,
   orderEvents,
   orders,
@@ -77,8 +78,32 @@ import type {
 
 /** Shared by listAllForAdmin and countAllForAdmin — a filter that lived in
  * two places would eventually mean a total that disagrees with the rows. */
-function adminOrderFilter(filter: AdminOrderFilter) {
-  return filter.email ? ilike(orders.customerEmail, `%${filter.email}%`) : undefined;
+function adminOrderFilter(filter: AdminOrderFilter, dbForFilter: DB) {
+  const clauses = [
+    filter.email ? ilike(orders.customerEmail, `%${filter.email}%`) : undefined,
+    filter.paymentStatus ? eq(orders.paymentStatus, filter.paymentStatus) : undefined,
+    filter.fulfillmentStatus ? eq(orders.fulfillmentStatus, filter.fulfillmentStatus) : undefined,
+    filter.recovered ? isNotNull(orders.paymentRecoveredFrom) : undefined,
+    // A correlated exists rather than a join: joining would need dedup, and
+    // this filter has to compose with the others without changing the row
+    // count the pagination is built on.
+    filter.latePayment
+      ? exists(
+          dbForFilter
+            .select({ one: sql`1` })
+            .from(bitcoinPaymentIntents)
+            .where(
+              and(
+                eq(bitcoinPaymentIntents.orderId, orders.id),
+                isNotNull(bitcoinPaymentIntents.latePaymentSeenAt),
+              ),
+            ),
+        )
+      : undefined,
+  ].filter((c) => c !== undefined);
+
+  // `undefined`, not an empty `and()`: an unfiltered list must stay unfiltered.
+  return clauses.length > 0 ? and(...clauses) : undefined;
 }
 
 /**
@@ -141,22 +166,52 @@ export class DrizzleOrderRepository
     }));
   }
 
+  /**
+   * Revenue actually taken: paid orders, bucketed by when they were paid.
+   *
+   * This used to sum the `order_created` event with **no payment-status
+   * predicate anywhere** — not in the SQL, not in the use case, not in the
+   * pages that render it. Every abandoned checkout, every expired, cancelled
+   * and failed order was booked as revenue. On a non-custodial Bitcoin store,
+   * where abandonment is the norm and the docs warn about high abandoned
+   * volume outrunning the wallet's gap limit, that could overstate takings
+   * several times over — and it is the number the owner files taxes off.
+   *
+   * Two further consequences of reading the event rather than the order: the
+   * amount was a snapshot written once at creation, so an admin editing an
+   * order's lines left revenue reporting the pre-edit total forever; and the
+   * bucket was the *placement* date, not the payment date, which is not when
+   * the money arrived.
+   *
+   * Quantity comes from a pre-aggregated subquery rather than a join to
+   * `order_lines`, because joining line rows would multiply `amount_minor`
+   * by the number of lines on the order.
+   */
   async getDailyRevenue(since: Date, until: Date): Promise<{ currency: string | null; days: DailyRevenue[] }> {
+    const lineQuantities = this.db
+      .select({
+        orderId: orderLines.orderId,
+        quantity: sql<number>`sum(${orderLines.quantity})`.as('quantity'),
+      })
+      .from(orderLines)
+      .groupBy(orderLines.orderId)
+      .as('line_quantities');
+
     const rows = await this.db
       .select({
-        day: sql<string>`to_char(${orderEvents.createdAt}, 'YYYY-MM-DD')`,
-        totalMinor: sql<number>`sum((${orderEvents.metadata}->>'amountMinor')::bigint)`,
-        totalQuantity: sql<number>`sum(coalesce((${orderEvents.metadata}->>'quantity')::bigint, 0))`,
+        day: sql<string>`to_char(${orders.paidAt}, 'YYYY-MM-DD')`,
+        totalMinor: sql<number>`sum(${orders.amountMinor})`,
+        totalQuantity: sql<number>`sum(coalesce(${lineQuantities.quantity}, 0))`,
         orderCount: sql<number>`count(*)`,
         currency: orders.currency,
       })
-      .from(orderEvents)
-      .innerJoin(orders, eq(orders.id, orderEvents.orderId))
+      .from(orders)
+      .leftJoin(lineQuantities, eq(lineQuantities.orderId, orders.id))
       .where(
         and(
-          eq(orderEvents.eventType, 'order_created'),
-          gte(orderEvents.createdAt, since),
-          lte(orderEvents.createdAt, until),
+          eq(orders.paymentStatus, 'paid'),
+          gte(orders.paidAt, since),
+          lte(orders.paidAt, until),
         ),
       )
       .groupBy(sql`1`, orders.currency)
@@ -495,7 +550,22 @@ export class DrizzleOrderRepository
       // regardless of whether its transition still makes sense.
       const result = await tx
         .update(orders)
-        .set({ paymentStatus: status, updatedAt: new Date() })
+        .set({
+          paymentStatus: status,
+          updatedAt: new Date(),
+          /**
+           * Stamped here and nowhere else, and only on the way to `paid`.
+           *
+           * COALESCE rather than assignment so the recovery paths
+           * (`expired -> paid`, `cancelled -> paid`) can't restate when an
+           * order was paid if one ever runs twice. `paid` is terminal, so in
+           * practice this writes once — the COALESCE is there to make that a
+           * property of the SQL rather than of the caller.
+           */
+          ...(status === 'paid'
+            ? { paidAt: sql`coalesce(${orders.paidAt}, now())` }
+            : {}),
+        })
         .where(and(eq(orders.id, orderId), eq(orders.paymentStatus, expectedFrom)))
         .returning({ id: orders.id });
       if (result.length === 0) return false;
@@ -575,7 +645,7 @@ export class DrizzleOrderRepository
     offset: number,
   ): Promise<OrderListItem[]> {
     const rows = await this.db.query.orders.findMany({
-      where: adminOrderFilter(filter),
+      where: adminOrderFilter(filter, this.db),
       orderBy: (o, { desc }) => [desc(o.createdAt)],
       limit,
       offset,
@@ -609,7 +679,7 @@ export class DrizzleOrderRepository
     const [row] = await this.db
       .select({ value: countRows() })
       .from(orders)
-      .where(adminOrderFilter(filter));
+      .where(adminOrderFilter(filter, this.db));
     return row?.value ?? 0;
   }
 

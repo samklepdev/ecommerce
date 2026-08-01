@@ -61,13 +61,13 @@ export default async function AdminDashboardPage() {
     {
       label: 'Late payments on closed orders',
       count: latePayments,
-      href: '/admin/orders',
+      href: '/admin/orders?latePayment=1',
       hint: 'Bitcoin arrived after the order expired or was cancelled',
     },
     {
       label: 'Orders awaiting confirmation',
       count: awaitingConfirmation,
-      href: '/admin/orders',
+      href: '/admin/orders?paymentStatus=awaiting_confirmation',
       hint: 'Seen on-chain but not yet deep enough to fulfil',
     },
     {
@@ -91,7 +91,7 @@ export default async function AdminDashboardPage() {
     {
       label: 'Recovered orders to review',
       count: recovered,
-      href: '/admin/orders',
+      href: '/admin/orders?recovered=1',
       hint: 'Payment landed after the order had expired',
     },
   ];

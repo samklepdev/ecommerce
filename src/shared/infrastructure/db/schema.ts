@@ -464,6 +464,19 @@ export const orders = pgTable(
     // touched again on repeat watcher passes) — FailStuckAwaitingConfirmationOrders
     // scans this column for orders that have sat there too long.
     awaitingConfirmationSince: timestamp('awaiting_confirmation_since', { withTimezone: true }),
+    /**
+     * When the order was actually paid. Written once, by the transition to
+     * `paid`, and never moved.
+     *
+     * Both money reports need this and neither had it. The on-chain report
+     * aliased `updated_at`, which shipping and every admin edit rewrite — so a
+     * January payment shipped in February moved into February's figures. The
+     * revenue summary bucketed on the `order_created` event instead, and
+     * filtered on nothing, so every abandoned checkout counted as revenue.
+     *
+     * Nullable because only a paid order has one.
+     */
+    paidAt: timestamp('paid_at', { withTimezone: true }),
     // Internal ops notes — admin-only, never shown to customers.
     notes: text('notes'),
     // Snapshotted from the coupon at PlaceOrder time, same rationale as
@@ -483,6 +496,8 @@ export const orders = pgTable(
     stuckAwaitingConfirmationScanIdx: index(
       'orders_payment_status_awaiting_confirmation_since_idx',
     ).on(t.paymentStatus, t.awaitingConfirmationSince),
+    // Both money reports scan paid orders by date range.
+    paidAtIdx: index('orders_paid_at_idx').on(t.paymentStatus, t.paidAt),
   }),
 );
 

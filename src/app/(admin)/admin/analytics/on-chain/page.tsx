@@ -44,10 +44,18 @@ export default async function OnChainActivityPage({ searchParams }: OnChainPageP
         exportHref={exportHref('on-chain', range)}
       />
 
+      {/* This note used to describe the opposite of what the code does — it
+          claimed totals stood in `expectedSats` for received sats and that
+          flagged orders were excluded, when the report totals what actually
+          arrived and includes every paid order. An owner reconciling against
+          an exchange would have adjusted for a discrepancy that wasn't there
+          and double-corrected. Copy that lies about a money number is worse
+          than no copy. */}
       <p className={styles.note}>
-        Totals use each order&apos;s expected amount as a stand-in for received sats — exact in
-        the common case. Underpaid and overpaid orders are flagged rather than folded into the
-        total. Every row opens that order.
+        Totals are the sats that actually arrived, per order, including underpaid and overpaid
+        ones — so this is what the wallet received, not what was invoiced. Each row shows its
+        expected amount alongside for comparison. Orders are counted on the day they were
+        paid. Every row opens that order.
       </p>
 
       {/* On the dashboard this alert is the way in to this page; here it is

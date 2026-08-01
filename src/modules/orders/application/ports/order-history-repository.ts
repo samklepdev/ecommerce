@@ -61,6 +61,21 @@ export interface OrderDetail extends OrderListItem {
  * can never drift apart and report different totals. */
 export interface AdminOrderFilter {
   email?: string;
+  /**
+   * The dashboard's attention tiles all counted something and then linked to
+   * an unfiltered list, leaving the admin to page through every order in the
+   * store reading badges to find the seven the tile meant. These are what
+   * make those links land on the orders they counted.
+   */
+  paymentStatus?: PaymentStatus;
+  fulfillmentStatus?: FulfillmentStatus;
+  /** Orders whose payment landed after they had already expired or been
+   * cancelled — `paymentRecoveredFrom` is set. */
+  recovered?: boolean;
+  /** Orders holding bitcoin that arrived after they closed. The one queue
+   * that is money already received against something that will never ship on
+   * its own. */
+  latePayment?: boolean;
 }
 
 /** The three all-orders numbers the admin dashboard shows. Counted in one
