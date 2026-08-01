@@ -39,6 +39,26 @@ const envSchema = z.object({
    * default.
    */
   BTC_RATE_URL: z.string().url().default('https://mempool.space/api'),
+  /**
+   * Sanity bands on the BTC price, because the feed is a single third party
+   * and a well-formed but wrong number misprices every order placed against
+   * it — either quoting invoices nobody can pay, or quoting a few satoshis for
+   * real goods that a customer then pays, irreversibly.
+   *
+   * The absolute pair is deliberately coarse: a units check, not a market
+   * view. It must never be the thing that stops the shop trading on a
+   * volatile day, so widen it rather than tighten it if BTC ever approaches
+   * either end.
+   */
+  BTC_RATE_MIN_PRICE: z.coerce.number().positive().default(1_000),
+  BTC_RATE_MAX_PRICE: z.coerce.number().positive().default(10_000_000),
+  /**
+   * How far the price may move from the last one accepted, as a fraction.
+   * This is what catches a feed returning plausible-but-wrong numbers, since
+   * nothing genuinely moves 25% between two polls seconds apart. Set to 0 to
+   * disable the comparison and rely on the absolute band alone.
+   */
+  BTC_RATE_MAX_DEVIATION: z.coerce.number().min(0).default(0.25),
   BTC_REQUIRED_CONFIRMATIONS: z.coerce.number().int().positive().default(2),
   // Extra confirmations layered on top of BTC_REQUIRED_CONFIRMATIONS before
   // an order is actually marked paid/fulfilled — a reorg-safety margin, not

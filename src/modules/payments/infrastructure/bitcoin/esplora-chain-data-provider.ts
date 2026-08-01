@@ -98,6 +98,22 @@ export function aggregateChainStatus(
 }
 
 /**
+ * How long to wait for the chain provider before giving up on one address.
+ *
+ * Bare `fetch` has effectively no request timeout — undici only applies a
+ * 300-second headers timeout — and the watcher polls intents strictly
+ * sequentially. A provider that accepts connections and then black-holes them
+ * therefore turned each intent into a ~5-minute stall, so a single stuck
+ * address delayed settlement for every customer queued behind it, while the
+ * heartbeat kept reporting healthy.
+ *
+ * Ten seconds: an address with many transactions is a genuinely larger
+ * response than the price feed's, so this is more generous than the rate
+ * provider's timeout.
+ */
+const CHAIN_FETCH_TIMEOUT_MS = 10_000;
+
+/**
  * Queries an Esplora-compatible API. Dev default is the public mempool.space
  * API, which sees every address you query — self-host electrs/Esplora in
  * production for privacy.
@@ -115,8 +131,12 @@ export class EsploraChainDataProvider implements ChainDataProvider {
     assertValidBitcoinAddress(address, this.network);
 
     const [txsRes, tipRes] = await Promise.all([
-      fetch(`${this.baseUrl}/address/${address}/txs`),
-      fetch(`${this.baseUrl}/blocks/tip/height`),
+      fetch(`${this.baseUrl}/address/${address}/txs`, {
+        signal: AbortSignal.timeout(CHAIN_FETCH_TIMEOUT_MS),
+      }),
+      fetch(`${this.baseUrl}/blocks/tip/height`, {
+        signal: AbortSignal.timeout(CHAIN_FETCH_TIMEOUT_MS),
+      }),
     ]);
     if (!txsRes.ok) throw new Error(`esplora txs HTTP ${txsRes.status}`);
     if (!tipRes.ok) throw new Error(`esplora tip HTTP ${tipRes.status}`);
