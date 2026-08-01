@@ -10,6 +10,15 @@
   color: #ffffff;
 }
 
+/* Room to breathe when the badge is the page's headline status rather than a
+   table cell. The letter-spacing matters at this size: these labels are short
+   sentences ("Payment received — checking"), not single words. */
+.md {
+  padding: 0.375rem var(--space-3);
+  font-size: 0.8125rem;
+  letter-spacing: 0.01em;
+}
+
 .neutral {
   background: var(--color-surface);
   color: var(--color-muted);

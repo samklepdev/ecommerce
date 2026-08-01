@@ -77,10 +77,10 @@ export function OrderDetailView({
               <div className={styles.statusCell}>
                 {/* Customer-facing wording, not the state machine's own — see
                     `status-label.ts`. */}
-                <Badge tone={paymentStatusTone(order.paymentStatus)}>
+                <Badge size="md" tone={paymentStatusTone(order.paymentStatus)}>
                   {paymentStatusLabel(order.paymentStatus)}
                 </Badge>
-                <Badge tone={fulfillmentStatusTone(order.fulfillmentStatus)}>
+                <Badge size="md" tone={fulfillmentStatusTone(order.fulfillmentStatus)}>
                   {fulfillmentStatusLabel(order.fulfillmentStatus)}
                 </Badge>
               </div>
