@@ -1,4 +1,4 @@
-import { and, count, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from 'drizzle-orm';
+import { and, count, eq, gt, gte, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { bitcoinPaymentIntents, orders } from '@/shared/infrastructure/db/schema';
@@ -62,7 +62,8 @@ export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore, OnChainA
     return row ? toIntent(row) : null;
   }
 
-  /** Awaiting intents whose quote hasn't expired — the watcher polls these. */
+  /** Intents the watcher polls: still `awaiting`, and either inside the order's
+   * payment window or holding a part-payment that can still be topped up. */
   async listWatchable(): Promise<BitcoinPaymentIntent[]> {
     // Keyed on the ORDER's deadline, not the quote's expiry — this is the
     // whole reason the two clocks are separate. A customer whose 15-minute
@@ -81,7 +82,19 @@ export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore, OnChainA
       .where(
         and(
           eq(bitcoinPaymentIntents.status, 'awaiting'),
-          gt(orders.paymentDeadlineAt, cutoff),
+          or(
+            gt(orders.paymentDeadlineAt, cutoff),
+            // Past the deadline but part-paid: keep watching so a top-up can
+            // land. `findExpiredAwaitingOrderIds` only expires `pending` and
+            // `awaiting_payment`, so an underpaid order stays open until
+            // `FailStuckAwaitingConfirmationOrders` fails it at 48h — and
+            // without this the address went unwatched for the whole gap
+            // between the two, while the order was still inviting a top-up.
+            //
+            // No second horizon to keep in sync: the stuck-fail moves the
+            // order out of `awaiting_confirmation`, and it drops out here.
+            eq(orders.paymentStatus, 'awaiting_confirmation'),
+          ),
         ),
       );
     return rows.map((r) => toIntent(r.intent));

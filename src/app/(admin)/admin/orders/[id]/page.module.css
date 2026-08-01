@@ -127,3 +127,19 @@
   display: flex;
   justify-content: flex-start;
 }
+
+/* The cancel action carries more explanation than the other buttons because it
+   is terminal and its consequences aren't obvious from the label. */
+.cancelForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cancelNote {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 52ch;
+}

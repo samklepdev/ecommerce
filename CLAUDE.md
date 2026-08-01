@@ -229,6 +229,24 @@ Payment and fulfillment are **separate** machines that reference each other.
   after payment reaches `paid`.
 - Illegal transitions throw at the boundary (`assertTransition`). Add states here, never as
   ad-hoc string checks in use cases.
+- **Nothing may be un-clearable.** Every state needs a reachable exit, or an order in an
+  unexpected state strands forever with no admin action that touches it. Two exits exist for
+  that reason: `FailOrder` (offered for `pending`, `awaiting_payment` and
+  `awaiting_confirmation` — all three the transition table allows) and
+  `CancelOrderFulfillment` (`unfulfilled`/`processing`/`shipped` → `cancelled`, whatever the
+  payment status). `shipped → cancelled` exists for a parcel lost in transit; recording a lost
+  parcel as `delivered` would put a lie in the durable record.
+- **Cancelling fulfillment never rewrites payment.** If the customer paid, they paid — that's
+  a fact about the chain. Moving a paid order to `failed` would corrupt revenue reporting and
+  destroy the evidence that someone is owed something. Cancelling records that the shop won't
+  fulfil; making the customer whole is a separate, out-of-band act.
+- **`failed` is for non-payment; `cancelled` is for a decision not to proceed.** Don't add a
+  second admin route to `cancelled` for unpaid orders — `failed` is the honest state and
+  keeping them distinct is what makes the audit log and analytics readable.
+- **Never tell a customer how stock is obtained.** No customer-facing string mentions
+  suppliers or sourcing (checked: every such reference in `(storefront)` is an identifier or a
+  comment). Admin copy is free to be direct; anything a customer can read is not. `/sourcing`
+  is unrelated — it's "ask us to find you something", not a description of fulfilment.
 
 ## Next.js caching
 

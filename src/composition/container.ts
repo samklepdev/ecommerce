@@ -31,6 +31,7 @@ import { GetRevenueSummary } from '@/modules/orders/application/use-cases/get-re
 import { FailStuckAwaitingConfirmationOrders } from '@/modules/orders/application/use-cases/fail-stuck-awaiting-confirmation-orders';
 import { ReconcileUnsourcedPaidOrders } from '@/modules/orders/application/use-cases/reconcile-unsourced-paid-orders';
 import { FailOrder } from '@/modules/orders/application/use-cases/fail-order';
+import { CancelOrderFulfillment } from '@/modules/orders/application/use-cases/cancel-order-fulfillment';
 import { PlaceOrder } from '@/modules/orders/application/use-cases/place-order';
 import { DrizzleCouponRepository } from '@/modules/coupons/infrastructure/drizzle-coupon-repository';
 import { CreateCoupon } from '@/modules/coupons/application/use-cases/create-coupon';
@@ -79,6 +80,9 @@ import { DrizzleSupplierOrderRepository } from '@/modules/orders/infrastructure/
 import { RedisProcessedEventStore } from '@/modules/orders/infrastructure/redis-processed-event-store';
 import { QueuedFulfillmentQueue } from '@/modules/orders/infrastructure/queued-fulfillment-queue';
 import { QueuedPaymentConfirmationNotifier } from '@/modules/orders/infrastructure/queued-payment-confirmation-notifier';
+import { QueuedUnderpaymentNotifier } from '@/modules/orders/infrastructure/queued-underpayment-notifier';
+import { EmailUnderpaymentNotifier } from '@/modules/orders/infrastructure/email-underpayment-notifier';
+import { NotifyUnderpaidOnce } from '@/modules/orders/application/use-cases/notify-underpaid-once';
 import { BullMqJobQueue } from '@/shared/infrastructure/queue/bullmq-job-queue';
 import type { JobQueue } from '@/shared/application/ports/job-queue';
 import { EmailPaymentConfirmationNotifier } from '@/modules/orders/infrastructure/email-payment-confirmation-notifier';
@@ -231,6 +235,7 @@ export interface Container {
    * concrete adapter. */
   jobQueue: JobQueue;
   paymentConfirmationEmail: EmailPaymentConfirmationNotifier;
+  underpaymentEmail: EmailUnderpaymentNotifier;
   getStoreAvailability: GetStoreAvailability;
   setStoreAvailability: SetStoreAvailability;
   assertStoreOpenForCheckout: AssertStoreOpenForCheckout;
@@ -352,6 +357,7 @@ export interface Container {
   confirmPayment: ConfirmPayment;
   markOrderRefunded: MarkOrderRefunded;
   markOrderDelivered: MarkOrderDelivered;
+  cancelOrderFulfillment: CancelOrderFulfillment;
   cancelOrder: CancelOrder;
   markAwaitingConfirmation: MarkAwaitingConfirmation;
   updateOrderNotes: UpdateOrderNotes;
@@ -699,6 +705,7 @@ function build(): Container {
   const confirmPayment = new ConfirmPayment(orders, processed, fulfillment, paymentConfirmationNotifier);
   const markOrderRefunded = new MarkOrderRefunded(orders);
   const markOrderDelivered = new MarkOrderDelivered(orders);
+  const cancelOrderFulfillment = new CancelOrderFulfillment(orders);
   const cancelOrder = new CancelOrder(orders, paymentStore);
   const markAwaitingConfirmation = new MarkAwaitingConfirmation(orders);
   const updateOrderNotes = new UpdateOrderNotes(orders);
@@ -716,12 +723,26 @@ function build(): Container {
   // env.BTC_REQUIRED_CONFIRMATIONS through on its own below this point.
   const effectiveRequiredConfirmations =
     env.BTC_REQUIRED_CONFIRMATIONS + env.BTC_SETTLEMENT_BUFFER_CONFIRMATIONS;
+  // The queued side is what the watcher calls; the email side is what the job
+  // handler calls. Same port, one enqueues and one sends.
+  const underpaymentEmail = new EmailUnderpaymentNotifier(
+    orders,
+    paymentStore,
+    emailSender,
+    env.APP_URL,
+    env.SUPPORT_EMAIL,
+  );
+  const notifyUnderpaidOnce = new NotifyUnderpaidOnce(
+    processed,
+    new QueuedUnderpaymentNotifier(jobQueue),
+  );
   const watchBitcoinPayments = new WatchBitcoinPayments(
     paymentStore,
     chain,
     confirmPayment,
     markAwaitingConfirmation,
     effectiveRequiredConfirmations,
+    notifyUnderpaidOnce,
   );
   // Finds money that landed after an order closed and the watcher stopped
   // polling its address. Runs on its own slow clock in the worker.
@@ -739,6 +760,7 @@ function build(): Container {
     checkSystemHealth,
     jobQueue,
     paymentConfirmationEmail,
+    underpaymentEmail,
     getStoreAvailability,
     setStoreAvailability,
     assertStoreOpenForCheckout,
@@ -853,6 +875,7 @@ function build(): Container {
     confirmPayment,
     markOrderRefunded,
     markOrderDelivered,
+    cancelOrderFulfillment,
     cancelOrder,
     markAwaitingConfirmation,
     updateOrderNotes,

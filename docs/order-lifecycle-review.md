@@ -123,7 +123,7 @@ It was accepted and never read, which made it look as though something recorded
 the amount when nothing did; the watcher already persists it before
 `ConfirmPayment` runs, so a second writer would only add a way to disagree.
 
-## 4. Underpayment has no ending
+## 4. Underpayment has no ending — FIXED
 
 Today: the watcher flags `underpaid` and moves the order to
 `awaiting_confirmation`; it sits there; after 48 hours
@@ -236,3 +236,39 @@ is the place, and that already exists.
 4. Finding 6's `expired` and `failed` emails.
 5. Findings 4 and 5, once the top-up-vs-hold decision is made.
 6. Finding 8, opportunistically.
+
+
+---
+
+## Addendum, 2026-07-31: clearing stuck orders
+
+Raised while finding 4 was being built: is anything un-clearable? Checked, and
+mostly no — but one case was, and it was the worst kind.
+
+**Already handled automatically.** Never-paid orders expire at the 24-hour
+deadline (`ExpireStaleCheckouts`, which covers `pending` and `awaiting_payment`).
+A part-payment that never completes fails at 48 hours
+(`FailStuckAwaitingConfirmationOrders`, measured from when money was first seen,
+independent of the order window).
+
+**Already possible but unreachable.** `FailOrder` always permitted `failed` from
+all three pre-payment statuses, but `FailOrderButton` rendered only for
+`awaiting_confirmation` — so an admin looking at an unpaid order had nothing to
+click and had to wait out the timers. Now offered for all three.
+
+**Genuinely un-clearable, now fixed.** A paid order that can't be fulfilled had
+no exit at all. `paid` has no onward payment transition, and the only code that
+set fulfillment `cancelled` required *all* supplier orders cancelled — of which
+there were none, since `allCancelledForOrder` returns false for an empty set.
+`CancelOrderFulfillment` closes it, and also handles a parcel lost in transit,
+which previously could only ever become `delivered`.
+
+**What it deliberately doesn't do:** touch payment status. A paid order stays
+paid. Rewriting it to `failed` would corrupt revenue reporting and destroy the
+evidence that money is owed to someone — and with no refund mechanism, that
+evidence is all there is. The customer is not emailed automatically either; that
+decision is left explicit rather than buried in a form submit.
+
+**Still open from this addendum:** a paid, cancelled order means a customer has
+paid for nothing. Nothing notifies them, and there's no in-app way to make them
+whole. That's the same open question as finding 5, not a new one.

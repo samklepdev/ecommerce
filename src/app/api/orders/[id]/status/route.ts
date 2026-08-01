@@ -43,5 +43,11 @@ export async function GET(
     requiredConfirmations: progress.requiredConfirmations,
     underpaid: progress.underpaid,
     overpaid: progress.overpaid,
+    // The top-up figures. Safe to expose on an id-only endpoint: they say what
+    // this order still owes, which is exactly what the person holding the order
+    // link needs, and nothing about any other order.
+    confirmedSats: progress.confirmedSats,
+    shortfallSats: progress.shortfallSats,
+    topUpUri: progress.topUpUri,
   });
 }

@@ -24,15 +24,29 @@ export interface FailOrderButtonProps {
   paymentStatus: PaymentStatus;
 }
 
-/** Manual override for an order stuck in awaiting_confirmation (payment
- * seen on-chain, underpaid or too shallow, never resolving) — otherwise
- * FailStuckAwaitingConfirmationOrders resolves it automatically after 48h.
- * Only shown while the order is actually in that status. */
+/**
+ * Manual override for an order that isn't going to be paid.
+ *
+ * Offered for every pre-payment status, not just `awaiting_confirmation`:
+ * `FailOrder` always permitted all three, but this button only rendered for one
+ * of them, so an admin looking at an unpaid order had nothing to click and had
+ * to wait out the automatic timers — 24h for expiry, 48h for a part-payment
+ * that never completes.
+ *
+ * The timers still do this on their own. This is for when you already know:
+ * a customer who emails to give up, or an order you want off the board now.
+ */
 export function FailOrderButton({ orderId, paymentStatus }: FailOrderButtonProps) {
   const [state, formAction, isPending] = useActionState(failOrderAction, initialState);
   const nonce = useResultNonce(state);
 
-  if (paymentStatus !== 'awaiting_confirmation') return null;
+  // Exactly the statuses `PAYMENT_TRANSITIONS` allows `failed` from. Anything
+  // past this has either taken money or already closed.
+  const failable =
+    paymentStatus === 'pending' ||
+    paymentStatus === 'awaiting_payment' ||
+    paymentStatus === 'awaiting_confirmation';
+  if (!failable) return null;
 
   return (
     <Card>

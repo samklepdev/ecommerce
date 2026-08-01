@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 
+import { satsToBtcString } from '@/modules/payments/domain/bip21';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -18,6 +19,10 @@ interface StatusResponse {
   requiredConfirmations: number;
   underpaid: boolean;
   overpaid: boolean;
+  confirmedSats: number;
+  shortfallSats: number;
+  /** BIP21 for the outstanding amount, against the same address. */
+  topUpUri: string | null;
 }
 
 interface BitcoinCheckoutProps {
@@ -88,6 +93,9 @@ export function BitcoinCheckout({
   const [progress, setProgress] = useState<StatusResponse>({
     status: initialStatus,
     confirmations: 0,
+    confirmedSats: 0,
+    shortfallSats: 0,
+    topUpUri: null,
     requiredConfirmations: 0,
     underpaid: false,
     overpaid: false,
@@ -189,10 +197,22 @@ export function BitcoinCheckout({
       {(status === 'awaiting' || status === 'confirming') && (
         <div className={styles.stack}>
           {status === 'confirming' && progress.underpaid ? (
-            <p className={styles.message}>
-              We received less than the expected amount. This needs manual review — please
-              contact support with your order id.
-            </p>
+            /* A part-payment isn't a dead end and mustn't read like one. The
+               order stays open, the address doesn't change, and the customer
+               can finish paying — so the useful thing to show is the balance,
+               not an instruction to email us. */
+            <div className={styles.stack}>
+              <p className={styles.message}>
+                We&apos;ve received {satsToBtcString(progress.confirmedSats)} BTC of{' '}
+                {amountBtc} BTC. Send the remaining{' '}
+                <strong>{satsToBtcString(progress.shortfallSats)} BTC</strong> to the same
+                address below to complete your order.
+              </p>
+              <p className={styles.message}>
+                The amount owed is fixed at the rate you were originally quoted — it
+                won&apos;t move while you finish paying.
+              </p>
+            </div>
           ) : (
             <p className={styles.message}>
               {status === 'confirming'
@@ -226,10 +246,12 @@ export function BitcoinCheckout({
           )}
 
           {/* Hidden while the price is stale: a QR encodes the amount, and
-              scanning a lapsed one would send the wrong number of sats. */}
+              scanning a lapsed one would send the wrong number of sats. Once
+              part-paid, it encodes the *remainder* — scanning the original
+              would send the full amount a second time. */}
           {!quoteLapsed && (
             <div className={styles.qrWrapper}>
-              <QRCodeSVG value={bip21Uri} size={220} />
+              <QRCodeSVG value={progress.topUpUri ?? bip21Uri} size={220} />
             </div>
           )}
 

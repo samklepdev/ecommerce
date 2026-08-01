@@ -40,6 +40,7 @@ export const jobPayloadSchemas = {
   'email.welcome': UserEmailJobSchema,
   'email.verification': UserEmailJobSchema,
   'email.payment-confirmed': OrderJobSchema,
+  'email.underpaid': OrderJobSchema,
   'fulfillment.create-supplier-orders': OrderJobSchema,
 } satisfies { [T in JobName]: z.ZodType<JobPayloads[T]> };
 
