@@ -40,6 +40,14 @@ interface BitcoinCheckoutProps {
    * payment" for the first ~5s of every visit — including a visit to an
    * order that settled days ago. */
   initialStatus: WidgetStatus;
+  /**
+   * When a part-payment stops being toppable-up, pre-formatted server-side.
+   * Null until money has been seen, since the clock starts then.
+   *
+   * Shown next to the balance because missing it is irreversible: the order
+   * goes to `failed`, which is terminal, and there is no refund mechanism.
+   */
+  topUpDeadline: string | null;
 }
 
 const STATUS_LABEL: Record<WidgetStatus, string> = {
@@ -90,6 +98,7 @@ export function BitcoinCheckout({
   amountBtc,
   amountFiat,
   initialStatus,
+  topUpDeadline,
 }: BitcoinCheckoutProps) {
   const [progress, setProgress] = useState<StatusResponse>({
     status: initialStatus,
@@ -251,6 +260,16 @@ export function BitcoinCheckout({
                     The amount owed is fixed at the rate you were originally quoted — it
                     won&apos;t move while you finish paying.
                   </p>
+                  {/* The deadline. Without it the line above reads as open-ended,
+                      and it is not: when this window closes the order is marked
+                      failed, and what has already been sent cannot be returned. */}
+                  {topUpDeadline && (
+                    <p className={styles.message}>
+                      <strong>Please send it by {topUpDeadline}.</strong> After that we
+                      can&apos;t hold the order open, and Bitcoin payments can&apos;t be
+                      reversed — so get in touch before then if you can&apos;t complete it.
+                    </p>
+                  )}
                 </>
               ) : (
                 <p className={styles.message}>

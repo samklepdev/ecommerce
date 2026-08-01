@@ -113,6 +113,13 @@ export interface UnderpaidEmailInput {
   outstandingBtc: string;
   address: string;
   supportEmail: string;
+  /**
+   * When the top-up window closes, already formatted — the template does no
+   * date arithmetic any more than it does money arithmetic. Null only for an
+   * order whose clock hasn't been stamped, in which case the deadline
+   * paragraph is omitted rather than guessed at.
+   */
+  topUpDeadline: string | null;
 }
 
 /**
@@ -133,6 +140,7 @@ export function UnderpaidEmail({
   outstandingBtc,
   address,
   supportEmail,
+  topUpDeadline,
 }: UnderpaidEmailInput) {
   return (
     <EmailLayout
@@ -166,6 +174,19 @@ export function UnderpaidEmail({
         The amount owed is fixed at the rate you were originally quoted — it won&apos;t move
         while you finish paying.
       </Text>
+      {/* The deadline, stated plainly. Without it the paragraph above reads as
+          open-ended, and it is not: when this window runs out the order is
+          marked failed, which is final. Bitcoin payments can't be reversed, so
+          a customer who reads "the amount won't move" and comes back in three
+          days has lost what they already sent. */}
+      {topUpDeadline && (
+        <Text style={emailStyles.paragraph}>
+          <strong>Please send it by {topUpDeadline}.</strong> After that we can no longer hold
+          the order open, and we can&apos;t return what has already been sent — Bitcoin
+          payments can&apos;t be reversed. If you can&apos;t pay the balance in time, reply to
+          this email and we&apos;ll sort something out.
+        </Text>
+      )}
       <Text style={emailStyles.paragraph}>
         <Link href={orderUrl} style={emailStyles.link}>
           View your order

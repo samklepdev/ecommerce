@@ -78,8 +78,13 @@ describe('Order#withPaymentStatus', () => {
   });
 
   it('throws on an illegal transition', () => {
-    const order = makeOrder();
-    expect(() => order.withPaymentStatus('paid')).toThrow();
+    // `paid` is terminal — nothing moves an order off it, which is what stops
+    // an admin action or a stale write from rewriting the record of a payment
+    // that actually happened. (`pending -> paid` is deliberately legal now: a
+    // pending order can hold a live address, so money arriving against one has
+    // to be recordable.)
+    const paid = makeOrder().withPaymentStatus('paid');
+    expect(() => paid.withPaymentStatus('failed')).toThrow();
   });
 });
 

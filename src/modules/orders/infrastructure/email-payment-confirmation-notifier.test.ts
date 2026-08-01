@@ -38,6 +38,7 @@ function makeOrder(overrides: Partial<OrderDetail> = {}): OrderDetail {
     notes: null,
     discountAmountMinor: 0,
     couponCode: null,
+    awaitingConfirmationSince: null,
     lines: [{ id: 'order-line-1', productId: 'product-1', productName: 'Widget One', quantity: 2, unitAmountMinor: 2100, imageUrl: null }],
     ...overrides,
   };

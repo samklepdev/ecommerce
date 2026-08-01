@@ -27,6 +27,7 @@ function makeOrderDetail(id: string): OrderDetail {
     notes: null,
     discountAmountMinor: 0,
     couponCode: null,
+    awaitingConfirmationSince: null,
     lines: [],
   };
 }

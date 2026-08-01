@@ -34,6 +34,13 @@ export interface BitcoinPaymentIntent {
   pendingSats?: number;
   underpaid?: boolean;
   overpaid?: boolean;
+  /**
+   * Money seen at `address` after the order closed, written only by
+   * `SweepLatePayments`. Null in the overwhelmingly normal case; non-null
+   * means real bitcoin is sitting against an order nobody is expecting to be
+   * paid, and it is what `CreditLatePayment` is allowed to credit.
+   */
+  latePaymentSats?: number | null;
 }
 
 export interface BitcoinPaymentStore {

@@ -28,7 +28,11 @@ export class MarkAwaitingConfirmation implements UseCase<MarkAwaitingConfirmatio
   async execute(input: MarkAwaitingConfirmationInput): Promise<void> {
     const status = await this.orders.getPaymentStatus(input.orderId);
     if (status === null || status === 'awaiting_confirmation') return;
-    if (status !== 'awaiting_payment') return; // already progressed past this point
+    // `pending` as well as `awaiting_payment`: an order whose checkout crashed
+    // between deriving the address and recording the status is still `pending`
+    // with a live intent, and money arriving against it has to be recordable.
+    // Anything else has already progressed past this point.
+    if (status !== 'awaiting_payment' && status !== 'pending') return;
     assertPaymentTransition(status, 'awaiting_confirmation');
     await this.orders.markAwaitingConfirmation(input.orderId);
   }

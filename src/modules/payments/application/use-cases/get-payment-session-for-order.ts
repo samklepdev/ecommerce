@@ -11,6 +11,12 @@ export interface PaymentSession {
   bip21Uri: string;
   expiresAt: Date;
   expectedSats: number;
+  /**
+   * Money seen at this address after the order closed, or null in the normal
+   * case. Set only by `SweepLatePayments`, and the figure an admin is shown
+   * before deciding whether to credit it.
+   */
+  latePaymentSats: number | null;
 }
 
 /** Reads the already-persisted payment intent rather than re-invoking
@@ -30,6 +36,7 @@ export class GetPaymentSessionForOrder implements UseCase<GetPaymentSessionForOr
       bip21Uri: toBip21(intent.address, intent.expectedSats),
       expiresAt: intent.expiresAt,
       expectedSats: intent.expectedSats,
+      latePaymentSats: intent.latePaymentSats ?? null,
     };
   }
 }

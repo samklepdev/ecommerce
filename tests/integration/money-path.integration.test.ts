@@ -386,4 +386,60 @@ describe('the money path (integration)', () => {
     expect((await path.orders.findById(placed.value.id))?.paymentStatus).toBe('paid');
   });
 
+
+  /**
+   * An order whose checkout never completed.
+   *
+   * `PlaceOrder` and `StartCheckout` are separate calls and the first claims
+   * the cart, so a gateway failure between them leaves an order nobody can pay.
+   * The deadline used to be stamped by the *second* call, so such an order had
+   * `payment_deadline_at IS NULL` — and `findExpiredAwaitingOrderIds` filters
+   * with `lt()`, which NULL never satisfies. It could therefore never expire,
+   * and sat `pending` in the admin list forever.
+   *
+   * This has to be an integration test: the bug is entirely in what SQL does
+   * with NULL, and a fake repository comparing JavaScript dates gets it right
+   * by accident.
+   */
+  it('expires an order whose checkout never ran', async () => {
+    await arrangeCartWithOneProduct();
+    // A window already in the past, so the sweep's grace period is cleared
+    // without the test having to wait 24 hours.
+    const path = money(db, redis, { orderWindowHours: -24 });
+
+    const placed = await path.placeOrder.execute({
+      owner,
+      customerEmail: 'stranded@example.com',
+      currency: 'USD',
+      shippingAddress: SHIPPING_ADDRESS,
+    });
+    if (isErr(placed)) throw new Error('order not placed');
+
+    // Deliberately no startCheckout — this is the failure being reproduced.
+    expect((await path.orders.findById(placed.value.id))?.paymentStatus).toBe('pending');
+
+    await path.expireStaleCheckouts.execute();
+
+    expect((await path.orders.findById(placed.value.id))?.paymentStatus).toBe('expired');
+  });
+
+  it('leaves a freshly placed order alone', async () => {
+    // The other half of the rule: stamping a deadline at creation must not
+    // make live orders expirable.
+    await arrangeCartWithOneProduct();
+    const path = money(db, redis);
+
+    const placed = await path.placeOrder.execute({
+      owner,
+      customerEmail: 'fresh@example.com',
+      currency: 'USD',
+      shippingAddress: SHIPPING_ADDRESS,
+    });
+    if (isErr(placed)) throw new Error('order not placed');
+
+    await path.expireStaleCheckouts.execute();
+
+    expect((await path.orders.findById(placed.value.id))?.paymentStatus).toBe('pending');
+  });
+
 });

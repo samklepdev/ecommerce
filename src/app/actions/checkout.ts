@@ -130,34 +130,25 @@ export async function startCheckoutAction(
     }
   }
 
-  const result = await startCheckout.execute({
-    orderId: placed.value.id,
-    customerEmail: parsed.data.customerEmail,
-    paymentMethod: 'crypto',
-    idempotencyKey: placed.value.id,
-  });
-  if (isErr(result)) {
-    const messages: Record<typeof result.error.code, string> = {
-      store_closed: 'Ordering is paused right now — nothing was charged.',
-      // The order exists but has nothing to pay, so no address was allocated.
-      // Naming the cause matters: "try again" would send them round a loop
-      // that cannot succeed.
-      total_not_payable:
-        "This order's total came to nothing to pay. Get in touch with your order id and we'll sort it out.",
-      gateway_error: 'Could not start checkout — try again.',
-    };
-    return { error: messages[result.error.code] };
-  }
-
   // Placing the order empties the cart — the Header's cart-count badge
   // lives in the root layout and needs an explicit revalidation (see
   // cart.ts) so the payment screen we're about to redirect to, and any
   // later navigation, doesn't keep showing the pre-checkout count.
   revalidatePath('/', 'layout');
 
-  // Queued, not sent here. A customer used to wait for the mail provider
-  // before their payment page rendered, and a provider timeout meant the
-  // email was simply lost — there was nothing to retry it.
+  /**
+   * Queued **before** checkout is attempted, not after it succeeds.
+   *
+   * This email carries the only link back to the order, and for a guest it is
+   * the only record they have of it at all. Sending it only on the happy path
+   * meant the one case where they most needed it — the cart already claimed,
+   * the order written, and the gateway then failing — was the one case where
+   * it never arrived.
+   *
+   * Queued, not sent here: a customer used to wait for the mail provider
+   * before their payment page rendered, and a provider timeout meant the
+   * email was simply lost with nothing to retry it.
+   */
   try {
     await jobQueue.enqueue(
       'email.order-confirmation',
@@ -165,11 +156,35 @@ export async function startCheckoutAction(
       { jobId: jobIdFor('order-confirmation', placed.value.id) },
     );
   } catch (e) {
-    // Redis is down. The order exists and is payable — that matters more
-    // than the receipt, so this is logged rather than surfaced.
+    // Redis is down. The order exists — that matters more than the receipt,
+    // so this is logged rather than surfaced.
     logger.error('checkout: could not queue the order confirmation email', {
       orderId: placed.value.id,
       error: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  const result = await startCheckout.execute({
+    orderId: placed.value.id,
+    customerEmail: parsed.data.customerEmail,
+    paymentMethod: 'crypto',
+    idempotencyKey: placed.value.id,
+  });
+  if (isErr(result)) {
+    /**
+     * The order exists and the cart is gone, so returning an error string here
+     * stranded the customer completely: "try again" sent them to an empty
+     * cart, and they were never told the order id.
+     *
+     * Redirecting to the order gives them the one thing they need — a durable
+     * page for the thing they just committed to. It reads the failure off the
+     * order's own state (payable, but no payment session) and offers to set
+     * payment up again, so the recovery lives somewhere they can return to
+     * rather than in a form submission they've already navigated away from.
+     */
+    logger.error('checkout: order placed but payment could not be started', {
+      orderId: placed.value.id,
+      code: result.error.code,
     });
   }
 

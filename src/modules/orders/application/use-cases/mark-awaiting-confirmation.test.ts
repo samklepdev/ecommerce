@@ -47,10 +47,20 @@ describe('MarkAwaitingConfirmation', () => {
     expect(getStatus()).toBe('paid'); // unchanged
   });
 
-  it('is a no-op when the order is in a state that never awaits payment (e.g. pending)', async () => {
+  it('advances a pending order whose checkout crashed after deriving the address', async () => {
+    // `StartCheckout` derives the address and then records `awaiting_payment`;
+    // a crash between the two leaves the order `pending` with a live intent,
+    // and the BIP21 URI already in the customer's hands. Money arriving
+    // against it has to be recordable, not ignored.
     const { repo, getStatus } = makeFakeOrders('pending');
     await new MarkAwaitingConfirmation(repo).execute({ orderId: 'order-1' });
-    expect(getStatus()).toBe('pending'); // unchanged — only awaiting_payment advances
+    expect(getStatus()).toBe('awaiting_confirmation');
+  });
+
+  it('is a no-op for a state that is genuinely past this point', async () => {
+    const { repo, getStatus } = makeFakeOrders('paid');
+    await new MarkAwaitingConfirmation(repo).execute({ orderId: 'order-1' });
+    expect(getStatus()).toBe('paid');
   });
 
   it('is a no-op when the order does not exist', async () => {

@@ -269,5 +269,6 @@ function toIntent(row: Row): BitcoinPaymentIntent {
     pendingSats: row.pendingSats,
     underpaid: row.underpaid,
     overpaid: row.overpaid,
+    latePaymentSats: row.latePaymentSats,
   };
 }
