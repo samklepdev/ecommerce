@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 import { getContainer } from '@/composition/container';
 import { resolveCartOwner } from '@/app/lib/session';
+import { repriceCartForDisplay } from '@/app/lib/cart-pricing';
 import { removeFromCartAction } from '@/app/actions/cart';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
@@ -35,9 +36,7 @@ export default async function CartPage() {
     );
   }
 
-  const subtotal = cart.subtotal('USD');
   const shipping = await getShippingRate.execute();
-  const total = subtotal.add(shipping);
 
   const productsById = new Map(
     await Promise.all(
@@ -48,13 +47,29 @@ export default async function CartPage() {
     ),
   );
 
+  // Live catalogue prices, matching what `PlaceOrder` will actually charge —
+  // see `cart-pricing.ts`. The map holds nulls for products that have gone, so
+  // it's narrowed to the live ones first.
+  const liveProducts = new Map(
+    [...productsById].flatMap(([id, product]) => (product ? [[id, product] as const] : [])),
+  );
+  const priced = repriceCartForDisplay(cart.lines, liveProducts, 'USD');
+  const subtotal = priced.subtotal;
+  const total = subtotal.add(shipping);
+
   return (
     <PageContainer>
       <Stack gap={5}>
         <h1>Your cart</h1>
 
+        {priced.hasPriceChanges && (
+          <p className={styles.priceNotice} role="status">
+            Some prices changed since you added these items. The amounts shown are current.
+          </p>
+        )}
+
         <Stack gap={3}>
-          {cart.lines.map((line) => {
+          {priced.lines.map((line) => {
             // A deleted/archived product still has an order-independent
             // cart line — fall back to the name snapshotted on the line.
             const product = productsById.get(line.productId) ?? null;
@@ -69,8 +84,16 @@ export default async function CartPage() {
                     <div className={styles.lineImagePlaceholder} aria-hidden />
                   )}
                   <div>
-                    <p className={styles.name}>{product?.name ?? line.productName}</p>
-                    <p className={styles.price}>{line.subtotal.toDisplayString()}</p>
+                    <p className={styles.name}>{line.name}</p>
+                    <p className={styles.price}>
+                      {line.lineTotal.toDisplayString()}
+                      {line.previousUnitPrice && (
+                        <span className={styles.wasPrice}>
+                          {' '}
+                          (was {line.previousUnitPrice.multiply(line.quantity).toDisplayString()})
+                        </span>
+                      )}
+                    </p>
                   </div>
                 </div>
                 <div className={styles.lineActions}>

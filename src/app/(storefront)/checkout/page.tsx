@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { CheckoutForm } from './CheckoutForm';
 import { getContainer } from '@/composition/container';
 import { getSessionUser, resolveCartOwner } from '@/app/lib/session';
+import { repriceCartForDisplay } from '@/app/lib/cart-pricing';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
 import { Card } from '@/components/ui/Card';
@@ -19,8 +20,6 @@ export default async function CheckoutPage() {
   if (!cart || cart.isEmpty) redirect('/cart');
 
   const shipping = await getShippingRate.execute();
-  const subtotal = cart.subtotal('USD');
-  const total = subtotal.add(shipping);
 
   const user = await getSessionUser();
   const savedAddresses = user ? await listSavedAddresses.execute({ userId: user.id }) : [];
@@ -31,6 +30,18 @@ export default async function CheckoutPage() {
     productIds: cart.lines.map((line) => line.productId),
   });
   const productById = new Map(products.map((p) => [p.id, p] as const));
+
+  /**
+   * Priced against the live catalogue, not the cart's snapshot.
+   *
+   * `PlaceOrder` re-reads the catalogue and charges the current price, so
+   * showing the add-to-cart price here meant a customer could authorise one
+   * amount and have satoshis quoted for another — irreversibly, with no refund
+   * mechanism. This page now reads from the same source the charge comes from.
+   */
+  const priced = repriceCartForDisplay(cart.lines, productById, 'USD');
+  const subtotal = priced.subtotal;
+  const total = subtotal.add(shipping);
 
   return (
     <PageContainer>
@@ -59,8 +70,22 @@ export default async function CheckoutPage() {
 
               {/* The items, with their pictures. Checkout used to show three
                   numbers and no indication of what was being bought. */}
+              {/* Called out before the customer commits, never applied
+                  silently — this is the amount they are about to send. */}
+              {priced.hasPriceChanges && (
+                <p className={styles.priceNotice} role="status">
+                  Some prices changed since you added these items. The amounts below are
+                  current, and they are what you will be charged.
+                </p>
+              )}
+              {priced.hasUnavailable && (
+                <p className={styles.priceNotice} role="status">
+                  An item is no longer available. Remove it from your cart to continue.
+                </p>
+              )}
+
               <ul className={styles.lines}>
-                {cart.lines.map((line) => {
+                {priced.lines.map((line) => {
                   const product = productById.get(line.productId);
                   return (
                     <li key={line.productId} className={styles.line}>
@@ -76,12 +101,21 @@ export default async function CheckoutPage() {
                         <div className={styles.lineImagePlaceholder} aria-hidden />
                       )}
                       <span className={styles.lineText}>
-                        <span className={styles.lineName}>{product?.name ?? line.productName}</span>
+                        <span className={styles.lineName}>{line.name}</span>
                         <span className={styles.lineMeta}>
                           {line.unitPrice.toDisplayString()} × {line.quantity}
+                          {line.previousUnitPrice && (
+                            <span className={styles.wasPrice}>
+                              {' '}
+                              (was {line.previousUnitPrice.toDisplayString()})
+                            </span>
+                          )}
+                          {line.unavailable && (
+                            <span className={styles.unavailableNote}> — no longer available</span>
+                          )}
                         </span>
                       </span>
-                      <span className={styles.lineAmount}>{line.subtotal.toDisplayString()}</span>
+                      <span className={styles.lineAmount}>{line.lineTotal.toDisplayString()}</span>
                     </li>
                   );
                 })}

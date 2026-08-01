@@ -109,3 +109,26 @@
   font-weight: 600;
   font-size: 1.0625rem;
 }
+
+/* A price change is not an error — the order is fine, the number just moved —
+   but it must be impossible to miss on the screen where money is committed. */
+.priceNotice {
+  background: var(--surface-2, #f6f6f6);
+  border-left: 3px solid var(--color-warning, #d97706);
+  border-radius: 4px;
+  color: var(--foreground);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+}
+
+.wasPrice {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+/* Not struck through — this is a live warning, not a superseded value. */
+.unavailableNote {
+  color: var(--color-danger, #b42318);
+}

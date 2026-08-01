@@ -62,3 +62,21 @@
   font-weight: 600;
   font-size: 1.0625rem;
 }
+
+/* Same treatment as checkout: a price change is not an error, but it must not
+   be missable — the customer is about to commit to it. */
+.priceNotice {
+  background: var(--surface-2, #f6f6f6);
+  border-left: 3px solid var(--color-warning, #d97706);
+  border-radius: 4px;
+  color: var(--foreground);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.wasPrice {
+  color: var(--muted);
+  text-decoration: line-through;
+}
