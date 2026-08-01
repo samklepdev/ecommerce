@@ -23,6 +23,15 @@ export interface BitcoinPaymentIntent {
    * what was asked for. The difference is the whole point: it's what says how
    * short an underpaid order is, and how much an overpaid one sent. */
   confirmedSats?: number;
+  /**
+   * Satoshis seen at `address` in transactions that have not confirmed yet.
+   *
+   * Never counts toward settlement — an order must never reach `paid` on
+   * mempool value. It exists so the system can tell "they've sent it, it's
+   * waiting for a block" apart from "they haven't paid", which is what keeps
+   * an in-flight payment from expiring underneath the customer.
+   */
+  pendingSats?: number;
   underpaid?: boolean;
   overpaid?: boolean;
 }
@@ -54,6 +63,7 @@ export interface BitcoinPaymentStore {
     progress: {
       confirmations: number;
       confirmedSats: number;
+      pendingSats: number;
       underpaid: boolean;
       overpaid: boolean;
     },
@@ -94,9 +104,25 @@ export interface BtcRateProvider {
 export interface AddressChainStatus {
   address: string;
   confirmedSats: number;
+  /**
+   * Value seen at the address in still-unconfirmed transactions.
+   *
+   * Deliberately separate from `confirmedSats`, and nothing that decides
+   * settlement may read it — an order must never reach `paid` on mempool
+   * value. What it is for is the difference between "we can see it, it just
+   * isn't safe yet" and "nothing has arrived", which decides whether an order
+   * expires under an in-flight payment and whether a re-quote is allowed.
+   */
+  pendingSats: number;
   confirmations: number;
 }
 
 export interface ChainDataProvider {
-  getStatus(address: string): Promise<AddressChainStatus>;
+  /**
+   * `expectedSats` is what the payment is supposed to come to, and is used to
+   * work out which transactions constitute the payment — see `coveringDepth`.
+   * Without it, depth is measured across every transaction touching the
+   * address, which anyone can keep at 1 by sending dust.
+   */
+  getStatus(address: string, expectedSats: number): Promise<AddressChainStatus>;
 }

@@ -136,6 +136,7 @@ describe('DrizzleBitcoinPaymentStore late payments (integration)', () => {
     await store().recordProgress(orderId, {
       confirmations: 2,
       confirmedSats: 62_500,
+      pendingSats: 0,
       underpaid: true,
       overpaid: false,
     });

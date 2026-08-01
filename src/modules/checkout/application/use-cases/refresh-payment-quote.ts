@@ -16,6 +16,10 @@ export type RefreshPaymentQuoteError =
   | { code: 'order_not_found' }
   | { code: 'not_awaiting_payment' }
   | { code: 'window_closed' }
+  /** Money is already on its way to this address, so the amount owed must not
+   * move. Not a failure on the customer's part — they've paid, and need to be
+   * told so rather than shown an error. */
+  | { code: 'payment_in_flight' }
   | { code: 'quote_failed' };
 
 /** What this needs from the order: enough to decide whether a new quote is
@@ -58,6 +62,12 @@ export class RefreshPaymentQuote
 
     // Past awaiting_payment the chain has seen money; re-quoting then would
     // move the goalposts under a payment already in flight.
+    //
+    // This guard is necessary but was never sufficient. The status only
+    // advances once the watcher sees value, so a customer who broadcast
+    // seconds ago still reads `awaiting_payment` — the gateway re-checks the
+    // address itself and returns `payment_in_flight`, which is what actually
+    // closes the window.
     if (order.paymentStatus !== 'awaiting_payment' && order.paymentStatus !== 'pending') {
       return err({ code: 'not_awaiting_payment' });
     }
@@ -70,7 +80,10 @@ export class RefreshPaymentQuote
       orderId: input.orderId,
       amount: order.total,
     });
-    if (isErr(repriced)) return err({ code: 'quote_failed' });
+    if (isErr(repriced)) {
+      if (repriced.error.code === 'payment_in_flight') return err({ code: 'payment_in_flight' });
+      return err({ code: 'quote_failed' });
+    }
     if (repriced.value.expiresAt === null || repriced.value.expectedSats === null) {
       // No intent to re-quote — the order never reached checkout.
       return err({ code: 'quote_failed' });

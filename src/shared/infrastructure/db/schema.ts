@@ -614,6 +614,14 @@ export const bitcoinPaymentIntents = pgTable(
     // than null: "we have polled and seen nothing" is the honest starting
     // state, and it matches `confirmations`.
     confirmedSats: bigint('confirmed_sats', { mode: 'number' }).notNull().default(0),
+    // Value seen at the address that hasn't confirmed yet. Deliberately not
+    // folded into `confirmedSats` — nothing that decides settlement may read
+    // it, or an order could reach `paid` on money that never lands. What it
+    // buys is the difference between "they've sent it, it's waiting for a
+    // block" and "they haven't paid", which is what stops an in-flight
+    // payment from expiring underneath the customer or being repriced by a
+    // re-quote.
+    pendingSats: bigint('pending_sats', { mode: 'number' }).notNull().default(0),
     underpaid: boolean('underpaid').notNull().default(false),
     overpaid: boolean('overpaid').notNull().default(false),
     // Money that arrived after this intent stopped being watched — the order

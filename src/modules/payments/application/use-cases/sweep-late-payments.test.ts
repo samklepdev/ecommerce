@@ -51,7 +51,7 @@ function makeFakeChain(byAddress: Record<string, number>, throwFor?: string) {
     async getStatus(address): Promise<AddressChainStatus> {
       queried.push(address);
       if (throwFor === address) throw new Error('esplora unavailable');
-      return { address, confirmedSats: byAddress[address] ?? 0, confirmations: 3 };
+      return { address, confirmedSats: byAddress[address] ?? 0, pendingSats: 0, confirmations: 3 };
     },
   };
   return { chain, queried };
@@ -83,7 +83,7 @@ describe('SweepLatePayments', () => {
     const balances: Record<string, number> = { bc1qexpired: 95_000 };
     const chain: ChainDataProvider = {
       async getStatus(address) {
-        return { address, confirmedSats: balances[address] ?? 0, confirmations: 3 };
+        return { address, confirmedSats: balances[address] ?? 0, pendingSats: 0, confirmations: 3 };
       },
     };
     const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});

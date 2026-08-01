@@ -21,6 +21,8 @@ interface StatusResponse {
   underpaid: boolean;
   overpaid: boolean;
   confirmedSats: number;
+  /** Sent, but not yet in a block. */
+  pendingSats: number;
   shortfallSats: number;
   /** BIP21 for the outstanding amount, against the same address. */
   topUpUri: string | null;
@@ -93,6 +95,7 @@ export function BitcoinCheckout({
     status: initialStatus,
     confirmations: 0,
     confirmedSats: 0,
+    pendingSats: 0,
     shortfallSats: 0,
     topUpUri: null,
     requiredConfirmations: 0,
@@ -251,9 +254,15 @@ export function BitcoinCheckout({
                 </>
               ) : (
                 <p className={styles.message}>
-                  {status === 'confirming'
-                    ? `Payment seen, waiting for confirmations… (${progress.confirmations} of ${progress.requiredConfirmations}). No further payment is needed.`
-                    : 'Send exactly this amount to the address below.'}
+                  {status !== 'confirming'
+                    ? 'Send exactly this amount to the address below.'
+                    : progress.confirmedSats === 0 && progress.pendingSats > 0
+                      ? /* In the mempool, not yet in a block. "0 of 3
+                           confirmations" is true but reads like nothing has
+                           happened, at the exact moment the customer most wants
+                           to hear that their money arrived. */
+                        'Payment seen — it’s waiting to be included in a block. No further payment is needed; this page will update on its own.'
+                      : `Payment seen, waiting for confirmations… (${progress.confirmations} of ${progress.requiredConfirmations}). No further payment is needed.`}
                 </p>
               )}
 

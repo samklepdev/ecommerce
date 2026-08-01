@@ -5,10 +5,16 @@ import type { UnderpaymentNotifier } from '@/modules/orders/application/ports/un
 export interface NotifyUnderpaidOnceInput {
   orderId: string;
   /**
-   * What has arrived so far. Part of the de-dupe key, so a customer who pays
-   * *some* of the balance is told the new figure — see below.
+   * What has arrived so far, counting value still in the mempool. Part of the
+   * de-dupe key, so a customer who pays *some* of the balance is told the new
+   * figure — see below.
+   *
+   * Unconfirmed value is included deliberately: this decides what a customer
+   * is asked to send, and asking again for sats already on their way is how
+   * an accidental overpayment happens. If a pending transaction is dropped,
+   * the figure changes and the next pass re-notifies.
    */
-  confirmedSats: number;
+  seenSats: number;
 }
 
 /**
@@ -38,7 +44,7 @@ export class NotifyUnderpaidOnce implements UseCase<NotifyUnderpaidOnceInput, vo
   async execute(input: NotifyUnderpaidOnceInput): Promise<void> {
     // Not a BullMQ job id, so a colon is fine here — this is a Redis key of
     // our own making, and it matches the `evt:seen:` convention it lands in.
-    const eventId = `underpaid-notified:${input.orderId}:${input.confirmedSats}`;
+    const eventId = `underpaid-notified:${input.orderId}:${input.seenSats}`;
     if (await this.processedEvents.seen(eventId)) return;
 
     await this.notifier.notifyUnderpaid(input.orderId);

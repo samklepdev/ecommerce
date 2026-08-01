@@ -30,19 +30,44 @@ export class WatchBitcoinPayments {
 
     for (const intent of intents) {
       try {
-        const status = await this.chain.getStatus(intent.address);
+        // `expectedSats` decides which transactions constitute the payment, so
+        // dust arriving afterwards can't hold the confirmation depth at 1.
+        const status = await this.chain.getStatus(intent.address, intent.expectedSats);
+
+        // Four predicates, and which total each reads is the whole design.
+        //
+        // `seenSats` counts the mempool because "we can see it, it just isn't
+        // safe yet" must hold the order open: a low-fee payment broadcast near
+        // the deadline used to expire underneath the customer while it waited
+        // for a block, and the lapsed-quote widget would then invite a re-quote
+        // that repriced the payment already in flight.
+        const seenSats = status.confirmedSats + status.pendingSats;
+
         // Nothing on-chain yet is not the same as a short payment, and the
         // difference matters: `underpaid` moves the order to
         // awaiting_confirmation, which puts it beyond the reach of both
         // ExpireStaleCheckouts and the customer's own cancel button. Without
         // this guard 0 < expected-dust is true, so every order that had
         // simply not been paid yet looked underpaid on the first pass.
-        const seen = status.confirmedSats > 0;
-        const underpaid = seen && status.confirmedSats < intent.expectedSats - DUST_TOLERANCE_SATS;
-        // Not a gate like underpaid — they paid at least what was expected,
-        // so fulfillment proceeds normally. Just a flag for admin/customer
-        // visibility; what to do about the excess is an ops question, not a reason to
-        // withhold shipping.
+        const seen = seenSats > 0;
+
+        // Counts the mempool too, and must. This is the predicate that emails
+        // someone "you still owe X" — reading confirmed-only here would fire
+        // that at a customer who paid in full sixty seconds ago and is waiting
+        // for their first confirmation.
+        const underpaid = seen && seenSats < intent.expectedSats - DUST_TOLERANCE_SATS;
+
+        // Confirmed-only, and the gate on settlement. Load-bearing precisely
+        // because `underpaid` is not: 50k confirmed plus 50k pending against
+        // 100k expected is not underpaid, but only half of it is actually
+        // safe, so it must not be marked paid on the confirmed half's depth.
+        const shortOfExpected = status.confirmedSats < intent.expectedSats - DUST_TOLERANCE_SATS;
+
+        // Confirmed-only: an overpayment is a settled fact about money that
+        // arrived, not a prediction. Not a gate like underpaid — they paid at
+        // least what was expected, so fulfillment proceeds normally. Just a
+        // flag for admin/customer visibility; what to do about the excess is an
+        // ops question, not a reason to withhold shipping.
         const overpaid = status.confirmedSats > intent.expectedSats + DUST_TOLERANCE_SATS;
 
         // Persisted every pass (all 3 branches below), not just the
@@ -50,10 +75,14 @@ export class WatchBitcoinPayments {
         // full-confirm would leave a stale underpaid flag on a paid order.
         await this.paymentStore.recordProgress(intent.orderId, {
           confirmations: status.confirmations,
-          // Persisted, not just used to derive the two flags above. Those say
+          // Persisted, not just used to derive the flags above. Those say
           // *that* something is wrong; this says by how much, which is the
           // only figure anyone can act on.
           confirmedSats: status.confirmedSats,
+          // Recorded so the customer's widget and the admin's order page can
+          // say "we can see your payment" rather than "awaiting payment" at
+          // someone who has already sent it.
+          pendingSats: status.pendingSats,
           underpaid,
           overpaid,
         });
@@ -75,13 +104,18 @@ export class WatchBitcoinPayments {
           // this pass runs every 45 seconds for as long as the order is short.
           await this.notifyUnderpaid.execute({
             orderId: intent.orderId,
-            confirmedSats: status.confirmedSats,
+            // What they've actually sent, mempool included, so the balance we
+            // quote never asks twice for money already on its way. Also the
+            // de-dupe key, so if a pending transaction is dropped the next pass
+            // re-notifies with the corrected figure.
+            seenSats,
           });
           continue;
         }
 
-        if (status.confirmations < this.requiredConfirmations) {
-          // Seen on-chain but shallow — track it, but never auto-fulfill.
+        if (shortOfExpected || status.confirmations < this.requiredConfirmations) {
+          // Seen on-chain but not yet safe — either still shallow, or partly
+          // still in the mempool. Track it, but never auto-fulfill.
           await this.markAwaitingConfirmation.execute({ orderId: intent.orderId });
           continue;
         }

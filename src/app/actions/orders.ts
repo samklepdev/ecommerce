@@ -178,6 +178,14 @@ export async function refreshPaymentQuoteAction(
         return { error: 'This order has expired. Please start checkout again.' };
       case 'not_awaiting_payment':
         return { error: 'This order is no longer waiting for payment.' };
+      // Not an error on their part — they've paid. Saying "couldn't refresh
+      // the price" here would read as a failure and invite them to send
+      // again, which is how someone ends up paying twice for one order.
+      case 'payment_in_flight':
+        return {
+          message:
+            "We can see your payment — no need to send anything else. The amount you were quoted still stands, and this page will update once it's confirmed.",
+        };
       default:
         return { error: "Couldn't refresh the price just now. Try again in a moment." };
     }

@@ -65,6 +65,7 @@ describe('GetPaymentProgress', () => {
       overpaid: false,
       expectedSats: 0,
       confirmedSats: 0,
+      pendingSats: 0,
       shortfallSats: 0,
       topUpUri: null,
     });
@@ -84,6 +85,7 @@ describe('GetPaymentProgress', () => {
       overpaid: false,
       expectedSats: 100000,
       confirmedSats: 0,
+      pendingSats: 0,
       shortfallSats: 100000,
       topUpUri: 'bitcoin:bc1qtest?amount=0.00100000',
     });
@@ -162,8 +164,56 @@ describe('GetPaymentProgress', () => {
       overpaid: true,
       expectedSats: 100000,
       confirmedSats: 0,
+      pendingSats: 0,
       shortfallSats: 0,
       topUpUri: null,
     });
+  });
+});
+
+describe('GetPaymentProgress and a payment still in the mempool', () => {
+  it('does not ask for a balance that is already on its way', async () => {
+    // The widget renders a top-up QR from `shortfallSats`. Computed against
+    // confirmed value alone, a customer whose full payment was sitting in the
+    // mempool was shown "you still owe 100,000 sats" and a QR to pay it —
+    // which is how someone pays twice for one order, with no refund path.
+    const orders = makeFakeOrders('awaiting_confirmation');
+    const paymentStore = makeFakePaymentStore(
+      makeIntent({ expectedSats: 100_000, confirmedSats: 0, pendingSats: 100_000 }),
+    );
+
+    const result = await new GetPaymentProgress(orders, paymentStore, 2).execute({
+      orderId: 'order-1',
+    });
+
+    expect(result?.shortfallSats).toBe(0);
+    expect(result?.topUpUri).toBeNull();
+    // Still reported, so the page can say "we can see your payment".
+    expect(result?.pendingSats).toBe(100_000);
+  });
+
+  it('asks only for the part that is genuinely still missing', async () => {
+    const orders = makeFakeOrders('awaiting_confirmation');
+    const paymentStore = makeFakePaymentStore(
+      makeIntent({ expectedSats: 100_000, confirmedSats: 30_000, pendingSats: 20_000 }),
+    );
+
+    const result = await new GetPaymentProgress(orders, paymentStore, 2).execute({
+      orderId: 'order-1',
+    });
+
+    expect(result?.shortfallSats).toBe(50_000);
+  });
+
+  it('reports nothing pending when the intent predates the column', async () => {
+    const orders = makeFakeOrders('awaiting_payment');
+    const paymentStore = makeFakePaymentStore(makeIntent({ expectedSats: 100_000 }));
+
+    const result = await new GetPaymentProgress(orders, paymentStore, 2).execute({
+      orderId: 'order-1',
+    });
+
+    expect(result?.pendingSats).toBe(0);
+    expect(result?.shortfallSats).toBe(100_000);
   });
 });

@@ -39,12 +39,16 @@ function makeFakeOrders(initialStatus: PaymentStatus) {
   return { repo, getStatus: () => status };
 }
 
-function makeFakeChain(status: AddressChainStatus): ChainDataProvider {
-  return { getStatus: async () => status };
+/** `pendingSats` defaults to 0 so the many tests that predate mempool
+ * awareness read as "nothing unconfirmed", which is what they mean. */
+function makeFakeChain(status: Omit<AddressChainStatus, 'pendingSats'> & { pendingSats?: number }): ChainDataProvider {
+  return { getStatus: async () => ({ pendingSats: 0, ...status }) };
 }
 
 interface Progress {
   confirmations: number;
+  confirmedSats: number;
+  pendingSats: number;
   underpaid: boolean;
   overpaid: boolean;
 }
@@ -164,6 +168,7 @@ describe('WatchBitcoinPayments#runOnce', () => {
       confirmations: 0,
       // Nothing seen, and recorded as such rather than left unknown.
       confirmedSats: 0,
+      pendingSats: 0,
       underpaid: false,
       overpaid: false,
     });
@@ -182,6 +187,7 @@ describe('WatchBitcoinPayments#runOnce', () => {
       confirmations: 0,
       // The shortfall is the actionable part: 5,000 against 100,000 expected.
       confirmedSats: 5000,
+      pendingSats: 0,
       underpaid: true,
       overpaid: false,
     });
@@ -243,6 +249,7 @@ describe('WatchBitcoinPayments#runOnce', () => {
     expect(getProgress()).toEqual({
       confirmations: 1,
       confirmedSats: 100000,
+      pendingSats: 0,
       underpaid: false,
       overpaid: false,
     });
@@ -265,6 +272,7 @@ describe('WatchBitcoinPayments#runOnce', () => {
     expect(getProgress()).toEqual({
       confirmations: REQUIRED_CONFIRMATIONS,
       confirmedSats: 100000,
+      pendingSats: 0,
       underpaid: false,
       overpaid: false,
     });
@@ -288,6 +296,7 @@ describe('WatchBitcoinPayments#runOnce', () => {
       confirmations: REQUIRED_CONFIRMATIONS,
       // Overpayment: how much extra arrived is exactly what an admin needs.
       confirmedSats: 250000,
+      pendingSats: 0,
       underpaid: false,
       overpaid: true,
     });
@@ -316,8 +325,187 @@ describe('WatchBitcoinPayments#runOnce', () => {
     expect(getProgress()).toEqual({
       confirmations: REQUIRED_CONFIRMATIONS,
       confirmedSats: 100000,
+      pendingSats: 0,
       underpaid: false,
       overpaid: false,
+    });
+  });
+
+  describe('a payment still in the mempool', () => {
+    // Why any of this exists: only confirmed value used to count, so a
+    // customer who had broadcast but not yet confirmed was indistinguishable
+    // from one who had done nothing. Their order kept ticking toward expiry,
+    // and the checkout widget offered them a re-quote that moved the goalposts
+    // under a payment already in flight.
+
+    it('holds the order open instead of leaving it exposed to expiry', async () => {
+      const { repo, getStatus } = makeFakeOrders('awaiting_payment');
+      const intent = makeIntent({ expectedSats: 100000 });
+      const { store, wasConfirmed } = makeFakePaymentStore(intent);
+      const chain = makeFakeChain({
+        address: intent.address,
+        confirmedSats: 0,
+        pendingSats: 100000,
+        confirmations: 0,
+      });
+
+      await makeWatcher(store, chain, repo).runOnce();
+
+      // awaiting_confirmation is out of reach of ExpireStaleCheckouts, stays
+      // in listWatchable, and is refused by RefreshPaymentQuote — one status
+      // change closing all three holes.
+      expect(getStatus()).toBe('awaiting_confirmation');
+      expect(wasConfirmed()).toBe(false);
+    });
+
+    it('is never enough on its own to mark an order paid', async () => {
+      const { repo, getStatus } = makeFakeOrders('awaiting_payment');
+      const intent = makeIntent({ expectedSats: 100000 });
+      const { store, wasConfirmed } = makeFakePaymentStore(intent);
+      // Deliberately absurd: deep confirmations reported alongside zero
+      // confirmed value. Settlement must key on the money, not the depth.
+      const chain = makeFakeChain({
+        address: intent.address,
+        confirmedSats: 0,
+        pendingSats: 100000,
+        confirmations: 50,
+      });
+
+      await makeWatcher(store, chain, repo).runOnce();
+
+      expect(getStatus()).toBe('awaiting_confirmation');
+      expect(wasConfirmed()).toBe(false);
+    });
+
+    it('does not demand a balance from a customer whose payment is merely unconfirmed', async () => {
+      // The trap. Making `seen` true on mempool value while `underpaid` still
+      // read confirmed-only would fire "you still owe 100,000 sats" at someone
+      // who had paid in full sixty seconds earlier — the original bug wearing
+      // a different hat.
+      const intent = makeIntent({ expectedSats: 100000 });
+      const paymentStore = makeFakePaymentStore(intent);
+      const chain = makeFakeChain({
+        address: intent.address,
+        confirmedSats: 0,
+        pendingSats: 100000,
+        confirmations: 0,
+      });
+      const { repo: orders } = makeFakeOrders('awaiting_payment');
+      const { notify, notified } = makeNotifyUnderpaid();
+
+      await makeWatcher(paymentStore.store, chain, orders, notify).runOnce();
+
+      expect(notified).toEqual([]);
+      expect(paymentStore.getProgress()?.underpaid).toBe(false);
+    });
+
+    it('still demands a balance when the customer is short even counting the mempool', async () => {
+      const intent = makeIntent({ expectedSats: 100000 });
+      const paymentStore = makeFakePaymentStore(intent);
+      const chain = makeFakeChain({
+        address: intent.address,
+        confirmedSats: 20000,
+        pendingSats: 5000,
+        confirmations: 1,
+      });
+      const { repo: orders } = makeFakeOrders('awaiting_payment');
+      const { notify, notified } = makeNotifyUnderpaid();
+
+      await makeWatcher(paymentStore.store, chain, orders, notify).runOnce();
+
+      expect(notified).toEqual([intent.orderId]);
+      expect(paymentStore.getProgress()?.underpaid).toBe(true);
+    });
+
+    it('does not settle an order whose confirmed part alone is short', async () => {
+      // The gate that stops `underpaid` counting pending value from becoming a
+      // way to pay with mempool money: 50k confirmed and 50k pending is not
+      // underpaid, but only 50k is actually safe, so it must not settle —
+      // however deep the confirmed half is.
+      const { repo, getStatus } = makeFakeOrders('awaiting_payment');
+      const intent = makeIntent({ expectedSats: 100000 });
+      const { store, wasConfirmed } = makeFakePaymentStore(intent);
+      const chain = makeFakeChain({
+        address: intent.address,
+        confirmedSats: 50000,
+        pendingSats: 50000,
+        confirmations: REQUIRED_CONFIRMATIONS,
+      });
+
+      await makeWatcher(store, chain, repo).runOnce();
+
+      expect(wasConfirmed()).toBe(false);
+      expect(getStatus()).toBe('awaiting_confirmation');
+    });
+
+    it('settles once the pending part confirms', async () => {
+      const { repo, getStatus } = makeFakeOrders('awaiting_payment');
+      const intent = makeIntent({ expectedSats: 100000 });
+      const { store, wasConfirmed } = makeFakePaymentStore(intent);
+
+      await makeWatcher(
+        store,
+        makeFakeChain({
+          address: intent.address,
+          confirmedSats: 50000,
+          pendingSats: 50000,
+          confirmations: REQUIRED_CONFIRMATIONS,
+        }),
+        repo,
+      ).runOnce();
+      expect(wasConfirmed()).toBe(false);
+
+      await makeWatcher(
+        store,
+        makeFakeChain({
+          address: intent.address,
+          confirmedSats: 100000,
+          pendingSats: 0,
+          confirmations: REQUIRED_CONFIRMATIONS,
+        }),
+        repo,
+      ).runOnce();
+
+      expect(getStatus()).toBe('paid');
+      expect(wasConfirmed()).toBe(true);
+    });
+
+    it('records what is pending so the customer can be shown it', async () => {
+      const { repo } = makeFakeOrders('awaiting_payment');
+      const intent = makeIntent({ expectedSats: 100000 });
+      const { store, getProgress } = makeFakePaymentStore(intent);
+      const chain = makeFakeChain({
+        address: intent.address,
+        confirmedSats: 0,
+        pendingSats: 100000,
+        confirmations: 0,
+      });
+
+      await makeWatcher(store, chain, repo).runOnce();
+
+      expect(getProgress()).toEqual({
+        confirmations: 0,
+        confirmedSats: 0,
+        pendingSats: 100000,
+        underpaid: false,
+        overpaid: false,
+      });
+    });
+
+    it('is not counted toward overpayment, which is a settled fact', async () => {
+      const { repo } = makeFakeOrders('awaiting_payment');
+      const intent = makeIntent({ expectedSats: 100000 });
+      const { store, getProgress } = makeFakePaymentStore(intent);
+      const chain = makeFakeChain({
+        address: intent.address,
+        confirmedSats: 100000,
+        pendingSats: 50000,
+        confirmations: REQUIRED_CONFIRMATIONS,
+      });
+
+      await makeWatcher(store, chain, repo).runOnce();
+
+      expect(getProgress()?.overpaid).toBe(false);
     });
   });
 });

@@ -37,7 +37,7 @@ describe('NotifyUnderpaidOnce', () => {
     const { store } = makeFakeProcessedEvents();
     const { notifier, notified } = makeFakeNotifier();
 
-    await new NotifyUnderpaidOnce(store, notifier).execute({ orderId: 'order-1', confirmedSats: 40_000 });
+    await new NotifyUnderpaidOnce(store, notifier).execute({ orderId: 'order-1', seenSats: 40_000 });
 
     expect(notified).toEqual(['order-1']);
   });
@@ -49,9 +49,9 @@ describe('NotifyUnderpaidOnce', () => {
     const { notifier, notified } = makeFakeNotifier();
     const notify = new NotifyUnderpaidOnce(store, notifier);
 
-    await notify.execute({ orderId: 'order-1', confirmedSats: 40_000 });
-    await notify.execute({ orderId: 'order-1', confirmedSats: 40_000 });
-    await notify.execute({ orderId: 'order-1', confirmedSats: 40_000 });
+    await notify.execute({ orderId: 'order-1', seenSats: 40_000 });
+    await notify.execute({ orderId: 'order-1', seenSats: 40_000 });
+    await notify.execute({ orderId: 'order-1', seenSats: 40_000 });
 
     expect(notified).toEqual(['order-1']);
   });
@@ -63,10 +63,10 @@ describe('NotifyUnderpaidOnce', () => {
     const { notifier, notified } = makeFakeNotifier(1);
     const notify = new NotifyUnderpaidOnce(store, notifier);
 
-    await expect(notify.execute({ orderId: 'order-1', confirmedSats: 40_000 })).rejects.toThrow(/redis/i);
+    await expect(notify.execute({ orderId: 'order-1', seenSats: 40_000 })).rejects.toThrow(/redis/i);
     expect(notified).toEqual([]);
 
-    await notify.execute({ orderId: 'order-1', confirmedSats: 40_000 });
+    await notify.execute({ orderId: 'order-1', seenSats: 40_000 });
     expect(notified).toEqual(['order-1']);
   });
 
@@ -78,9 +78,9 @@ describe('NotifyUnderpaidOnce', () => {
     const { notifier, notified } = makeFakeNotifier();
     const notify = new NotifyUnderpaidOnce(store, notifier);
 
-    await notify.execute({ orderId: 'order-1', confirmedSats: 40_000 });
-    await notify.execute({ orderId: 'order-1', confirmedSats: 40_000 }); // same pass again
-    await notify.execute({ orderId: 'order-1', confirmedSats: 70_000 }); // paid some more
+    await notify.execute({ orderId: 'order-1', seenSats: 40_000 });
+    await notify.execute({ orderId: 'order-1', seenSats: 40_000 }); // same pass again
+    await notify.execute({ orderId: 'order-1', seenSats: 70_000 }); // paid some more
 
     expect(notified).toEqual(['order-1', 'order-1']);
   });
@@ -90,8 +90,8 @@ describe('NotifyUnderpaidOnce', () => {
     const { notifier, notified } = makeFakeNotifier();
     const notify = new NotifyUnderpaidOnce(store, notifier);
 
-    await notify.execute({ orderId: 'order-1', confirmedSats: 40_000 });
-    await notify.execute({ orderId: 'order-2', confirmedSats: 40_000 });
+    await notify.execute({ orderId: 'order-1', seenSats: 40_000 });
+    await notify.execute({ orderId: 'order-2', seenSats: 40_000 });
 
     expect(notified).toEqual(['order-1', 'order-2']);
   });

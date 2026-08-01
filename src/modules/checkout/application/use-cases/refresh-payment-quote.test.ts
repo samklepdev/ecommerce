@@ -25,7 +25,7 @@ function makeFakeOrders(order: {
   return { repo, windows };
 }
 
-function makeFakeGateway(outcome: 'ok' | 'fail' | 'no_intent' = 'ok') {
+function makeFakeGateway(outcome: 'ok' | 'fail' | 'no_intent' | 'in_flight' = 'ok') {
   const calls: number[] = [];
   const gateway: PaymentGateway = {
     method: 'crypto',
@@ -35,6 +35,7 @@ function makeFakeGateway(outcome: 'ok' | 'fail' | 'no_intent' = 'ok') {
     async repricePayment(input) {
       calls.push(input.amount.amountMinor);
       if (outcome === 'fail') return err({ code: 'payment_not_repriceable' });
+      if (outcome === 'in_flight') return err({ code: 'payment_in_flight' });
       if (outcome === 'no_intent') return ok({ expiresAt: null, expectedSats: null });
       return ok({ expiresAt: NEW_EXPIRY, expectedSats: 120_000 });
     },
@@ -141,5 +142,30 @@ describe('RefreshPaymentQuote', () => {
 
     expect(isErr(result)).toBe(true);
     if (isErr(result)) expect(result.error.code).toBe('order_not_found');
+  });
+});
+
+describe('RefreshPaymentQuote and a payment already on its way', () => {
+  it('surfaces the gateway refusing to reprice a funded address, distinctly', async () => {
+    // The status guard above can't catch this on its own: an order only leaves
+    // `awaiting_payment` once the watcher sees value, so a customer who
+    // broadcast seconds ago still reads as safe to re-quote. The gateway checks
+    // the address itself, and this code has to survive the trip out — mapped to
+    // `quote_failed` it would render as "couldn't refresh the price", which
+    // reads as a failure and invites them to send again.
+    const { repo, windows } = makeFakeOrders({
+      paymentStatus: 'awaiting_payment',
+      paymentDeadlineAt: new Date(NOW.getTime() + 6 * 3_600_000),
+    });
+    const { gateway } = makeFakeGateway('in_flight');
+
+    const result = await new RefreshPaymentQuote(repo, gateway, () => NOW).execute({
+      orderId: 'order-1',
+    });
+
+    expect(isOk(result)).toBe(false);
+    if (!isOk(result)) expect(result.error.code).toBe('payment_in_flight');
+    // And the order's window was not moved on the back of a refusal.
+    expect(windows).toEqual([]);
   });
 });

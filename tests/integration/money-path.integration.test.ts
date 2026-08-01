@@ -320,4 +320,70 @@ describe('the money path (integration)', () => {
     // isn't polled for them forever.
     expect(path.chain.queried.length).toBe(queriedBefore);
   });
+
+  /**
+   * A payment that has been broadcast but not yet mined.
+   *
+   * Nothing confirmed means nothing counted, so this state used to be
+   * indistinguishable from "hasn't paid at all": the order kept ticking toward
+   * its deadline and could be expired out from under a transaction that was
+   * simply waiting for a block. Wanting to be sure the whole chain of
+   * consequences holds — the column round-trips, the status moves, the sweep
+   * leaves it alone, the re-quote is refused — is exactly what a fake
+   * repository can't tell you.
+   */
+  it('holds an order open for a payment sitting in the mempool', async () => {
+    await arrangeCartWithOneProduct();
+    const path = money(db, redis, { requiredConfirmations: 2 });
+
+    const placed = await path.placeOrder.execute({
+      owner,
+      customerEmail: 'mempool@example.com',
+      currency: 'USD',
+      shippingAddress: SHIPPING_ADDRESS,
+    });
+    if (isErr(placed)) throw new Error('order not placed');
+    const session = await path.startCheckout.execute({
+      orderId: placed.value.id,
+      customerEmail: 'mempool@example.com',
+      paymentMethod: 'crypto',
+      idempotencyKey: placed.value.id,
+    });
+    if (isErr(session)) throw new Error('checkout not started');
+
+    // Paid in full — and not yet in a block.
+    path.chain.broadcast(session.value.reference, session.value.expectedSats);
+    await path.watcher.runOnce();
+    await path.drainJobs();
+
+    const afterBroadcast = await path.orders.findById(placed.value.id);
+    expect(afterBroadcast?.paymentStatus).toBe('awaiting_confirmation');
+    // Not paid: mempool value must never settle an order.
+    expect(afterBroadcast?.paymentStatus).not.toBe('paid');
+    // And the customer was not asked for money already on its way.
+    expect(path.underpaidNotices).toEqual([]);
+
+    // Round-trips through Postgres, which is the half a fake can't prove.
+    const intent = await path.paymentStore.getByOrderId(placed.value.id);
+    expect(intent?.pendingSats).toBe(session.value.expectedSats);
+    expect(intent?.confirmedSats).toBe(0);
+
+    // The sweep that closes stale checkouts must not take this one.
+    await path.expireStaleCheckouts.execute();
+    expect((await path.orders.findById(placed.value.id))?.paymentStatus).toBe(
+      'awaiting_confirmation',
+    );
+
+    // Nor may a re-quote restate what they already sent.
+    const requote = await path.refreshPaymentQuote.execute({ orderId: placed.value.id });
+    expect(isErr(requote)).toBe(true);
+
+    // Still watched, so the confirmation will be noticed.
+    path.chain.pay(session.value.reference, session.value.expectedSats, 2);
+    await path.watcher.runOnce();
+    await path.drainJobs();
+
+    expect((await path.orders.findById(placed.value.id))?.paymentStatus).toBe('paid');
+  });
+
 });

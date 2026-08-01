@@ -32,9 +32,16 @@ export interface RepricePaymentOutput {
 }
 
 export type RepricePaymentError =
-  /** The payment is past the point where the amount owed can move: money has
-   * been seen, or it already settled, expired or failed. */
+  /** The payment is past the point where the amount owed can move: it already
+   * settled, expired or failed. */
   | { code: 'payment_not_repriceable' }
+  /**
+   * Money is already on its way to this payment, so the amount owed must not
+   * move. Distinct from `payment_not_repriceable` because it needs its own
+   * words: the customer has done nothing wrong and needs to be told their
+   * payment has been seen, not that their quote can't be refreshed.
+   */
+  | { code: 'payment_in_flight' }
   | { code: 'gateway_error'; message: string };
 
 export interface PaymentGateway {
