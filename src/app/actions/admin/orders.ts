@@ -237,6 +237,10 @@ function describeEditError(code: string): string {
       return 'The items were saved, but the Bitcoin amount could not be restated. Check the order before telling the customer anything.';
     case 'line_not_found':
       return 'That line is no longer on the order.';
+    case 'total_not_payable':
+      // Names the cause, because the admin can't see it: the discount is a
+      // snapshot from when the order was placed, not something on this screen.
+      return "That change would leave nothing to pay — the order's discount is at least as large as the new total. Nothing was changed.";
     default:
       return 'That order no longer exists.';
   }

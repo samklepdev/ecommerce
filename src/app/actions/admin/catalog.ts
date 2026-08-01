@@ -618,7 +618,9 @@ export async function updateProductAction(
 
 const ApplyMarkupSchema = z.object({
   productIds: z.array(z.string().min(1)).min(1),
-  markupPercent: z.coerce.number(),
+  // Bounded below at -99: at -100 every price becomes 0. The use case guards
+  // the computed price too, since rounding can reach 0 from above -100.
+  markupPercent: z.coerce.number().gt(-100).finite(),
 });
 
 export interface ApplyMarkupActionResult {
