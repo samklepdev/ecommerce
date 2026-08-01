@@ -27,7 +27,7 @@ function makeFakeContext(origin: RequestOrigin): RequestContextProvider {
 const ENTRY = {
   actorUserId: 'user-1',
   actorEmail: 'admin@example.com',
-  action: 'order.refunded',
+  action: 'order.fulfillment_cancelled',
   targetType: 'order',
   targetId: 'order-1',
 };
@@ -58,6 +58,6 @@ describe('RecordAuditLogEntry', () => {
 
     await new RecordAuditLogEntry(repo, context).execute(ENTRY);
 
-    expect(recorded[0]).toMatchObject({ action: 'order.refunded', ipAddress: null, userAgent: null });
+    expect(recorded[0]).toMatchObject({ action: 'order.fulfillment_cancelled', ipAddress: null, userAgent: null });
   });
 });

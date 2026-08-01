@@ -39,7 +39,8 @@ export interface CancelOrderButtonProps {
  * Deliberately available whatever the payment status. Cancelling is the one move
  * that always has to be reachable, or an order in an unexpected state has no way
  * out at all. On a paid order it's terminal and the customer has already parted
- * with money, so it's sudo-gated like a refund and it takes a reason.
+ * with money, so it's sudo-gated like the other destructive admin actions and
+ * it takes a reason.
  *
  * The reason goes to the audit log only. Nothing here reaches the customer, and
  * the copy is worded so that pasting it somewhere customer-facing still wouldn't

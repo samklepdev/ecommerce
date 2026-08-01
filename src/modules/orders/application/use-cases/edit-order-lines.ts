@@ -36,7 +36,7 @@ export type EditOrderLinesError =
  *
  * Only while nothing has been seen on chain (`areOrderLinesEditable`). Past
  * that, money has arrived against a total, and editing the total doesn't
- * reconcile it — that needs a refund or a balance due, which is a decision,
+ * reconcile it — that needs someone to decide what to do about the difference,
  * not a form field.
  *
  * Prices always come from the catalog, never from the caller: an admin

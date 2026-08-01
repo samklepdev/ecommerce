@@ -8,7 +8,7 @@ import { Alert } from '@/components/ui/Alert';
 
 const initialState: CancelOrderActionResult = {};
 
-/** Same nonce pattern as `RefundOrderButton`'s `useResultNonce`. */
+/** Same nonce pattern as `CancelOrderButton`'s `useResultNonce`. */
 function useResultNonce(result: unknown): number {
   const [[prev, nonce], setState] = useState<[unknown, number]>([result, 0]);
   if (prev !== result) {

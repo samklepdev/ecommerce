@@ -19,7 +19,6 @@ const PAYMENT_STATUSES: PaymentStatus[] = [
   'failed',
   'expired',
   'cancelled',
-  'refunded',
 ];
 
 const FULFILLMENT_STATUSES: FulfillmentStatus[] = [

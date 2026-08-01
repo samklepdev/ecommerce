@@ -5,8 +5,7 @@ export type PaymentStatus =
   | 'paid'
   | 'failed'
   | 'expired'
-  | 'cancelled'
-  | 'refunded';
+  | 'cancelled';
 
 export type FulfillmentStatus =
   | 'unfulfilled'
@@ -31,7 +30,12 @@ const PAYMENT_TRANSITIONS: Record<PaymentStatus, readonly PaymentStatus[]> = {
   // No `cancelled` here — once the chain has seen something, a customer can
   // no longer cancel (see UI gating in OrderDetailView).
   awaiting_confirmation: ['paid', 'failed', 'expired'],
-  paid: ['refunded'],
+  // Terminal. There is no refund mechanism in this app — a refund, if one ever
+  // happens, is an out-of-band on-chain send, and recording it as a payment
+  // status would put a transaction we never made into the record that decides
+  // revenue. `CancelOrderFulfillment` is how a paid order the shop won't fulfil
+  // gets closed, and it deliberately leaves payment alone.
+  paid: [],
   failed: [],
   // Narrow recovery path: the chain-watcher's polling grace window and the
   // order-expiry check's window are kept in sync (see PAYMENT_EXPIRY_GRACE_MS)
@@ -44,7 +48,6 @@ const PAYMENT_TRANSITIONS: Record<PaymentStatus, readonly PaymentStatus[]> = {
   // BTC address was already derived and handed out — if a payment shows up
   // anyway, it must still be recordable rather than stranded.
   cancelled: ['paid'],
-  refunded: [],
 };
 
 /** Fulfillment only ever starts once payment has reached `paid`. */
@@ -75,8 +78,8 @@ export function isOrderCancellable(status: PaymentStatus): boolean {
  * Deliberately the same window as cancellation, and for the same reason.
  * Past `awaiting_payment` the chain has seen money, and money that arrived
  * against one total can't be reconciled against another by editing a row —
- * that needs a refund or a balance due, which is a decision someone has to
- * make, not a side effect of a form.
+ * that needs someone to decide what to do about the difference, not a side
+ * effect of a form.
  *
  * Contact details (email, shipping address) are governed separately by
  * `isOrderContactEditable`: correcting a typo'd address never changes what
@@ -87,16 +90,19 @@ export function areOrderLinesEditable(status: PaymentStatus): boolean {
 }
 
 /**
- * Whether the customer's contact details can still be corrected. Allowed
- * for any order that hasn't shipped and hasn't been refunded — a typo'd
- * shipping address is worth fixing right up until the parcel moves, and
- * fixing it costs nothing because it doesn't touch the total.
+ * Whether the customer's contact details can still be corrected. Allowed for
+ * any order that hasn't shipped — a typo'd shipping address is worth fixing
+ * right up until the parcel moves, and fixing it costs nothing because it
+ * doesn't touch the total.
+ *
+ * Keyed on fulfillment alone: payment status has no bearing on whether an
+ * address is worth correcting, and the one payment status that used to block
+ * it (`refunded`) no longer exists.
  */
 export function isOrderContactEditable(
-  paymentStatus: PaymentStatus,
+  _paymentStatus: PaymentStatus,
   fulfillmentStatus: FulfillmentStatus,
 ): boolean {
-  if (paymentStatus === 'refunded') return false;
   return fulfillmentStatus === 'unfulfilled' || fulfillmentStatus === 'processing';
 }
 

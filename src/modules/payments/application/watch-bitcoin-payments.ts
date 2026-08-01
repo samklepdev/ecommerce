@@ -41,7 +41,7 @@ export class WatchBitcoinPayments {
         const underpaid = seen && status.confirmedSats < intent.expectedSats - DUST_TOLERANCE_SATS;
         // Not a gate like underpaid — they paid at least what was expected,
         // so fulfillment proceeds normally. Just a flag for admin/customer
-        // visibility; the excess is an ops/refund concern, not a reason to
+        // visibility; what to do about the excess is an ops question, not a reason to
         // withhold shipping.
         const overpaid = status.confirmedSats > intent.expectedSats + DUST_TOLERANCE_SATS;
 

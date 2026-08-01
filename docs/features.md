@@ -158,7 +158,7 @@ feature" checklist).
 
 - **Session security** — admin sessions go idle after an hour of inactivity
   (customers get 14 days, under a 30-day ceiling for both), and the
-  destructive actions — refund, promote, and every delete — ask for the
+  destructive actions — cancelling a paid order, promote, and every delete — ask for the
   password again if it has been more than 15 minutes since you typed it.
   Confirming doesn't carry the action out; you're returned to it to click
   again, deliberately.
@@ -256,10 +256,12 @@ feature" checklist).
   everyone; this slices by person across every type.
 - **Orders** (`/admin/orders`) — every order in the store, searchable by
   customer email; (`/admin/orders/[id]`) — full detail (same view
-  customers see) plus a "Mark refunded" action for orders that have
-  already had a manual on-chain refund sent (refunds themselves are
-  always a manual, out-of-band BTC send — this just records that it
-  happened), a "Mark delivered" action once an order has shipped
+  customers see) plus a "Mark failed" action for an order that isn't going
+  to be paid (the automatic timers do this too — this is for when you
+  already know), a "Cancel order" action for one the shop can't fulfil or
+  a parcel lost in transit (password re-typed, reason recorded in the
+  audit log, and it deliberately leaves the payment record alone: if the
+  customer paid, the order stays paid), a "Mark delivered" action once an order has shipped
   (there's no carrier webhook, so this is how delivery gets recorded),
   a free-text internal notes field for ops context (never shown to
   the customer), and a Timeline showing every payment/fulfillment status
@@ -311,7 +313,7 @@ feature" checklist).
   entries). Filled in centrally rather than by each caller, so an entry
   can't be written without it. A durable, searchable-by-scrolling
   record of who did what and when, for the sensitive/destructive admin
-  actions: refunds, admin promotions and demotions, product price
+  actions: order cancellations, admin promotions and demotions, product price
   changes, bulk markup, supplier-order cancellations and mark-ordered/
   mark-shipped (single and bulk), product deletions, manually failing a
   stuck order, and shipping-rate changes. Routine catalog edits (images,
@@ -354,11 +356,17 @@ holds a watch-only public key.
   account xpub) — never reused.
 - Settlement is detected by polling the chain (no webhooks exist for
   on-chain BTC), on a repeating background job.
-- Underpayment holds the order for manual review instead of auto-failing
-  it; overpayment is flagged (for a manual refund of the difference)
-  without holding up fulfillment. If it's never topped up, the order is
-  automatically marked failed after 48 hours of sitting unresolved — an
-  admin can also resolve one sooner from the order detail page.
+- **Underpayment is topped up, not written off.** The order stays open and
+  keeps being watched, and the order page and an email both quote what's
+  still owed — to the same address, at the rate originally quoted, so the
+  amount can't move while the customer finishes paying. The QR encodes the
+  remainder rather than the original total. When the balance lands the
+  watcher sees the cumulative total and confirms normally; no admin step is
+  involved. Overpayment is flagged and the excess recorded, and fulfillment
+  proceeds — there is no refund mechanism, so what to do about the
+  difference is a conversation. If a shortfall is never made up, the order
+  is failed after `AWAITING_CONFIRMATION_WINDOW_HOURS` (48h by default);
+  an admin can resolve one sooner.
 - A quote (locked fiat→BTC rate) expires after a configurable window; the
   expiry check and the payment watcher share a grace window so a payment
   that lands right at the deadline is never missed.

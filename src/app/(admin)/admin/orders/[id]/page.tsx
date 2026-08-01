@@ -8,7 +8,6 @@ import {
 import { requireAdmin } from '@/app/lib/session';
 import { OrderDetailView } from '@/app/(storefront)/orders/OrderDetailView';
 import { Badge } from '@/components/ui/Badge';
-import { RefundOrderButton } from './RefundOrderButton';
 import { FailOrderButton } from './FailOrderButton';
 import { CancelOrderButton } from './CancelOrderButton';
 import { MarkDeliveredButton } from './MarkDeliveredButton';
@@ -65,7 +64,6 @@ export default async function AdminOrderDetailPage({ params }: AdminOrderDetailP
         {order.paymentRecoveredFrom && (
           <Badge tone="warning">Recovered from {order.paymentRecoveredFrom}</Badge>
         )}
-        <RefundOrderButton orderId={order.id} paymentStatus={order.paymentStatus} />
         <FailOrderButton orderId={order.id} paymentStatus={order.paymentStatus} />
         <MarkDeliveredButton orderId={order.id} fulfillmentStatus={order.fulfillmentStatus} />
         <CancelOrderButton orderId={order.id} fulfillmentStatus={order.fulfillmentStatus} />

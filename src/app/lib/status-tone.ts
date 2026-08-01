@@ -15,7 +15,6 @@ import type { BadgeTone } from '@/components/ui/Badge';
  *   awaiting_payment      amber          waiting on the customer
  *   awaiting_confirmation blue           on-chain, waiting on depth
  *   paid                  green          settled
- *   refunded              violet         money went back
  *   failed                red            we refused it
  *   expired               slate          the window closed
  *   cancelled             red outline    stopped deliberately, not a failure
@@ -34,8 +33,6 @@ export function paymentStatusTone(status: PaymentStatus): BadgeTone {
       return 'info';
     case 'paid':
       return 'success';
-    case 'refunded':
-      return 'violet';
     case 'failed':
       return 'danger';
     case 'expired':

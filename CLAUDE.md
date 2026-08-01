@@ -114,8 +114,15 @@ reserves inventory → calls `createPayment` → returns a `PaymentSession` carr
   for; the difference is what says how short an underpaid order is or how much an overpaid one
   sent, and it's the figure the revenue report totals. **One writer only** — `ConfirmPayment`
   deliberately doesn't take or record it, because two writers could disagree.
-- **Refunds are manual, out-of-band** on-chain sends — crypto is irreversible. The `refunded`
-  state exists but is driven from ops tooling, not an API call.
+- **There is no refund mechanism, deliberately** (removed 2026-07-31, migration 0031). No
+  `refunded` payment status, no admin action, nothing. `paid` is terminal. Crypto is
+  irreversible, so a refund could only ever be a manual on-chain send, and recording one as a
+  payment status would put a transaction the app never made into the record that decides
+  revenue. `CancelOrderFulfillment` is how a paid order the shop won't fulfil gets closed, and
+  it leaves payment status alone: if they paid, they paid.
+  **The consequence is real and unresolved:** an underpaid order that never tops up, an
+  overpayment, and a cancelled paid order all end with the shop holding money for nothing
+  delivered, and no in-app way to put it right.
 - **Privacy:** the default Esplora provider is the public `mempool.space` API, which sees every
   address you query (dev only). In production run your own `electrs`/Esplora or `bitcoind`.
   Repoint `BTC_ESPLORA_URL` only — the rate feed has its own `BTC_RATE_URL` because
@@ -175,15 +182,16 @@ depend on a write having succeeded.
 
 - **Two clocks.** `SESSION_TTL_SECONDS` (30 days) is the hard ceiling; the idle window is
   what actually ends most sessions. Customers get `SESSION_IDLE_TIMEOUT_SECONDS` (14 days),
-  admins `ADMIN_SESSION_IDLE_TIMEOUT_SECONDS` (1 hour) — an admin session can refund money
-  and delete a catalogue, a customer's can look at their own orders.
+  admins `ADMIN_SESSION_IDLE_TIMEOUT_SECONDS` (1 hour) — an admin session can cancel a paid
+  order and delete a catalogue, a customer's can look at their own orders.
 - The idle window is chosen **at login**, from the role, and stored on the session. Only the
   window: authorization still reads the role from the database on every request.
 - **Redis' TTL is what enforces idleness** — set to whichever clock expires first, so an idle
   session disappears even if nothing ever reads it again. `lastSeenAt` is only rewritten
   every 60s (`TOUCH_THROTTLE_SECONDS`); Redis is on every request path here and a write per
   request is not free.
-- **Destructive admin actions need sudo mode**: refund, promote, and every delete call
+- **Destructive admin actions need sudo mode**: cancelling a paid order, promote, and every
+  delete call
   `requireRecentAdminAuth()`, which needs the password typed within
   `ADMIN_REAUTH_WINDOW_SECONDS` (15 min). Logging in counts. Browsing does **not** extend it —
   it's bought by typing the password, not by being present.
@@ -223,7 +231,7 @@ update — but that's not the system as it exists today.
 `orders/domain/order-status.ts` — **explicit, guarded transitions**, not a free-form string.
 Payment and fulfillment are **separate** machines that reference each other.
 
-- Payment: `pending → awaiting_payment → awaiting_confirmation → paid → refunded`, plus
+- Payment: `pending → awaiting_payment → awaiting_confirmation → paid` (terminal), plus
   `failed` / `expired` branches. `awaiting_confirmation` covers BTC's on-chain lag.
 - Fulfillment: `unfulfilled → processing → shipped → delivered` (+ `cancelled`), starts only
   after payment reaches `paid`.

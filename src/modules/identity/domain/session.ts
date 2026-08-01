@@ -14,7 +14,7 @@ interface SessionProps {
   idleTimeoutSeconds: number;
   /** When the password was last actually typed. Destructive admin actions
    * require this to be recent, so a borrowed unlocked laptop can browse the
-   * console without being able to refund, promote or delete. */
+   * console without being able to cancel a paid order, promote or delete. */
   reauthenticatedAt: Date;
 }
 

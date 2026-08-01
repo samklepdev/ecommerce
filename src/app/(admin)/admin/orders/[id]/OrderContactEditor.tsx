@@ -46,7 +46,7 @@ export function OrderContactEditor({
       <div className={styles.editorPanel}>
         <h2 className={styles.editorTitle}>Customer details</h2>
         <p className={styles.editorNote}>
-          Fixed — this order has shipped or been refunded.
+          Fixed — this order has shipped.
         </p>
       </div>
     );

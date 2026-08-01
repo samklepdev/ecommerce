@@ -49,7 +49,7 @@ export default async function AdminAuditLogPage({ searchParams }: AdminAuditLogP
           </a>
         </div>
         <p className={styles.meta}>
-          A record of sensitive admin actions — refunds, promotions, price/markup changes,
+          A record of sensitive admin actions — cancellations, promotions, price/markup changes,
           cancellations, and deletions.
         </p>
 

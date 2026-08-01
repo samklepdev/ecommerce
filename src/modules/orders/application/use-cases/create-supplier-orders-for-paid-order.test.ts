@@ -219,8 +219,8 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
       const { repo: orders } = makeFakeOrderLines([{ id: 'line-a', productId: productA, quantity: 1 }]);
       const offers = makeFakeSupplierOffers(new Map([[productA, makeOffer(productA, 'supplier-1', 1000)]]));
       const { repo: supplierOrders, created } = makeFakeSupplierOrders();
-      // e.g. an admin hitting retry on an order that was refunded meanwhile.
-      const { repo: fulfillment } = makeFakeOrderFulfillment('refunded', 'processing');
+      // e.g. an admin hitting retry on an order that failed meanwhile.
+      const { repo: fulfillment } = makeFakeOrderFulfillment('failed', 'processing');
 
       await new CreateSupplierOrdersForPaidOrder(orders, offers, supplierOrders, fulfillment).execute({
         orderId: 'order-1',

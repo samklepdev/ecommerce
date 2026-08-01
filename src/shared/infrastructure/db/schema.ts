@@ -137,7 +137,7 @@ export const auditLog = pgTable(
     // Denormalized snapshot — survives even if the actor account is later
     // deleted or its email changes.
     actorEmail: text('actor_email').notNull(),
-    action: text('action').notNull(), // e.g. 'order.refunded'
+    action: text('action').notNull(), // e.g. 'order.fulfillment_cancelled'
     targetType: text('target_type').notNull(), // e.g. 'order'
     targetId: text('target_id').notNull(),
     metadata: jsonb('metadata'),

@@ -25,7 +25,6 @@ describe('shouldRefreshOnStatusChange', () => {
     expect(shouldRefreshOnStatusChange('awaiting', 'expired')).toBe(true);
     expect(shouldRefreshOnStatusChange('awaiting', 'cancelled')).toBe(true);
     expect(shouldRefreshOnStatusChange('confirming', 'failed')).toBe(true);
-    expect(shouldRefreshOnStatusChange('paid', 'refunded')).toBe(true);
   });
 });
 
@@ -36,13 +35,12 @@ describe('toWidgetStatus', () => {
     expect(toWidgetStatus('awaiting_confirmation')).toBe('confirming');
   });
 
-  // Each terminal state keeps its own identity: telling a refunded customer
+  // Each terminal state keeps its own identity: telling a customer
   // their payment window merely expired would be a lie about their money.
   it('keeps every terminal state distinct', () => {
     expect(toWidgetStatus('paid')).toBe('paid');
     expect(toWidgetStatus('failed')).toBe('failed');
     expect(toWidgetStatus('expired')).toBe('expired');
     expect(toWidgetStatus('cancelled')).toBe('cancelled');
-    expect(toWidgetStatus('refunded')).toBe('refunded');
   });
 });

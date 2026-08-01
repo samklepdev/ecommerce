@@ -11,7 +11,7 @@ export type MarkOrderDeliveredError = { code: 'not_found' } | { code: 'illegal_t
 
 /** Manual admin action — there's no carrier webhook or other automatic
  * delivery signal, so an admin (or, in future, a customer) records it once
- * the shipment has actually arrived. Mirrors `MarkOrderRefunded`'s shape. */
+ * the shipment has actually arrived. Same shape as `CancelOrderFulfillment`. */
 export class MarkOrderDelivered
   implements UseCase<MarkOrderDeliveredInput, Result<void, MarkOrderDeliveredError>>
 {
