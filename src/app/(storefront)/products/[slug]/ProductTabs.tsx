@@ -24,6 +24,13 @@ const TABS = [
  * The prototype had a third "Specifications" tab. `Product` carries no spec
  * fields — only name, description, category and price — so there was nothing
  * to put in it that wasn't invented. Two real tabs beat three with one empty.
+ *
+ * **There is no refunds paragraph, deliberately.** This used to describe how a
+ * refund would be sent on-chain; the app has no refund mechanism (see
+ * `order-status.ts`), so that was a promise nothing could keep. Don't reinstate
+ * it here — a policy this page states is one every product page states, and it
+ * would be read as a commitment. Anything of that kind belongs in `/terms`,
+ * written by someone who can make the commitment.
  */
 export function ProductTabs({ description }: ProductTabsProps) {
   const [active, setActive] = useState<TabId>('description');
@@ -51,10 +58,8 @@ export function ProductTabs({ description }: ProductTabsProps) {
               only accepted if faulty.
             </p>
             <p>
-              <strong>Refunds.</strong> Refunds are sent on-chain to an address you provide, at
-              the BTC amount originally received — not its fiat value, which will have moved.
-              Network fees come out of the refund. Because crypto payments are irreversible,
-              refunds are arranged with support rather than issued automatically.
+              To start a return, or for anything else about an order, contact support with your
+              order id.
             </p>
           </div>
         )}
