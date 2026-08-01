@@ -360,7 +360,11 @@ describe('OnChainBitcoinPaymentGateway.repricePayment', () => {
     expect(repriced).toEqual([]);
   });
 
-  it('refuses on so much as a dust payment, because any of it may be theirs', async () => {
+  it('reprices despite dust, which anyone can send to a public address', async () => {
+    // The mirror of the watcher's dust floor. Refusing on any value at all let
+    // a stranger permanently block a customer's re-quote for 546 satoshis —
+    // and the lapsed-quote panel would then tell that customer "we can see
+    // your payment" when they had sent nothing.
     const { store, repriced } = makeStoreWithAwaitingIntent();
     const gateway = new OnChainBitcoinPaymentGateway(
       deriver,
@@ -376,7 +380,28 @@ describe('OnChainBitcoinPaymentGateway.repricePayment', () => {
       amount: Money.of(10_000, 'USD'),
     });
 
+    expect(result.ok).toBe(true);
+    expect(repriced).toEqual([{ expectedSats: 120_000 }]);
+  });
+
+  it('still refuses once the amount is past dust', async () => {
+    const { store, repriced } = makeStoreWithAwaitingIntent();
+    const gateway = new OnChainBitcoinPaymentGateway(
+      deriver,
+      makeFakeAllocator(0),
+      makeFakeRates(1200),
+      store,
+      makeChain(0, 5_000),
+      900,
+    );
+
+    const result = await gateway.repricePayment({
+      orderId: 'order-1',
+      amount: Money.of(10_000, 'USD'),
+    });
+
     expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe('payment_in_flight');
     expect(repriced).toEqual([]);
   });
 

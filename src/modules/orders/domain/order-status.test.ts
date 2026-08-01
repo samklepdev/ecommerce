@@ -29,7 +29,9 @@ const LEGAL_PAYMENT_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]> = {
   // no longer cancel.
   awaiting_confirmation: ['paid', 'failed', 'expired'],
   paid: [],
-  failed: [],
+  // Money that turns up against a failed order has to be recordable, for the
+  // same reason `expired` and `cancelled` are — see the block at the bottom.
+  failed: ['paid'],
   // Narrow recovery path: a chain-watcher pass can discover a genuinely
   // confirmed payment for an order that was already (mistakenly) expired —
   // the chain is the source of truth, not our own expiry bookkeeping.
@@ -209,5 +211,38 @@ describe('a pending order that already has a payment address', () => {
     expect(() => assertPaymentTransition('pending', 'pending')).toThrow(
       IllegalStatusTransitionError,
     );
+  });
+});
+
+describe('a failed order that money turns up against', () => {
+  /**
+   * `failed` is where an underpaid order ends up: the customer part-paid, the
+   * 48-hour top-up window ran out, and `FailStuckAwaitingConfirmationOrders`
+   * closed it. That is also the single most likely moment for the rest of the
+   * money to arrive — the balance email told them the address, and it does not
+   * change.
+   *
+   * `listSweepable` was built around exactly this ("`failed` is exactly where
+   * an underpaid order ends up"), so the sweep finds the coins and puts them on
+   * the dashboard. Without this edge there was nothing an admin could do about
+   * them: the transition table had no way out of `failed`, so the money was
+   * visible, counted, and permanently stranded.
+   */
+  it('can be credited to paid', () => {
+    expect(() => assertPaymentTransition('failed', 'paid')).not.toThrow();
+  });
+
+  it('still cannot go anywhere else', () => {
+    // The edge exists to record a payment that genuinely arrived, not to make
+    // `failed` a general-purpose staging state.
+    for (const to of ['pending', 'awaiting_payment', 'awaiting_confirmation', 'expired', 'cancelled'] as const) {
+      expect(() => assertPaymentTransition('failed', to)).toThrow(IllegalStatusTransitionError);
+    }
+  });
+
+  it('leaves paid terminal', () => {
+    // The asymmetry is the point: money arriving is recordable, but nothing
+    // moves an order off `paid`.
+    expect(() => assertPaymentTransition('paid', 'failed')).toThrow(IllegalStatusTransitionError);
   });
 });

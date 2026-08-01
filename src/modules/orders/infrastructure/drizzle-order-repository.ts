@@ -380,16 +380,33 @@ export class DrizzleOrderRepository
     });
   }
 
-  /** Guarded so `awaitingConfirmationSince` is only ever stamped on the
-   * actual awaiting_payment -> awaiting_confirmation transition — a repeat
-   * call while already awaiting_confirmation matches zero rows and is a
-   * no-op, so the timestamp keeps reflecting first entry. */
+  /**
+   * Guarded so `awaitingConfirmationSince` is only ever stamped on the actual
+   * entry into awaiting_confirmation — a repeat call while already there
+   * matches zero rows and is a no-op, so the timestamp keeps reflecting first
+   * entry, which is what the terminal 48h window is measured from.
+   *
+   * `pending` as well as `awaiting_payment`: `StartCheckout` derives the
+   * address and *then* records `awaiting_payment`, so a crash between the two
+   * leaves a `pending` order holding a live address the customer already has
+   * the BIP21 URI for. This list must stay in step with
+   * `MarkAwaitingConfirmation`'s own guard and with `PAYMENT_TRANSITIONS` —
+   * when it didn't, the write silently matched zero rows, the order stayed
+   * `pending` and was expired at the 24h deadline instead of getting the 48h
+   * top-up window, and the balance email went out with no deadline because
+   * this timestamp was never set.
+   */
   async markAwaitingConfirmation(orderId: string): Promise<void> {
     await this.db.transaction(async (tx) => {
       const result = await tx
         .update(orders)
         .set({ paymentStatus: 'awaiting_confirmation', awaitingConfirmationSince: new Date(), updatedAt: new Date() })
-        .where(and(eq(orders.id, orderId), eq(orders.paymentStatus, 'awaiting_payment')))
+        .where(
+          and(
+            eq(orders.id, orderId),
+            inArray(orders.paymentStatus, ['pending', 'awaiting_payment']),
+          ),
+        )
         .returning({ id: orders.id });
       if (result.length > 0) {
         await this.recordOrderEvent(tx, orderId, 'payment_status_changed', 'awaiting_confirmation');

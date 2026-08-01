@@ -250,8 +250,15 @@ export function BitcoinCheckout({
                    can finish paying — so the useful thing to show is the balance,
                    not an instruction to email us. */
                 <>
+                  {/* Received counts the mempool, because the remaining figure
+                      beside it does. Reporting confirmed-only here while
+                      subtracting confirmed+pending there made the two numbers
+                      contradict each other, and a customer who does the
+                      subtraction themselves sends the difference — which with
+                      no refund mechanism cannot be undone. */}
                   <p className={styles.message}>
-                    We&apos;ve received {satsToBtcString(progress.confirmedSats)} BTC of{' '}
+                    We&apos;ve received{' '}
+                    {satsToBtcString(progress.confirmedSats + progress.pendingSats)} BTC of{' '}
                     {amountBtc} BTC. Send the remaining{' '}
                     <strong>{satsToBtcString(progress.shortfallSats)} BTC</strong> to the same
                     address below to complete your order.

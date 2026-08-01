@@ -70,7 +70,7 @@ function makeProduct(id: string, amountMinor: number, currency = 'USD') {
 
 const QUOTE_EXPIRY = new Date('2026-07-28T12:15:00.000Z');
 
-function makeFakeGateway(outcome: 'ok' | 'not_repriceable' = 'ok') {
+function makeFakeGateway(outcome: 'ok' | 'not_repriceable' | 'in_flight' = 'ok') {
   const calls: { orderId: string; amountMinor: number }[] = [];
   const gateway: PaymentGateway = {
     method: 'crypto',
@@ -80,6 +80,7 @@ function makeFakeGateway(outcome: 'ok' | 'not_repriceable' = 'ok') {
     async repricePayment(input) {
       calls.push({ orderId: input.orderId, amountMinor: input.amount.amountMinor });
       if (outcome === 'not_repriceable') return err({ code: 'payment_not_repriceable' });
+      if (outcome === 'in_flight') return err({ code: 'payment_in_flight' });
       return ok({
         expiresAt: QUOTE_EXPIRY,
         expectedSats: Math.round((input.amount.amountMinor / 100) * 1000),
@@ -329,7 +330,11 @@ describe('EditOrderLines', () => {
 
       expect(isErr(result)).toBe(true);
       if (isErr(result)) expect(result.error.code).toBe('reprice_failed');
-      expect(writes).toHaveLength(1);
+      // Nothing written. This used to assert the opposite — that the lines
+      // were committed anyway and the failure merely reported — which is
+      // exactly the state that leaves the order and the intent disagreeing
+      // about what is owed, with no retry able to reconcile them.
+      expect(writes).toEqual([]);
     });
   });
 
@@ -374,5 +379,83 @@ describe('EditOrderLines', () => {
     expect(isErr(result)).toBe(true);
     if (isErr(result)) expect(result.error.code).toBe('order_not_found');
     expect(writes).toHaveLength(0);
+  });
+
+  describe('when the payment cannot be restated', () => {
+    /**
+     * The lines and the amount owed have to move together or not at all.
+     *
+     * Repricing after committing the lines meant a routine, *expected*
+     * condition left them permanently disagreeing: the order says $25 while
+     * the intent still demands $50. Revenue reads the order, the customer pays
+     * the intent, and no retry converges them because the same two steps fail
+     * the same way each time.
+     *
+     * This became routine rather than rare once the gateway started reading
+     * the chain before repricing — a customer who has broadcast, or anyone
+     * sending to a public address, refuses it.
+     */
+    function arrange(outcome: 'in_flight' | 'not_repriceable' | 'ok') {
+      const order = makeOrder({
+        shippingAmountMinor: 0,
+        discountAmountMinor: 0,
+        lines: [
+          { id: 'line-1', productId: 'prod-1', productName: 'Widget One', quantity: 2, unitAmountMinor: 2500 },
+        ],
+      });
+      const { repo: orders, writes } = makeFakeOrders(order);
+      const products = makeFakeProducts([makeProduct('prod-1', 2500)]);
+      const { gateway: payments, calls } = makeFakeGateway(outcome);
+      return { orders, products, payments, writes, calls };
+    }
+
+    it('commits nothing when the payment is in flight', async () => {
+      const { orders, products, payments, writes } = arrange('in_flight');
+
+      const result = await new EditOrderLines(orders, products, payments).execute({
+        orderId: 'order-1',
+        op: 'set_quantity',
+        orderLineId: 'line-1',
+        quantity: 1,
+      });
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.code).toBe('payment_in_flight');
+      // The critical assertion: the order still describes what was quoted.
+      expect(writes).toEqual([]);
+    });
+
+    it('commits nothing when the payment is no longer repriceable', async () => {
+      const { orders, products, payments, writes } = arrange('not_repriceable');
+
+      const result = await new EditOrderLines(orders, products, payments).execute({
+        orderId: 'order-1',
+        op: 'set_quantity',
+        orderLineId: 'line-1',
+        quantity: 1,
+      });
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.code).toBe('reprice_failed');
+      expect(writes).toEqual([]);
+    });
+
+    it('quotes the total the order is about to become, not the one it has', async () => {
+      // Repricing first only helps if it is told the *new* total; quoting the
+      // pre-edit amount would be worse than not quoting at all.
+      const { orders, products, payments, writes, calls } = arrange('ok');
+
+      const result = await new EditOrderLines(orders, products, payments).execute({
+        orderId: 'order-1',
+        op: 'set_quantity',
+        orderLineId: 'line-1',
+        quantity: 1,
+      });
+
+      expect(isOk(result)).toBe(true);
+      expect(calls).toHaveLength(1);
+      expect(calls[0]?.amountMinor).toBe(2500);
+      expect(writes[0]?.amountMinor).toBe(2500);
+    });
   });
 });

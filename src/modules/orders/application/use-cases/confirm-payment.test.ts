@@ -191,16 +191,45 @@ describe('ConfirmPayment', () => {
     expect(notified).toEqual([]);
   });
 
-  it('throws on an illegal transition (e.g. from a terminal failed state)', async () => {
-    const { repo } = makeFakeOrders('failed');
-    const processedEvents = makeFakeProcessedEvents();
-    const { queue } = makeFakeFulfillment();
-    const { notifier } = makeFakeNotifier();
-    const confirmPayment = new ConfirmPayment(repo, processedEvents, queue, notifier);
+  /**
+   * Money arriving is always recordable, from any state.
+   *
+   * This replaces a test that asserted `failed` threw. Once `failed -> paid`
+   * was added — `failed` being where an underpaid order ends up, and so the
+   * likeliest state for the balance to turn up in late — there is no status
+   * left that can't reach `paid`: the open ones transition normally, the
+   * closed ones (`expired`, `cancelled`, `failed`) have explicit recovery
+   * edges, and `paid` itself short-circuits as already-paid.
+   *
+   * That is the invariant worth pinning, and it is the one the chain implies:
+   * we do not get to decline a payment that already happened.
+   */
+  it('records a payment from any status the order can be in', async () => {
+    const statuses: PaymentStatus[] = [
+      'pending',
+      'awaiting_payment',
+      'awaiting_confirmation',
+      'paid',
+      'failed',
+      'expired',
+      'cancelled',
+    ];
 
-    await expect(
-      confirmPayment.execute({ orderId: 'order-1', eventId: 'evt-4' }),
-    ).rejects.toThrow();
+    for (const status of statuses) {
+      const { repo, getStatus } = makeFakeOrders(status);
+      const processedEvents = makeFakeProcessedEvents();
+      const { queue } = makeFakeFulfillment();
+      const { notifier } = makeFakeNotifier();
+      const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+      const confirmPayment = new ConfirmPayment(repo, processedEvents, queue, notifier);
+
+      await expect(
+        confirmPayment.execute({ orderId: 'order-1', eventId: `evt-${status}` }),
+      ).resolves.toBeUndefined();
+      expect(getStatus()).toBe('paid');
+
+      warnSpy.mockRestore();
+    }
   });
 
   it('recovers an order from expired to paid when the chain later confirms it, logging a distinct warning and recording it durably', async () => {

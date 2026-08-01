@@ -508,4 +508,103 @@ describe('WatchBitcoinPayments#runOnce', () => {
       expect(getProgress()?.overpaid).toBe(false);
     });
   });
+
+  describe('dust sent to a known address', () => {
+    /**
+     * The address is public the instant the customer pays, and it is in the
+     * BIP21 QR before that. `awaiting_confirmation` is a one-way door — no
+     * cancel, no re-quote, out of reach of benign expiry — and it starts the
+     * 48-hour clock that ends in terminal `failed`.
+     *
+     * So a bare `seenSats > 0` meant 546 unconfirmed satoshis could push
+     * anyone's order into that door and hold it there. The dust tolerance the
+     * amount comparisons already used has to apply to "is this a payment at
+     * all", not just to "is it the right size".
+     */
+    it('does not move an order on a dust-sized amount', async () => {
+      const { repo, getStatus } = makeFakeOrders('awaiting_payment');
+      const intent = makeIntent({ expectedSats: 100000 });
+      const { store } = makeFakePaymentStore(intent);
+      const chain = makeFakeChain({
+        address: intent.address,
+        confirmedSats: 0,
+        pendingSats: 546,
+        confirmations: 0,
+      });
+
+      await makeWatcher(store, chain, repo).runOnce();
+
+      // Still cancellable, still re-quotable, still expirable normally.
+      expect(getStatus()).toBe('awaiting_payment');
+    });
+
+    it('does not email a balance demand on dust', async () => {
+      const intent = makeIntent({ expectedSats: 100000 });
+      const paymentStore = makeFakePaymentStore(intent);
+      const chain = makeFakeChain({
+        address: intent.address,
+        confirmedSats: 546,
+        pendingSats: 0,
+        confirmations: 1,
+      });
+      const { repo: orders } = makeFakeOrders('awaiting_payment');
+      const { notify, notified } = makeNotifyUnderpaid();
+
+      await makeWatcher(paymentStore.store, chain, orders, notify).runOnce();
+
+      expect(notified).toEqual([]);
+    });
+
+    it('still records what was seen, so it is not invisible', async () => {
+      // Refusing to act on it is not the same as pretending it isn't there —
+      // the admin panel reads these figures.
+      const { repo } = makeFakeOrders('awaiting_payment');
+      const intent = makeIntent({ expectedSats: 100000 });
+      const { store, getProgress } = makeFakePaymentStore(intent);
+      const chain = makeFakeChain({
+        address: intent.address,
+        confirmedSats: 546,
+        pendingSats: 0,
+        confirmations: 1,
+      });
+
+      await makeWatcher(store, chain, repo).runOnce();
+
+      expect(getProgress()?.confirmedSats).toBe(546);
+    });
+
+    it('acts on a real part-payment that happens to be small', async () => {
+      // The floor is the dust tolerance, not an arbitrary "small" — anything
+      // above it is a genuine payment and must be treated as one.
+      const { repo, getStatus } = makeFakeOrders('awaiting_payment');
+      const intent = makeIntent({ expectedSats: 100000 });
+      const { store } = makeFakePaymentStore(intent);
+      const chain = makeFakeChain({
+        address: intent.address,
+        confirmedSats: 5000,
+        pendingSats: 0,
+        confirmations: 1,
+      });
+
+      await makeWatcher(store, chain, repo).runOnce();
+
+      expect(getStatus()).toBe('awaiting_confirmation');
+    });
+
+    it('settles normally when dust arrives alongside the real payment', async () => {
+      const { repo, getStatus } = makeFakeOrders('awaiting_payment');
+      const intent = makeIntent({ expectedSats: 100000 });
+      const { store } = makeFakePaymentStore(intent);
+      const chain = makeFakeChain({
+        address: intent.address,
+        confirmedSats: 100546,
+        pendingSats: 0,
+        confirmations: REQUIRED_CONFIRMATIONS,
+      });
+
+      await makeWatcher(store, chain, repo).runOnce();
+
+      expect(getStatus()).toBe('paid');
+    });
+  });
 });

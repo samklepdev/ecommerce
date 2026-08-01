@@ -32,6 +32,10 @@ export type EditOrderLinesError =
   /** The edit would leave a total of zero or less — see the guard in
    * `execute`. Refused rather than silently adjusted. */
   | { code: 'total_not_payable'; totalMinor: number }
+  /** Money is already on its way to this order's address, so the amount owed
+   * can't be restated — and therefore the lines can't change either. Nothing
+   * was written. */
+  | { code: 'payment_in_flight' }
   | { code: 'reprice_failed' };
 
 /**
@@ -103,19 +107,41 @@ export class EditOrderLines
       return err({ code: 'total_not_payable', totalMinor: total.amountMinor });
     }
 
-    await this.orders.replaceLines(order.id, nextLines.value, total.amountMinor);
-
+    /**
+     * Reprice **before** committing the lines, and refuse the whole edit if it
+     * won't take.
+     *
+     * The lines and the amount owed have to move together or not at all. With
+     * the write first, a failure here left them permanently disagreeing — the
+     * order saying one total while the intent demanded another, revenue
+     * reading the first and the customer paying the second, with no retry able
+     * to converge them because the same two steps failed the same way.
+     *
+     * That failure is routine, not rare: the gateway reads the chain before
+     * repricing, so a customer who has already broadcast — or anyone sending
+     * to what is a public address — refuses it.
+     *
+     * The remaining window is the mirror image (repriced, then the write
+     * fails) and is strictly narrower: it needs a database failure rather than
+     * an expected on-chain condition, and it leaves the customer owing the
+     * amount the order still describes.
+     */
     const repriced = await this.payments.repricePayment({ orderId: order.id, amount: total });
     if (isErr(repriced)) {
-      // The lines are already committed. Report it rather than pretending
-      // the edit failed — the amount owed on the payment is now stale, and
-      // that's the thing an admin has to know about.
-      logger.error('order edited but payment could not be repriced', {
+      // Money is already on its way to this address, so the amount owed must
+      // not move. Distinct from a generic failure because the admin's next
+      // step differs: wait for it to settle, don't retry the edit.
+      if (repriced.error.code === 'payment_in_flight') {
+        return err({ code: 'payment_in_flight' });
+      }
+      logger.error('order not edited: payment could not be repriced', {
         orderId: order.id,
         error: repriced.error.code,
       });
       return err({ code: 'reprice_failed' });
     }
+
+    await this.orders.replaceLines(order.id, nextLines.value, total.amountMinor);
 
     if (repriced.value.expiresAt) {
       await this.orders.setPaymentWindow(order.id, repriced.value.expiresAt);

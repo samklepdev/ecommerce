@@ -2,6 +2,7 @@ import type { UseCase } from '@/shared/application/use-case';
 import { err, ok, type Result } from '@/shared/domain/result';
 import type { ConfirmPaymentOrderRepository } from '@/modules/orders/application/ports/order-repository';
 import type { BitcoinPaymentIntent } from '@/modules/payments/application/ports/bitcoin-ports';
+import { isLatePaymentCreditable } from '@/modules/orders/domain/order-status';
 import type { ConfirmPayment } from './confirm-payment';
 
 /** Narrowed to the two methods this needs, rather than the whole
@@ -67,10 +68,20 @@ export class CreditLatePayment
     if (creditedSats <= 0) return err({ code: 'no_payment_to_credit' });
 
     const status = await this.orders.getPaymentStatus(input.orderId);
-    // Only the two states the watcher has given up on. An order still
-    // collecting will settle on its own, and crediting it by hand would
-    // bypass the confirmation threshold; `paid` is terminal.
-    if (status !== 'expired' && status !== 'cancelled') return err({ code: 'not_creditable' });
+    /**
+     * Only the states the watcher has given up on. An order still collecting
+     * will settle on its own, and crediting it by hand would bypass the
+     * confirmation threshold; `paid` is terminal.
+     *
+     * `failed` is in the list and matters most: it is where an underpaid order
+     * ends up once the top-up window closes, which makes it the likeliest
+     * place for the balance to arrive late. Leaving it out meant the sweep
+     * found the coins, the dashboard counted them, and the admin opening the
+     * order had no action at all.
+     */
+    if (status === null || !isLatePaymentCreditable(status)) {
+      return err({ code: 'not_creditable' });
+    }
 
     // Reuses the one path to `paid`, so this gets the same recovery record,
     // the same guarded write, and the same sourcing enqueue a normal
