@@ -10,6 +10,22 @@ import type { NotifyUnderpaidOnce } from '@/modules/orders/application/use-cases
 const DUST_TOLERANCE_SATS = 1000;
 
 /**
+ * What a pass actually managed to do.
+ *
+ * Reported because the per-intent catch below means this method never throws —
+ * so the worker's heartbeat was written even when *every* chain read failed,
+ * and `/api/health` stayed green through an Esplora outage in which no order
+ * could settle. The heartbeat proved the process was alive, which was never
+ * the question.
+ */
+export interface WatchPassResult {
+  /** Intents this pass tried to read. 0 means there was nothing to do. */
+  polled: number;
+  /** Of those, how many the chain provider could not be read for. */
+  failed: number;
+}
+
+/**
  * Polls each awaiting intent's address and drives ConfirmPayment once enough
  * confirmations are seen. This is the ONLY path to `paid` — no webhook for
  * on-chain BTC by design. Reconciles from chain state each pass, so a restart
@@ -25,8 +41,9 @@ export class WatchBitcoinPayments {
     private readonly notifyUnderpaid: NotifyUnderpaidOnce,
   ) {}
 
-  async runOnce(): Promise<void> {
+  async runOnce(): Promise<WatchPassResult> {
     const intents = await this.paymentStore.listWatchable();
+    let failed = 0;
 
     for (const intent of intents) {
       try {
@@ -139,11 +156,14 @@ export class WatchBitcoinPayments {
         });
         await this.paymentStore.markConfirmed(intent.orderId);
       } catch (e) {
+        failed += 1;
         logger.error('watch-bitcoin-payments pass failed for intent', {
           orderId: intent.orderId,
           error: e instanceof Error ? e.message : String(e),
         });
       }
     }
+
+    return { polled: intents.length, failed };
   }
 }

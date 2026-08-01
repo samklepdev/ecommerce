@@ -607,4 +607,73 @@ describe('WatchBitcoinPayments#runOnce', () => {
       expect(getStatus()).toBe('paid');
     });
   });
+
+  describe('reporting whether the chain was actually readable', () => {
+    /**
+     * `runOnce` catches per intent so one bad address cannot stop the pass.
+     * The consequence was that it never threw, so the worker's `chainPassOk`
+     * stayed true and the heartbeat kept being written while *every* chain read
+     * failed — Esplora down, rate-limiting, or returning a body that fails to
+     * parse. `/api/health` reported ok for as long as it lasted, no order
+     * settled, no confirmation email went out, and the first anyone heard was
+     * a customer asking. That is precisely the silence the heartbeat exists to
+     * break.
+     */
+    it('reports a pass where nothing could be read', async () => {
+      const { repo } = makeFakeOrders('awaiting_payment');
+      const intent = makeIntent();
+      const { store } = makeFakePaymentStore(intent);
+      const brokenChain: ChainDataProvider = {
+        async getStatus() {
+          throw new Error('esplora unavailable');
+        },
+      };
+
+      const result = await makeWatcher(store, brokenChain, repo).runOnce();
+
+      expect(result).toEqual({ polled: 1, failed: 1 });
+    });
+
+    it('reports a healthy pass', async () => {
+      const { repo } = makeFakeOrders('awaiting_payment');
+      const intent = makeIntent();
+      const { store } = makeFakePaymentStore(intent);
+      const chain = makeFakeChain({ address: intent.address, confirmedSats: 0, confirmations: 0 });
+
+      const result = await makeWatcher(store, chain, repo).runOnce();
+
+      expect(result).toEqual({ polled: 1, failed: 0 });
+    });
+
+    it('reports an empty pass as neither healthy nor failed', async () => {
+      // Nothing to watch is the normal quiet state, not evidence of a problem.
+      const { repo } = makeFakeOrders('awaiting_payment');
+      const { store } = makeFakePaymentStore(makeIntent());
+      store.listWatchable = async () => [];
+      const chain = makeFakeChain({ address: 'bc1qtest', confirmedSats: 0, confirmations: 0 });
+
+      const result = await makeWatcher(store, chain, repo).runOnce();
+
+      expect(result).toEqual({ polled: 0, failed: 0 });
+    });
+
+    it('keeps going past one bad address', async () => {
+      // The reason the catch is per intent in the first place.
+      const { repo } = makeFakeOrders('awaiting_payment');
+      const good = makeIntent({ orderId: 'order-good', address: 'bc1qgood' });
+      const bad = makeIntent({ orderId: 'order-bad', address: 'bc1qbad' });
+      const { store } = makeFakePaymentStore(good);
+      store.listWatchable = async () => [bad, good];
+      const chain: ChainDataProvider = {
+        async getStatus(address) {
+          if (address === 'bc1qbad') throw new Error('esplora unavailable');
+          return { address, confirmedSats: 0, pendingSats: 0, confirmations: 0 };
+        },
+      };
+
+      const result = await makeWatcher(store, chain, repo).runOnce();
+
+      expect(result).toEqual({ polled: 2, failed: 1 });
+    });
+  });
 });

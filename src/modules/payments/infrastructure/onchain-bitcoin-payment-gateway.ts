@@ -62,16 +62,30 @@ export class OnChainBitcoinPaymentGateway implements PaymentGateway {
    * high-water query failed would be the worse outcome.
    */
   private async ensureIndexFloor(): Promise<void> {
+    /**
+     * Memoized on **success only**.
+     *
+     * This used to wrap a body that swallowed its own error, so the memoized
+     * promise always resolved — meaning one database blip on the first
+     * checkout after a boot disabled the floor for the entire life of that
+     * process. Paired with a Redis counter that had been wiped or evicted,
+     * every subsequent checkout then failed on the address-unique constraint,
+     * one burned index at a time, with nothing reporting why.
+     *
+     * A failure is still allowed through rather than refusing the checkout —
+     * the unique constraint on `address` is the real backstop, and turning
+     * away every customer because a high-water query failed would be the worse
+     * outcome. It just isn't remembered.
+     */
     this.indexFloorEnsured ??= (async () => {
-      try {
-        const highest = await this.paymentStore.highestAddressIndex();
-        if (highest !== null) await this.indexAllocator.seedFloor(highest + 1);
-      } catch (e) {
-        logger.error('could not seed the address-index floor; allocation continues', {
-          error: e instanceof Error ? e.message : String(e),
-        });
-      }
-    })();
+      const highest = await this.paymentStore.highestAddressIndex();
+      if (highest !== null) await this.indexAllocator.seedFloor(highest + 1);
+    })().catch((e: unknown) => {
+      this.indexFloorEnsured = null;
+      logger.error('could not seed the address-index floor; allocation continues', {
+        error: e instanceof Error ? e.message : String(e),
+      });
+    });
     return this.indexFloorEnsured;
   }
 
@@ -90,14 +104,32 @@ export class OnChainBitcoinPaymentGateway implements PaymentGateway {
     }
 
     try {
-      await this.ensureIndexFloor();
-      const index = await this.indexAllocator.next();
-      const address = this.deriver.deriveAddress(index);
+      /**
+       * The rate first, the index last.
+       *
+       * An address index is a one-way counter, and a watch-only wallet stops
+       * scanning after ~20 consecutive unused addresses. `StartCheckout` goes
+       * out of its way to refuse a closed store and a zero total *before*
+       * reaching this method "because createPayment burns an address index" —
+       * and this then allocated one immediately before the call most likely to
+       * fail, which since the sanity band was added deliberately fails closed.
+       *
+       * So an hour of rate-feed trouble with customers retrying used to walk
+       * the counter past the wallet's gap limit for nothing. The burned
+       * indices were never persisted either, so `ensureIndexFloor`'s
+       * `max(address_index) + 1` recovery under-counted what had been handed
+       * out. Nothing before `save()` depends on the index, so there is no
+       * reason to take it early.
+       */
       const satsPerFiatUnit = await this.rates.satsPerFiatUnit(input.amount.currency);
       // Assumes a 2-decimal-place fiat currency (minor unit = 1/100 major unit),
       // true for USD/EUR/etc — revisit if a 0- or 3-decimal currency is added.
       const expectedSats = Math.round((input.amount.amountMinor / 100) * satsPerFiatUnit);
       const expiresAt = new Date(Date.now() + this.quoteTtlSeconds * 1000);
+
+      await this.ensureIndexFloor();
+      const index = await this.indexAllocator.next();
+      const address = this.deriver.deriveAddress(index);
 
       await this.paymentStore.save({
         orderId: input.orderId,

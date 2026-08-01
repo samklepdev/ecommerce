@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { parseEsploraTxs, parseTipHeight } from './esplora-response';
 
 const validTx = {
+  txid: 'tx-fixture',
   vout: [{ scriptpubkey_address: 'bc1qexample', value: 157001 }],
   status: { confirmed: true, block_height: 800000 },
 };
@@ -13,7 +14,7 @@ describe('parseEsploraTxs', () => {
   });
 
   it('accepts an unconfirmed transaction, which carries no block height', () => {
-    const mempool = { vout: [{ scriptpubkey_address: 'bc1qx', value: 1 }], status: { confirmed: false } };
+    const mempool = { txid: 'tx-mempool', vout: [{ scriptpubkey_address: 'bc1qx', value: 1 }], status: { confirmed: false } };
     expect(parseEsploraTxs([mempool])).toHaveLength(1);
   });
 
@@ -70,5 +71,14 @@ describe('parseTipHeight', () => {
 
   it('rejects a fractional height', () => {
     expect(() => parseTipHeight('800123.5')).toThrow(/tip height/i);
+  });
+
+  // The pagination cursor. Without it there is no way to ask for the next page
+  // of confirmed transactions, so an address with more than fits in one page
+  // would silently report only part of what it holds.
+  it('rejects a transaction with no txid', () => {
+    const noTxid: Record<string, unknown> = { ...validTx };
+    delete noTxid.txid;
+    expect(() => parseEsploraTxs([noTxid])).toThrow(/unexpected/i);
   });
 });

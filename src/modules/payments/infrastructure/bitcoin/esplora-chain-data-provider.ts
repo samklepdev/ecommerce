@@ -114,6 +114,24 @@ export function aggregateChainStatus(
 const CHAIN_FETCH_TIMEOUT_MS = 10_000;
 
 /**
+ * Confirmed transactions Esplora returns per page. A full page means there may
+ * be more; a short one is the end of the history.
+ *
+ * Matching the reference implementation. A provider returning fewer per page
+ * still works — the loop follows the cursor until a page comes back short —
+ * it just costs more requests.
+ */
+const CONFIRMED_TXS_PER_PAGE = 25;
+
+/**
+ * How many pages to follow before giving up. 25 pages is 625 confirmed
+ * transactions against a single order's address, which no legitimate payment
+ * produces; past that something is wrong with the provider or the address is
+ * being flooded, and either way the watcher should move on rather than spin.
+ */
+const MAX_TX_PAGES = 25;
+
+/**
  * Queries an Esplora-compatible API. Dev default is the public mempool.space
  * API, which sees every address you query — self-host electrs/Esplora in
  * production for privacy.
@@ -130,22 +148,72 @@ export class EsploraChainDataProvider implements ChainDataProvider {
     // would reshape the request rather than address it.
     assertValidBitcoinAddress(address, this.network);
 
-    const [txsRes, tipRes] = await Promise.all([
-      fetch(`${this.baseUrl}/address/${address}/txs`, {
-        signal: AbortSignal.timeout(CHAIN_FETCH_TIMEOUT_MS),
-      }),
-      fetch(`${this.baseUrl}/blocks/tip/height`, {
-        signal: AbortSignal.timeout(CHAIN_FETCH_TIMEOUT_MS),
-      }),
+    const [txs, tipHeight] = await Promise.all([
+      this.fetchAllTxs(address),
+      this.fetchTipHeight(),
     ]);
-    if (!txsRes.ok) throw new Error(`esplora txs HTTP ${txsRes.status}`);
-    if (!tipRes.ok) throw new Error(`esplora tip HTTP ${tipRes.status}`);
-
-    // Parsed, not cast: this response decides whether an order gets marked
-    // paid, so it has to be checked like any other untrusted input.
-    const txs = parseEsploraTxs(await txsRes.json());
-    const tipHeight = parseTipHeight(await tipRes.text());
 
     return { address, ...aggregateChainStatus(txs, address, tipHeight, expectedSats) };
+  }
+
+  /**
+   * Every transaction touching the address, following Esplora's cursor.
+   *
+   * `/address/:addr/txs` returns the mempool plus only the **most recent page**
+   * of confirmed transactions — 25 on the reference implementation. The code
+   * used to issue exactly that one request and treat the result as the whole
+   * history.
+   *
+   * That is not merely incomplete, it is unsafe in one specific direction:
+   * `aggregateChainStatus` recomputes the total from scratch each pass and
+   * `recordProgress` writes it over `confirmed_sats`, so a payment pushed out
+   * of the window **revises the recorded amount downward**. Since the address
+   * is public the moment the customer pays, roughly a page of dust
+   * transactions displaces the real payment, the order reads as underpaid, and
+   * at 48 hours it goes terminal with the customer's money on it.
+   */
+  private async fetchAllTxs(address: string): Promise<EsploraTx[]> {
+    const all: EsploraTx[] = [];
+    let cursor: string | null = null;
+
+    for (let page = 0; page < MAX_TX_PAGES; page += 1) {
+      const url = cursor
+        ? `${this.baseUrl}/address/${address}/txs/chain/${cursor}`
+        : `${this.baseUrl}/address/${address}/txs`;
+
+      const res = await fetch(url, { signal: AbortSignal.timeout(CHAIN_FETCH_TIMEOUT_MS) });
+      if (!res.ok) throw new Error(`esplora txs HTTP ${res.status}`);
+
+      // Parsed, not cast: this response decides whether an order gets marked
+      // paid, so it has to be checked like any other untrusted input.
+      const batch = parseEsploraTxs(await res.json());
+      all.push(...batch);
+
+      // Only confirmed transactions paginate — the mempool is returned in full
+      // on the first page, and the cursor endpoint serves confirmed history.
+      // Counting the whole batch here would stop early on a first page that is
+      // mostly mempool, and re-request forever on later ones.
+      const confirmed = batch.filter((tx) => tx.status.confirmed);
+      if (confirmed.length < CONFIRMED_TXS_PER_PAGE) return all;
+
+      cursor = confirmed[confirmed.length - 1]!.txid;
+    }
+
+    /**
+     * A provider that never returns a short page would otherwise spin here
+     * forever, on the watcher's thread, blocking every other order behind it.
+     * Throwing surfaces it: the watcher catches per intent, logs, and tries
+     * again next pass, which is the same handling every other chain failure
+     * gets — and far better than settling an order on a partial history.
+     */
+    throw new Error(`esplora returned too many transaction pages for ${address}`);
+  }
+
+  private async fetchTipHeight(): Promise<number> {
+    const res = await fetch(`${this.baseUrl}/blocks/tip/height`, {
+      signal: AbortSignal.timeout(CHAIN_FETCH_TIMEOUT_MS),
+    });
+    if (!res.ok) throw new Error(`esplora tip HTTP ${res.status}`);
+    return parseTipHeight(await res.text());
   }
 }

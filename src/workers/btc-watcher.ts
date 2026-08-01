@@ -88,7 +88,28 @@ async function main(): Promise<void> {
     // detection is still working and the process should not be reported dead.
     let chainPassOk = true;
     try {
-      await watchBitcoinPayments.runOnce();
+      const pass = await watchBitcoinPayments.runOnce();
+      /**
+       * A pass that had work to do and could not read the chain for any of it
+       * is a dead watcher, whatever the process is doing.
+       *
+       * `runOnce` catches per intent so one bad address can't stop the rest,
+       * which meant it never threw — so this stayed true through an Esplora
+       * outage, the heartbeat kept being written, and `/api/health` reported
+       * ok while no order settled and no confirmation email went out. The
+       * heartbeat proved the process was alive, which was never the question.
+       *
+       * All-or-nothing rather than a ratio: a single address failing is
+       * ordinary (a malformed row, a provider hiccup) and self-heals next
+       * pass, while every address failing is the provider being gone. A pass
+       * with nothing to watch is the normal quiet state and stays healthy.
+       */
+      if (pass.polled > 0 && pass.failed === pass.polled) {
+        chainPassOk = false;
+        logger.error('btc-watcher could not read the chain for any watched address', {
+          polled: pass.polled,
+        });
+      }
     } catch (e) {
       chainPassOk = false;
       logger.error('btc-watcher pass failed', { error: e instanceof Error ? e.message : String(e) });
