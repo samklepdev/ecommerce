@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -10,9 +9,53 @@ import { Badge } from '@/components/ui/Badge';
 import { cx } from '@/components/ui/cx';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { shouldRefreshOnStatusChange, type WidgetStatus } from './bitcoin-checkout-status';
+import {
+  confirmingMessage,
+  shouldRefreshOnStatusChange,
+  type ConfirmingMessage,
+  type WidgetStatus,
+} from './bitcoin-checkout-status';
 import { RefreshQuoteButton } from './RefreshQuoteButton';
 import styles from './BitcoinCheckout.module.css';
+
+/**
+ * Consecutive failed status polls before the widget admits it is out of date.
+ *
+ * One blip on a five-second interval is not worth alarming anyone about;
+ * three in a row (roughly fifteen seconds) means the status route is genuinely
+ * unreachable — and continuing to render the last numbers as though they were
+ * current is how an underpaid customer is told nothing more is needed.
+ */
+const STALE_AFTER_FAILED_POLLS = 3;
+
+/** The one place each confirming state becomes words, so the decision (which
+ * state) stays testable apart from the wording. */
+/**
+ * Where a customer goes from a closed order.
+ *
+ * These panels used to link to `/cart`, which `PlaceOrder` empties when it
+ * claims the cart — so the one route offered from a dead order led to "your
+ * cart is empty". The Reorder button on the order page is the path that
+ * actually works, so point at it rather than away from the page.
+ */
+function ReorderPrompt() {
+  return (
+    <p className={styles.message}>
+      To buy these items again, use <strong>Reorder</strong> in the Items section below.
+    </p>
+  );
+}
+
+function confirmingCopy(message: ConfirmingMessage): string {
+  switch (message.kind) {
+    case 'stale':
+      return "We can't reach the payment status service right now, so this may be out of date. Don't send anything further until it updates — refresh in a moment, or get in touch if it persists.";
+    case 'in-mempool':
+      return 'Payment seen — it’s waiting to be included in a block. No further payment is needed; this page will update on its own.';
+    case 'confirming':
+      return `Payment seen, waiting for confirmations… (${message.confirmations} of ${message.requiredConfirmations}). No further payment is needed.`;
+  }
+}
 
 interface StatusResponse {
   status: WidgetStatus;
@@ -40,6 +83,16 @@ interface BitcoinCheckoutProps {
    * payment" for the first ~5s of every visit — including a visit to an
    * order that settled days ago. */
   initialStatus: WidgetStatus;
+  /**
+   * The server's own view of the payment at render time.
+   *
+   * The widget used to seed zeros here and swallow failed polls, so an
+   * underpaid order whose status call never landed told the customer
+   * "(0 of 0). No further payment is needed" while they owed money. Painting
+   * from what the page already knows means the first frame is correct even if
+   * no poll ever succeeds.
+   */
+  initialProgress: Omit<StatusResponse, 'status'>;
   /**
    * When a part-payment stops being toppable-up, pre-formatted server-side.
    * Null until money has been seen, since the clock starts then.
@@ -98,20 +151,33 @@ export function BitcoinCheckout({
   amountBtc,
   amountFiat,
   initialStatus,
+  initialProgress,
   topUpDeadline,
 }: BitcoinCheckoutProps) {
   const [progress, setProgress] = useState<StatusResponse>({
     status: initialStatus,
-    confirmations: 0,
-    confirmedSats: 0,
-    pendingSats: 0,
-    shortfallSats: 0,
-    topUpUri: null,
-    requiredConfirmations: 0,
-    underpaid: false,
-    overpaid: false,
+    ...initialProgress,
   });
+  /**
+   * Whether what we're showing came from the server rather than from a guess.
+   *
+   * Starts true because `initialProgress` is the server's own figures. Only a
+   * run of consecutive poll failures clears it — one blip on a five-second
+   * interval is not worth alarming anyone about, but a sustained inability to
+   * reach the status route must not keep rendering stale numbers as though
+   * they were current.
+   */
+  const [pollFailures, setPollFailures] = useState(0);
   const [copied, setCopied] = useState(false);
+  /**
+   * What the chain has actually seen at this address, confirmed or not.
+   *
+   * Shown on the closed-order panels: a customer whose part-payment ran out of
+   * time, or whose payment landed after the window, is the one person who most
+   * needs to know an amount and an address — and those panels used to offer a
+   * single sentence and a link to an empty cart.
+   */
+  const sentSats = progress.confirmedSats + progress.pendingSats;
   const { status } = progress;
   const countdown = useCountdown(status === 'awaiting' ? expiresAt : null);
   // The rate lock has run out, but the order hasn't: the customer needs a
@@ -150,16 +216,25 @@ export function BitcoinCheckout({
     async function poll() {
       try {
         const res = await fetch(`/api/orders/${orderId}/status`, { cache: 'no-store' });
-        if (!res.ok) return;
+        // A 429 or a 5xx used to be swallowed entirely, leaving whatever was on
+        // screen looking current. Counted instead, so sustained failure can be
+        // said out loud rather than papered over with stale numbers.
+        if (!res.ok) {
+          if (!cancelled) setPollFailures((n) => n + 1);
+          return;
+        }
         const data = (await res.json()) as StatusResponse;
         if (cancelled) return;
         setProgress(data);
+        setPollFailures(0);
         if (shouldRefreshOnStatusChange(lastStatusRef.current, data.status)) {
           router.refresh();
         }
         lastStatusRef.current = data.status;
       } catch {
-        // transient network error — next interval retries
+        // Offline, DNS, a dropped connection. Same treatment as a bad status:
+        // the next interval retries, and a run of them is surfaced.
+        if (!cancelled) setPollFailures((n) => n + 1);
       }
     }
 
@@ -203,9 +278,23 @@ export function BitcoinCheckout({
       {status === 'failed' && (
         <div className={styles.stack}>
           <p className={styles.message}>This payment could not be completed.</p>
-          <Link href="/cart">
-            <Button variant="secondary">Back to cart</Button>
-          </Link>
+          {/* If they sent anything, say so and say where it went.
+              This panel used to be one sentence and a "Back to cart" button,
+              for an outcome where a part-paying customer's bitcoin is
+              irrecoverably gone — no amount, no address, no way to ask about
+              it. The figures are already on the page; withholding them helps
+              nobody. */}
+          {sentSats > 0 && (
+            <>
+              <p className={styles.message}>
+                We received <strong>{satsToBtcString(sentSats)} BTC</strong> at the address
+                below before the payment window closed. Get in touch with your order id and
+                we&apos;ll look at it with you.
+              </p>
+              <code className={styles.address}>{address}</code>
+            </>
+          )}
+          <ReorderPrompt />
         </div>
       )}
 
@@ -214,9 +303,20 @@ export function BitcoinCheckout({
           <p className={styles.message}>
             This payment window has expired. Please start checkout again.
           </p>
-          <Link href="/cart">
-            <Button variant="secondary">Back to cart</Button>
-          </Link>
+          {/* Same reasoning as the failed panel. Telling someone who paid
+              a few minutes late to "start checkout again" — with no mention of
+              the money already at the address — invites them to pay twice. */}
+          {sentSats > 0 && (
+            <>
+              <p className={styles.message}>
+                We received <strong>{satsToBtcString(sentSats)} BTC</strong> at the address
+                below. Don&apos;t send anything further — get in touch with your order id and
+                we&apos;ll sort it out.
+              </p>
+              <code className={styles.address}>{address}</code>
+            </>
+          )}
+          <ReorderPrompt />
         </div>
       )}
 
@@ -282,13 +382,15 @@ export function BitcoinCheckout({
                 <p className={styles.message}>
                   {status !== 'confirming'
                     ? 'Send exactly this amount to the address below.'
-                    : progress.confirmedSats === 0 && progress.pendingSats > 0
-                      ? /* In the mempool, not yet in a block. "0 of 3
-                           confirmations" is true but reads like nothing has
-                           happened, at the exact moment the customer most wants
-                           to hear that their money arrived. */
-                        'Payment seen — it’s waiting to be included in a block. No further payment is needed; this page will update on its own.'
-                      : `Payment seen, waiting for confirmations… (${progress.confirmations} of ${progress.requiredConfirmations}). No further payment is needed.`}
+                    : confirmingCopy(
+                        confirmingMessage({
+                          confirmedSats: progress.confirmedSats,
+                          pendingSats: progress.pendingSats,
+                          confirmations: progress.confirmations,
+                          requiredConfirmations: progress.requiredConfirmations,
+                          stale: pollFailures >= STALE_AFTER_FAILED_POLLS,
+                        }),
+                      )}
                 </p>
               )}
 

@@ -49,3 +49,49 @@ export function shouldRefreshOnStatusChange(
 ): boolean {
   return lastStatus !== null && lastStatus !== nextStatus;
 }
+
+/**
+ * What the widget's confirming panel should say.
+ *
+ * Extracted from the JSX because the wrong answer here costs a customer real
+ * money and there was no way to test it in place. The failure: the widget
+ * seeded its state with `requiredConfirmations: 0, underpaid: false` and
+ * swallowed failed polls (`if (!res.ok) return`), so an underpaid order whose
+ * status call never succeeded rendered
+ *
+ *   "Payment seen, waiting for confirmations… (0 of 0). No further payment is
+ *   needed."
+ *
+ * — with no balance, no address and no QR, at a customer who owed money and
+ * had 48 hours to send it. Seeding from the server's own figures fixes the
+ * common case; `stale` covers the rest, because "we can't reach the server" and
+ * "nothing more is needed" must never look alike.
+ */
+export type ConfirmingMessage =
+  | { kind: 'stale' }
+  | { kind: 'in-mempool' }
+  | { kind: 'confirming'; confirmations: number; requiredConfirmations: number };
+
+export function confirmingMessage(input: {
+  confirmedSats: number;
+  pendingSats: number;
+  confirmations: number;
+  requiredConfirmations: number;
+  /** No status response has landed yet, or the last few failed. */
+  stale: boolean;
+}): ConfirmingMessage {
+  // Checked first: with no fresh data every other branch is a guess, and the
+  // reassuring one ("no further payment is needed") is the dangerous guess.
+  if (input.stale) return { kind: 'stale' };
+
+  // In a block is not the same as in the mempool, and "0 of 3 confirmations"
+  // reads as nothing having happened at the moment the customer most wants to
+  // hear their money arrived.
+  if (input.confirmedSats === 0 && input.pendingSats > 0) return { kind: 'in-mempool' };
+
+  return {
+    kind: 'confirming',
+    confirmations: input.confirmations,
+    requiredConfirmations: input.requiredConfirmations,
+  };
+}

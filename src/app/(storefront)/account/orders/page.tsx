@@ -73,7 +73,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
                       </td>
                       <td>
                         <Link href={`/account/orders/${order.id}`} className={styles.cellLink}>
-                          {Money.of(order.amountMinor, order.currency).toString()}
+                          {Money.of(order.amountMinor, order.currency).toDisplayString()}
                         </Link>
                       </td>
                       <td>
