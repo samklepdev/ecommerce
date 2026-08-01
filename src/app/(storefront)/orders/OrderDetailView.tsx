@@ -11,6 +11,7 @@ import { env } from '@/config/env';
 import type { OrderDetail } from '@/modules/orders/application/ports/order-history-repository';
 import type { SupplierOrderSummary } from '@/modules/orders/application/ports/supplier-order-repository';
 import type { PaymentSession } from '@/modules/payments/application/use-cases/get-payment-session-for-order';
+import type { PaymentProgress } from '@/modules/payments/application/use-cases/get-payment-progress';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
 import { Card } from '@/components/ui/Card';
@@ -26,6 +27,15 @@ interface OrderDetailViewProps {
   order: OrderDetail;
   shipments: SupplierOrderSummary[];
   paymentSession: PaymentSession | null;
+  /**
+   * The server's view of the payment, handed to the widget as its first frame.
+   *
+   * Without it the widget painted zeros until a poll landed — and swallowed
+   * failed polls, so an underpaid order whose status route was unreachable
+   * told the customer "(0 of 0). No further payment is needed" while they
+   * owed money on a 48-hour clock.
+   */
+  paymentProgress?: PaymentProgress | null;
   backHref: string;
   backLabel: string;
   /** Only passed by callers that offer cancellation (both storefront order
@@ -55,6 +65,7 @@ export function OrderDetailView({
   order,
   shipments,
   paymentSession,
+  paymentProgress = null,
   backHref,
   backLabel,
   cancelAction,
@@ -73,7 +84,16 @@ export function OrderDetailView({
   // above it are the breakdown; this is the number that has to match the
   // confirmation email and the customer's wallet.
   const total = Money.of(order.amountMinor, order.currency);
-  const trackedShipments = shipments.filter((s) => s.trackingNumber);
+  /**
+   * Only parcels that actually shipped.
+   *
+   * Filtering on the tracking number alone showed a live tracking link for a
+   * supplier order that had a number entered and was then cancelled, or one
+   * where an admin pasted a number before marking it shipped — a parcel the
+   * customer was never emailed about and which is not coming. The shipment
+   * email has always filtered on both; this now matches it.
+   */
+  const trackedShipments = shipments.filter((s) => s.status === 'shipped' && s.trackingNumber);
   /**
    * When a part-payment stops being toppable-up.
    *
@@ -148,6 +168,16 @@ export function OrderDetailView({
             amountBtc={satsToBtcString(paymentSession.expectedSats)}
             amountFiat={total.toDisplayString()}
             initialStatus={toWidgetStatus(order.paymentStatus)}
+            initialProgress={{
+              confirmations: paymentProgress?.confirmations ?? 0,
+              requiredConfirmations: paymentProgress?.requiredConfirmations ?? 0,
+              confirmedSats: paymentProgress?.confirmedSats ?? 0,
+              pendingSats: paymentProgress?.pendingSats ?? 0,
+              shortfallSats: paymentProgress?.shortfallSats ?? 0,
+              topUpUri: paymentProgress?.topUpUri ?? null,
+              underpaid: paymentProgress?.underpaid ?? false,
+              overpaid: paymentProgress?.overpaid ?? false,
+            }}
             topUpDeadline={topUpDeadline}
           />
         )}

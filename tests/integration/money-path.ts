@@ -178,6 +178,7 @@ export function buildMoneyPath(
     paymentConfirmationEmail: notifier,
     getOrderDetail: { execute: unexpected('getOrderDetail') },
     underpaymentEmail: { notifyUnderpaid: unexpected('underpaymentEmail') },
+    shipmentEmail: { notifyShipped: unexpected('shipmentEmail') },
     sendOrderConfirmationEmail: { execute: unexpected('sendOrderConfirmationEmail') },
     sendWelcomeEmail: { execute: unexpected('sendWelcomeEmail') },
     requestEmailVerification: { execute: unexpected('requestEmailVerification') },

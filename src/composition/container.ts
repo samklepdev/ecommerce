@@ -90,6 +90,7 @@ import { BullMqJobQueue } from '@/shared/infrastructure/queue/bullmq-job-queue';
 import type { JobQueue } from '@/shared/application/ports/job-queue';
 import { EmailPaymentConfirmationNotifier } from '@/modules/orders/infrastructure/email-payment-confirmation-notifier';
 import { EmailShipmentNotifier } from '@/modules/orders/infrastructure/email-shipment-notifier';
+import { QueuedShipmentNotifier } from '@/modules/orders/infrastructure/queued-shipment-notifier';
 
 import { DrizzleProductRepository } from '@/modules/catalog/infrastructure/drizzle-product-repository';
 import { DrizzleCategoryRepository } from '@/modules/catalog/infrastructure/drizzle-category-repository';
@@ -239,6 +240,7 @@ export interface Container {
   jobQueue: JobQueue;
   paymentConfirmationEmail: EmailPaymentConfirmationNotifier;
   underpaymentEmail: EmailUnderpaymentNotifier;
+  shipmentEmail: EmailShipmentNotifier;
   getStoreAvailability: GetStoreAvailability;
   setStoreAvailability: SetStoreAvailability;
   assertStoreOpenForCheckout: AssertStoreOpenForCheckout;
@@ -699,12 +701,23 @@ function build(): Container {
   const markSupplierOrderOrdered = new MarkSupplierOrderOrdered(supplierOrders);
   // Bulk marking delegates to this same use case per id, so the shipment
   // email is wired once and can't be forgotten on the bulk path.
-  const shipmentNotifier = new EmailShipmentNotifier(
+  /**
+   * Two halves of the same port, like the underpayment pair below: the queued
+   * one is what the admin action calls, the email one is what the job handler
+   * calls.
+   *
+   * This was the only order email sent inline. A provider blip lost the
+   * tracking number for good — no retry, and no entry in the failed set to
+   * find it in — and it is the one message the payment-confirmed email
+   * explicitly promises.
+   */
+  const shipmentEmail = new EmailShipmentNotifier(
     orders,
     supplierOrders,
     emailSender,
     env.APP_URL,
   );
+  const shipmentNotifier = new QueuedShipmentNotifier(jobQueue);
   const markSupplierOrderShipped = new MarkSupplierOrderShipped(
     supplierOrders,
     orders,
@@ -817,6 +830,7 @@ function build(): Container {
     jobQueue,
     paymentConfirmationEmail,
     underpaymentEmail,
+    shipmentEmail,
     getStoreAvailability,
     setStoreAvailability,
     assertStoreOpenForCheckout,

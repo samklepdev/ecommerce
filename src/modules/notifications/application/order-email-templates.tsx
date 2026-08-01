@@ -87,7 +87,10 @@ export function PaymentConfirmedEmail({
         {shortId(orderId)}.
       </Text>
       <Text style={emailStyles.paragraph}>
-        We order from our supplier next. Expect a tracking number by email within 24–48
+        {/* Never name suppliers or sourcing on a customer surface — how stock is
+            obtained is not the customer's business and not a promise we want to
+            make. This is the only such string that had reached one. */}
+        We&apos;re preparing your order now. Expect a tracking number by email within 24–48
         hours — if it hasn&apos;t arrived by then, email{' '}
         <Link href={`mailto:${supportEmail}`} style={emailStyles.link}>
           {supportEmail}
@@ -183,8 +186,14 @@ export function UnderpaidEmail({
         <Text style={emailStyles.paragraph}>
           <strong>Please send it by {topUpDeadline}.</strong> After that we can no longer hold
           the order open, and we can&apos;t return what has already been sent — Bitcoin
-          payments can&apos;t be reversed. If you can&apos;t pay the balance in time, reply to
-          this email and we&apos;ll sort something out.
+          payments can&apos;t be reversed. If you can&apos;t pay the balance in time, email{' '}
+          {/* Not "reply to this email": outbound mail sets no reply-to, as this
+              file's own note on `supportEmail` says — so on the one path where
+              the customer is about to lose money, that pointed at nothing. */}
+          <Link href={`mailto:${supportEmail}`} style={emailStyles.link}>
+            {supportEmail}
+          </Link>{' '}
+          and we&apos;ll sort something out.
         </Text>
       )}
       <Text style={emailStyles.paragraph}>

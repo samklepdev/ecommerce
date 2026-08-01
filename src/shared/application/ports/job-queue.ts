@@ -18,6 +18,14 @@ export interface JobPayloads {
   'email.verification': { userId: string; email: string };
   'email.payment-confirmed': { orderId: string };
   'email.underpaid': { orderId: string };
+  /**
+   * The tracking email. Queued like the rest, because it is the one message
+   * `PaymentConfirmedEmail` explicitly promises ("a tracking number by email
+   * within 24-48 hours") and it was the only order email sent inline — a
+   * provider blip lost it silently, with nothing to retry and no dead-letter
+   * entry to find it in.
+   */
+  'email.shipment': { orderId: string };
   'fulfillment.create-supplier-orders': { orderId: string };
 }
 

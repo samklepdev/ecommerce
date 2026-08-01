@@ -19,7 +19,8 @@ interface PublicOrderDetailPageProps {
  */
 export default async function PublicOrderDetailPage({ params }: PublicOrderDetailPageProps) {
   const { id } = await params;
-  const { getOrderDetail, getPaymentSessionForOrder, getShipmentsForOrder } = getContainer();
+  const { getOrderDetail, getPaymentSessionForOrder, getShipmentsForOrder, getPaymentProgress } =
+    getContainer();
 
   const order = await getOrderDetail.execute({ orderId: id });
   if (!order) notFound();
@@ -32,12 +33,16 @@ export default async function PublicOrderDetailPage({ params }: PublicOrderDetai
   // anxious moment of an irreversible purchase. It's null only when the
   // order never had a BTC intent at all.
   const paymentSession = await getPaymentSessionForOrder.execute({ orderId: order.id });
+  // Handed to the widget as its first frame, so it never paints zeros at a
+  // customer who owes a balance.
+  const paymentProgress = await getPaymentProgress.execute({ orderId: order.id });
 
   return (
     <OrderDetailView
       order={order}
       shipments={shipments}
       paymentSession={paymentSession}
+      paymentProgress={paymentProgress}
       backHref="/"
       backLabel="Back to store"
       cancelAction={cancelOrderByIdAction}
