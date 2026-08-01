@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { DrizzleOrderRepository } from './drizzle-order-repository';
+import { eq } from 'drizzle-orm';
+
 import {
+  orderEvents,
   orderLines,
   orders,
   supplierOrderLines,
@@ -20,6 +23,72 @@ import { useTestInfrastructure } from '../../../../tests/integration/harness';
  * A fake repository would be a second implementation of that logic and could
  * not disagree with itself, which is why this runs against real SQL.
  */
+/**
+ * The compare-and-set that stops an admin's Fail click from overwriting a
+ * payment that confirmed a moment earlier. The guard is a SQL `WHERE` clause,
+ * so only real SQL can prove it — a fake repository would just be a second
+ * implementation of the same rule.
+ */
+describe('setPaymentStatus compare-and-set (integration)', () => {
+  const { db } = useTestInfrastructure();
+  const repo = () => new DrizzleOrderRepository(db as DB);
+
+  let n = 0;
+  async function seedOrder(paymentStatus: string) {
+    n += 1;
+    const id = `cas-order-${n}`;
+    await db.insert(orders).values({
+      id,
+      currency: 'USD',
+      amountMinor: 1999,
+      shippingAmountMinor: 0,
+      discountAmountMinor: 0,
+      customerEmail: 'buyer@example.com',
+      paymentStatus,
+    });
+    return id;
+  }
+
+  async function statusOf(id: string) {
+    const [row] = await db.select({ s: orders.paymentStatus }).from(orders).where(eq(orders.id, id));
+    return row?.s;
+  }
+
+  it('applies when the row is still in the expected status', async () => {
+    const id = await seedOrder('awaiting_confirmation');
+
+    expect(await repo().setPaymentStatus(id, 'failed', 'awaiting_confirmation')).toBe(true);
+    expect(await statusOf(id)).toBe('failed');
+  });
+
+  it('refuses, and changes nothing, when the row has moved on', async () => {
+    // The race: the admin read `awaiting_confirmation`, but the watcher has
+    // since written `paid`. The write must not land.
+    const id = await seedOrder('paid');
+
+    expect(await repo().setPaymentStatus(id, 'failed', 'awaiting_confirmation')).toBe(false);
+    expect(await statusOf(id)).toBe('paid');
+  });
+
+  it('does not record a status event for a write that did not apply', async () => {
+    // A rejected write must leave no trace in the order's timeline either —
+    // otherwise the customer-visible history claims a transition that never
+    // happened.
+    const id = await seedOrder('paid');
+    await repo().setPaymentStatus(id, 'failed', 'awaiting_confirmation');
+
+    const events = await db
+      .select({ t: orderEvents.eventType })
+      .from(orderEvents)
+      .where(eq(orderEvents.orderId, id));
+    expect(events).toEqual([]);
+  });
+
+  it('reports false for an order that does not exist', async () => {
+    expect(await repo().setPaymentStatus('no-such-order', 'failed', 'pending')).toBe(false);
+  });
+});
+
 describe('findPaidOrderIdsWithUnattemptedLines (integration)', () => {
   const { db } = useTestInfrastructure();
   const repo = () => new DrizzleOrderRepository(db as DB);

@@ -39,19 +39,26 @@ export async function failOrderAction(
   _prevState: FailOrderActionResult | undefined,
   formData: FormData,
 ): Promise<FailOrderActionResult> {
-  const admin = await requireAdmin();
+  // Sudo-gated. Removing refunds took the other sudo-gated money action with
+  // it, and this is now the button that ends a part-paying customer's window to
+  // top up — after which their money is gone, because `failed` is terminal.
+  const sudo = await requireRecentAdminAuth();
+  if (!sudo.ok) return { error: sudo.reason };
+  const admin = sudo.admin;
   const parsed = FailOrderSchema.safeParse({ orderId: formData.get('orderId') });
   if (!parsed.success) return { error: 'Missing order.' };
 
   const { failOrder, recordAuditLogEntry } = getContainer();
   const result = await failOrder.execute({ orderId: parsed.data.orderId });
   if (isErr(result)) {
-    return {
-      error:
-        result.error.code === 'not_found'
-          ? 'Order not found.'
-          : 'This order cannot be marked failed from its current status.',
+    const messages: Record<typeof result.error.code, string> = {
+      not_found: 'Order not found.',
+      illegal_transition: 'This order cannot be marked failed from its current status.',
+      // The important one: a payment landed while this screen was open.
+      changed_underneath:
+        'This order changed while you were looking at it — a payment may have just confirmed. Reload before trying again.',
     };
+    return { error: messages[result.error.code] };
   }
 
   await recordAuditLogEntry.execute({

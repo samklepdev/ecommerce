@@ -10,7 +10,9 @@ function makeFakeOrders(status: PaymentStatus | null) {
     async getPaymentStatus() {
       return status;
     },
-    async setPaymentStatus() {},
+    async setPaymentStatus() {
+      return true;
+    },
     async recordPaymentRecovery() {},
   };
   return repo;

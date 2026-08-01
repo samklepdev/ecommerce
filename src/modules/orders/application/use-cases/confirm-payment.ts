@@ -83,7 +83,17 @@ export class ConfirmPayment implements UseCase<ConfirmPaymentInput, void> {
       await this.orders.recordPaymentRecovery(input.orderId, 'cancelled');
     }
     if (!alreadyPaid) {
-      await this.orders.setPaymentStatus(input.orderId, 'paid');
+      const applied = await this.orders.setPaymentStatus(input.orderId, 'paid', status);
+      if (!applied) {
+        // Something moved the order between the read above and here. Bail
+        // without marking the event seen, so the next watcher pass re-reads and
+        // decides afresh rather than acting on a status that is now stale.
+        logger.warn('confirm-payment: order changed under us, retrying next pass', {
+          orderId: input.orderId,
+          expectedFrom: status,
+        });
+        return;
+      }
     }
 
     /**
