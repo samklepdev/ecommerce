@@ -51,7 +51,10 @@ const PAYMENT_TRANSITIONS: Record<PaymentStatus, readonly PaymentStatus[]> = {
 const FULFILLMENT_TRANSITIONS: Record<FulfillmentStatus, readonly FulfillmentStatus[]> = {
   unfulfilled: ['processing', 'cancelled'],
   processing: ['shipped', 'cancelled'],
-  shipped: ['delivered'],
+  // `cancelled` from `shipped` covers a parcel lost in transit. Without it the
+  // only way out is `delivered`, and recording a lost parcel as delivered puts
+  // a lie in the durable record — the one place that has to stay true.
+  shipped: ['delivered', 'cancelled'],
   delivered: [],
   cancelled: [],
 };

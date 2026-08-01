@@ -31,6 +31,7 @@ import { GetRevenueSummary } from '@/modules/orders/application/use-cases/get-re
 import { FailStuckAwaitingConfirmationOrders } from '@/modules/orders/application/use-cases/fail-stuck-awaiting-confirmation-orders';
 import { ReconcileUnsourcedPaidOrders } from '@/modules/orders/application/use-cases/reconcile-unsourced-paid-orders';
 import { FailOrder } from '@/modules/orders/application/use-cases/fail-order';
+import { CancelOrderFulfillment } from '@/modules/orders/application/use-cases/cancel-order-fulfillment';
 import { PlaceOrder } from '@/modules/orders/application/use-cases/place-order';
 import { DrizzleCouponRepository } from '@/modules/coupons/infrastructure/drizzle-coupon-repository';
 import { CreateCoupon } from '@/modules/coupons/application/use-cases/create-coupon';
@@ -356,6 +357,7 @@ export interface Container {
   confirmPayment: ConfirmPayment;
   markOrderRefunded: MarkOrderRefunded;
   markOrderDelivered: MarkOrderDelivered;
+  cancelOrderFulfillment: CancelOrderFulfillment;
   cancelOrder: CancelOrder;
   markAwaitingConfirmation: MarkAwaitingConfirmation;
   updateOrderNotes: UpdateOrderNotes;
@@ -703,6 +705,7 @@ function build(): Container {
   const confirmPayment = new ConfirmPayment(orders, processed, fulfillment, paymentConfirmationNotifier);
   const markOrderRefunded = new MarkOrderRefunded(orders);
   const markOrderDelivered = new MarkOrderDelivered(orders);
+  const cancelOrderFulfillment = new CancelOrderFulfillment(orders);
   const cancelOrder = new CancelOrder(orders, paymentStore);
   const markAwaitingConfirmation = new MarkAwaitingConfirmation(orders);
   const updateOrderNotes = new UpdateOrderNotes(orders);
@@ -872,6 +875,7 @@ function build(): Container {
     confirmPayment,
     markOrderRefunded,
     markOrderDelivered,
+    cancelOrderFulfillment,
     cancelOrder,
     markAwaitingConfirmation,
     updateOrderNotes,

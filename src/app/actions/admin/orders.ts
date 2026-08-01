@@ -101,6 +101,69 @@ export async function failOrderAction(
   return { message: 'Order marked failed.' };
 }
 
+const CancelOrderFulfillmentSchema = z.object({
+  orderId: z.string().min(1),
+  /** Recorded in the audit log, never shown to the customer. */
+  reason: z.string().trim().min(1).max(500),
+});
+
+export interface CancelOrderFulfillmentActionResult {
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Closes out an order the shop is not going to fulfil — goods that can't be
+ * obtained, or a parcel lost in transit.
+ *
+ * Sudo-gated like a refund, and for the same reason: on a paid order this is
+ * terminal and the customer has already parted with money. A reason is required
+ * because "why" is the only part of this a human will need later, and it goes to
+ * the audit log — **not** to the customer, who is never told anything about how
+ * we obtain stock.
+ *
+ * Payment status is deliberately untouched: if they paid, they paid.
+ */
+export async function cancelOrderFulfillmentAction(
+  _prevState: CancelOrderFulfillmentActionResult | undefined,
+  formData: FormData,
+): Promise<CancelOrderFulfillmentActionResult> {
+  const sudo = await requireRecentAdminAuth();
+  if (!sudo.ok) return { error: sudo.reason };
+  const admin = sudo.admin;
+
+  const parsed = CancelOrderFulfillmentSchema.safeParse({
+    orderId: formData.get('orderId'),
+    reason: formData.get('reason'),
+  });
+  if (!parsed.success) return { error: 'Give a reason for cancelling this order.' };
+
+  const { cancelOrderFulfillment, recordAuditLogEntry } = getContainer();
+  const result = await cancelOrderFulfillment.execute({ orderId: parsed.data.orderId });
+  if (isErr(result)) {
+    return {
+      error:
+        result.error.code === 'not_found'
+          ? 'Order not found.'
+          : 'A delivered order cannot be cancelled.',
+    };
+  }
+
+  await recordAuditLogEntry.execute({
+    actorUserId: admin.id,
+    actorEmail: admin.email,
+    action: 'order.fulfillment_cancelled',
+    targetType: 'order',
+    targetId: parsed.data.orderId,
+    metadata: { reason: parsed.data.reason },
+  });
+
+  revalidatePath(`/admin/orders/${parsed.data.orderId}`);
+  revalidatePath('/admin/orders');
+  revalidatePath('/admin/fulfillment');
+  return { message: 'Order cancelled. The customer has not been notified automatically.' };
+}
+
 const MarkOrderDeliveredSchema = z.object({
   orderId: z.string().min(1),
 });

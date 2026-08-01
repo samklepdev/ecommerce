@@ -67,7 +67,10 @@ const FULFILLMENT_STATUSES: FulfillmentStatus[] = [
 const LEGAL_FULFILLMENT_TRANSITIONS: Record<FulfillmentStatus, FulfillmentStatus[]> = {
   unfulfilled: ['processing', 'cancelled'],
   processing: ['shipped', 'cancelled'],
-  shipped: ['delivered'],
+  // A parcel can go missing in transit. Without an exit from `shipped` the
+  // order sits there for good — the only other route out is `delivered`, and
+  // marking a lost parcel delivered is a lie in the durable record.
+  shipped: ['delivered', 'cancelled'],
   delivered: [],
   cancelled: [],
 };
