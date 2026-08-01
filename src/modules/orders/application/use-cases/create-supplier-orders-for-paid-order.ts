@@ -147,7 +147,14 @@ export class CreateSupplierOrdersForPaidOrder
     const fulfillmentStatus = await this.orderFulfillment.getFulfillmentStatus(input.orderId);
     if (fulfillmentStatus === 'unfulfilled') {
       assertFulfillmentTransition(paymentStatus, fulfillmentStatus, 'processing');
-      await this.orderFulfillment.setFulfillmentStatus(input.orderId, 'processing');
+      // Guarded on the status just read. Losing the race means something else
+      // advanced or cancelled the order, and either way `processing` is no
+      // longer the right thing to say about it.
+      await this.orderFulfillment.setFulfillmentStatus(
+        input.orderId,
+        'processing',
+        fulfillmentStatus,
+      );
     }
   }
 }

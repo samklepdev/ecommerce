@@ -6,7 +6,7 @@ import { getContainer } from '@/composition/container';
 import { isStoreOpen, STORE_CLOSED_MESSAGE } from '@/app/lib/store-open';
 import { isHoneypotTripped } from '@/app/lib/honeypot';
 import { getSessionUser } from '@/app/lib/session';
-import { checkRateLimit, getClientIp, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
+import { checkRateLimit, getClientIp, ipKeySegment, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
 
 const InquirySchema = z.object({
   subject: z.string().min(3).max(140),
@@ -46,7 +46,7 @@ export async function submitInquiryAction(
   }
 
   const ip = await getClientIp();
-  const limit = await checkRateLimit(`inquiry:${ip}`, 5, 60 * 60);
+  const limit = await checkRateLimit(`inquiry:${ipKeySegment(ip)}`, 5, 60 * 60);
   if (!limit.allowed) return { error: tooManyAttemptsMessage(limit.retryAfterSeconds) };
 
   const user = await getSessionUser();

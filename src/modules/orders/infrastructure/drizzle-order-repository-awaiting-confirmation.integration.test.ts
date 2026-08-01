@@ -141,3 +141,88 @@ describe('markAwaitingConfirmation (integration)', () => {
     expect(events).toEqual([]);
   });
 });
+
+/**
+ * `setFulfillmentStatus`'s compare-and-set.
+ *
+ * Every payment-status write in this repository is guarded on the status the
+ * caller read, and every caller acts on the boolean. Fulfillment was the sole
+ * exception: an unguarded `UPDATE ... WHERE id = ?` returning `void`, with all
+ * five callers reading, awaiting, then writing.
+ *
+ * The interleaving that matters: an admin cancels an order (`shipped ->
+ * cancelled`, a parcel lost in transit) while the shipment worker marks the
+ * same order delivered. Both read `shipped`, both pass
+ * `assertFulfillmentTransition`, and the later write wins — so a lost parcel
+ * is recorded as delivered, which is exactly the lie the `shipped ->
+ * cancelled` edge was added to prevent.
+ */
+describe('setFulfillmentStatus compare-and-set (integration)', () => {
+  const { db } = useTestInfrastructure();
+  const repo = () => new DrizzleOrderRepository(db as DB);
+
+  let n = 0;
+  async function seedOrder(fulfillmentStatus: string) {
+    n += 1;
+    const id = `fcas-order-${n}`;
+    await db.insert(orders).values({
+      id,
+      currency: 'USD',
+      amountMinor: 1999,
+      shippingAmountMinor: 0,
+      discountAmountMinor: 0,
+      customerEmail: 'buyer@example.com',
+      paymentStatus: 'paid',
+      fulfillmentStatus,
+    });
+    return id;
+  }
+
+  async function fulfillmentOf(id: string) {
+    const [row] = await db
+      .select({ s: orders.fulfillmentStatus })
+      .from(orders)
+      .where(eq(orders.id, id));
+    return row?.s;
+  }
+
+  it('applies when the row is still in the status the caller read', async () => {
+    const id = await seedOrder('shipped');
+
+    expect(await repo().setFulfillmentStatus(id, 'delivered', 'shipped')).toBe(true);
+    expect(await fulfillmentOf(id)).toBe('delivered');
+  });
+
+  it('refuses, and changes nothing, when the row has moved on', async () => {
+    // The race: the worker read `shipped`, but an admin has since cancelled.
+    const id = await seedOrder('cancelled');
+
+    expect(await repo().setFulfillmentStatus(id, 'delivered', 'shipped')).toBe(false);
+    expect(await fulfillmentOf(id)).toBe('cancelled');
+  });
+
+  it('does not record a status event for a write that did not apply', async () => {
+    // A rejected write must leave no trace in the order's timeline either —
+    // otherwise the history claims a transition that never happened.
+    const id = await seedOrder('cancelled');
+    await repo().setFulfillmentStatus(id, 'delivered', 'shipped');
+
+    const events = await db
+      .select({ status: orderEvents.status })
+      .from(orderEvents)
+      .where(eq(orderEvents.orderId, id));
+    expect(events).toEqual([]);
+  });
+
+  it('records one event for a write that did apply', async () => {
+    const id = await seedOrder('processing');
+
+    await repo().setFulfillmentStatus(id, 'shipped', 'processing');
+
+    const events = await db
+      .select({ status: orderEvents.status })
+      .from(orderEvents)
+      .where(eq(orderEvents.orderId, id));
+    expect(events.map((e) => e.status)).toEqual(['shipped']);
+  });
+});

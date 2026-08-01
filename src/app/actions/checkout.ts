@@ -9,7 +9,7 @@ import { jobIdFor } from '@/shared/application/ports/job-queue';
 import { isErr } from '@/shared/domain/result';
 import { logger } from '@/shared/infrastructure/logger';
 import { getSessionUser, resolveCartOwner } from '@/app/lib/session';
-import { checkRateLimit, getClientIp, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
+import { checkRateLimit, getClientIp, ipKeySegment, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
 import { addressFieldSchemas, countrySchema, postalCodeSchema, refineAddress } from '@/app/lib/address-schema';
 
 const StartCheckoutSchema = z
@@ -66,7 +66,7 @@ export async function startCheckoutAction(
   if (!parsed.success) return { error: 'Please fill in a valid email and shipping address.' };
 
   const ip = await getClientIp();
-  const checkoutLimit = await checkRateLimit(`checkout-start:${ip}`, 10, 60 * 60);
+  const checkoutLimit = await checkRateLimit(`checkout-start:${ipKeySegment(ip)}`, 10, 60 * 60);
   if (!checkoutLimit.allowed) {
     return { error: tooManyAttemptsMessage(checkoutLimit.retryAfterSeconds) };
   }

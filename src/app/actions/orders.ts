@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { isErr } from '@/shared/domain/result';
 import { getContainer } from '@/composition/container';
 import { requireUser, resolveCartOwner } from '@/app/lib/session';
-import { checkRateLimit, getClientIp, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
+import { checkRateLimit, getClientIp, ipKeySegment, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
 
 const CancelOrderSchema = z.object({
   orderId: z.string().min(1),
@@ -135,7 +135,7 @@ export async function findOrderAction(
   if (!parsed.success) return { error: 'Enter a valid email address.' };
 
   const ip = await getClientIp();
-  const limit = await checkRateLimit(`find-order:${ip}:${parsed.data.email}`, 3, 60 * 60);
+  const limit = await checkRateLimit(`find-order:${ipKeySegment(ip)}:${parsed.data.email}`, 3, 60 * 60);
   if (!limit.allowed) return { error: tooManyAttemptsMessage(limit.retryAfterSeconds) };
 
   const { resendOrderConfirmations } = getContainer();
@@ -166,7 +166,7 @@ export async function refreshPaymentQuoteAction(
   if (!parsed.success) return { error: 'Missing order.' };
 
   const ip = await getClientIp();
-  const limit = await checkRateLimit(`refresh-quote:${ip}:${parsed.data.orderId}`, 10, 15 * 60);
+  const limit = await checkRateLimit(`refresh-quote:${ipKeySegment(ip)}:${parsed.data.orderId}`, 10, 15 * 60);
   if (!limit.allowed) return { error: tooManyAttemptsMessage(limit.retryAfterSeconds) };
 
   const { refreshPaymentQuote } = getContainer();
@@ -226,7 +226,7 @@ export async function resumePaymentAction(
   if (!parsed.success) return { error: 'Missing order.' };
 
   const ip = await getClientIp();
-  const limit = await checkRateLimit(`resume-payment:${ip}:${parsed.data.orderId}`, 5, 15 * 60);
+  const limit = await checkRateLimit(`resume-payment:${ipKeySegment(ip)}:${parsed.data.orderId}`, 5, 15 * 60);
   if (!limit.allowed) return { error: tooManyAttemptsMessage(limit.retryAfterSeconds) };
 
   const { getOrderDetail, startCheckout } = getContainer();

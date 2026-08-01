@@ -78,7 +78,10 @@ export class MarkSupplierOrderShipped implements UseCase<MarkSupplierOrderShippe
       return true;
     }
 
-    await this.orders.setFulfillmentStatus(input.orderId, 'shipped');
+    // Guarded on the status read above, for the same reason the assert is:
+    // the parcel is already recorded as shipped, so a lost race here means the
+    // order has moved on and this advance no longer describes it.
+    await this.orders.setFulfillmentStatus(input.orderId, 'shipped', fulfillmentStatus);
     return true;
   }
 }

@@ -21,7 +21,13 @@ export type CreditLatePaymentError =
   /** Nothing was ever seen at this address after the order closed. */
   | { code: 'no_payment_to_credit' }
   /** The order isn't one the watcher has given up on. */
-  | { code: 'not_creditable' };
+  | { code: 'not_creditable' }
+  /**
+   * The credit did not apply — the order moved underneath this call, most
+   * likely the watcher settling it first. Nothing is wrong with the outcome,
+   * but this call didn't cause it and must not be audited as though it had.
+   */
+  | { code: 'not_credited' };
 
 /**
  * Credits bitcoin that arrived against an order the shop had already closed.
@@ -92,8 +98,24 @@ export class CreditLatePayment
       eventId: `late-payment-credited:${input.orderId}`,
     });
 
+    /**
+     * Confirm it actually landed before reporting success.
+     *
+     * `ConfirmPayment` returns `void` and has three silent early exits — the
+     * event id already seen, the order gone, and a lost compare-and-set (the
+     * watcher settling the same order between the read above and the write).
+     * Reporting `ok` regardless meant the action wrote an
+     * `order.late_payment_credited` audit entry and told the admin an amount
+     * had been credited for something this call had not done. The audit log is
+     * the record of who authorised moving money; an entry for a credit that
+     * didn't happen here is worse than no entry.
+     */
+    const after = await this.orders.getPaymentStatus(input.orderId);
+    if (after !== 'paid') return err({ code: 'not_credited' });
+
     // Drops the intent out of `listSweepable`, so a credited payment stops
-    // being reported as an unexplained balance.
+    // being reported as an unexplained balance. Only once the order really is
+    // paid — otherwise this would hide money that is still unexplained.
     await this.payments.markConfirmed(input.orderId);
 
     return ok({ creditedSats });
