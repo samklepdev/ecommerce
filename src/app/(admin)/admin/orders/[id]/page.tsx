@@ -8,8 +8,10 @@ import {
 import { requireAdmin } from '@/app/lib/session';
 import { OrderDetailView } from '@/app/(storefront)/orders/OrderDetailView';
 import { Badge } from '@/components/ui/Badge';
+import { satsToBtcString } from '@/modules/payments/domain/bip21';
 import { FailOrderButton } from './FailOrderButton';
 import { CancelOrderButton } from './CancelOrderButton';
+import { CreditLatePaymentButton } from './CreditLatePaymentButton';
 import { MarkDeliveredButton } from './MarkDeliveredButton';
 import { OrderNotesEditor } from './OrderNotesEditor';
 import { OrderEventsTimeline } from './OrderEventsTimeline';
@@ -30,19 +32,40 @@ export default async function AdminOrderDetailPage({ params }: AdminOrderDetailP
   await requireAdmin();
   const { id } = await params;
 
-  const { getOrderDetail, getShipmentsForOrder, listOrderEvents, listAllProductsForAdmin } =
-    getContainer();
+  const {
+    getOrderDetail,
+    getShipmentsForOrder,
+    listOrderEvents,
+    listAllProductsForAdmin,
+    getPaymentSessionForOrder,
+  } = getContainer();
 
   const order = await getOrderDetail.execute({ orderId: id });
   if (!order) notFound();
 
-  const [shipments, events, catalog] = await Promise.all([
+  const [shipments, events, catalog, paymentSession] = await Promise.all([
     getShipmentsForOrder.execute({ orderId: order.id }),
     listOrderEvents.execute({ orderId: order.id }),
     // The picker for "add a product to this order". Bounded — past this many
     // the answer is a search field, not a longer <select>.
     listAllProductsForAdmin.execute({ page: 1, pageSize: ADD_PRODUCT_CHOICES }),
+    // Read for the late-payment figure only. Deliberately not handed to
+    // `OrderDetailView` below: that renders the customer's polling checkout
+    // widget, which has no business running on an admin screen.
+    getPaymentSessionForOrder.execute({ orderId: order.id }),
   ]);
+
+  /**
+   * Bitcoin that turned up after this order closed. `SweepLatePayments` finds
+   * it and counts it on the dashboard but deliberately won't settle it — a
+   * closed order coming back to life is a business decision, so it is made
+   * here, by a person, with the amount in view.
+   */
+  const creditableSats =
+    (order.paymentStatus === 'expired' || order.paymentStatus === 'cancelled') &&
+    paymentSession?.latePaymentSats
+      ? paymentSession.latePaymentSats
+      : null;
 
   const linesEditable = areOrderLinesEditable(order.paymentStatus);
   const contactEditable = isOrderContactEditable(order.paymentStatus, order.fulfillmentStatus);
@@ -63,6 +86,12 @@ export default async function AdminOrderDetailPage({ params }: AdminOrderDetailP
       <div className={styles.actions}>
         {order.paymentRecoveredFrom && (
           <Badge tone="warning">Recovered from {order.paymentRecoveredFrom}</Badge>
+        )}
+        {creditableSats !== null && (
+          <CreditLatePaymentButton
+            orderId={order.id}
+            amountBtc={satsToBtcString(creditableSats)}
+          />
         )}
         <FailOrderButton orderId={order.id} paymentStatus={order.paymentStatus} />
         <MarkDeliveredButton orderId={order.id} fulfillmentStatus={order.fulfillmentStatus} />

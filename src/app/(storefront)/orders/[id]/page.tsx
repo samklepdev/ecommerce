@@ -42,6 +42,7 @@ export default async function PublicOrderDetailPage({ params }: PublicOrderDetai
       backLabel="Back to store"
       cancelAction={cancelOrderByIdAction}
       reorderAction={reorderOrderByIdAction}
+      offerResumePayment
     />
   );
 }

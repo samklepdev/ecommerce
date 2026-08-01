@@ -32,14 +32,33 @@ export class ExpireStaleCheckouts implements UseCase<void, void> {
     const orderIds = await this.orders.findExpiredAwaitingOrderIds(new Date());
 
     for (const orderId of orderIds) {
+      let expired = false;
       try {
-        await this.orders.tryExpire(orderId);
+        expired = await this.orders.tryExpire(orderId);
       } catch (e) {
         logger.error('expire-stale-checkouts failed for order', {
           orderId,
           error: e instanceof Error ? e.message : String(e),
         });
       }
+
+      /**
+       * Only if this pass actually expired the order.
+       *
+       * `tryExpire` is compare-and-set and reports whether it applied.
+       * Running the intent write regardless meant a pass that lost the race —
+       * a second worker, or a customer cancelling between the query and the
+       * write — still marked the intent `expired`. `listWatchable` returns
+       * only `awaiting` intents, so the order stayed open, still inviting a
+       * top-up, against an address nobody was polling any more. Nor would
+       * `SweepLatePayments` catch it: that keys off the *order's* terminal
+       * status, and an order this pass failed to expire isn't terminal.
+       *
+       * A throw is treated the same way, for a different reason: we don't
+       * know what happened, and the next pass will find the order again — but
+       * only if its intent is still watchable.
+       */
+      if (!expired) continue;
 
       // Separate try: the order is the record that matters, and its status
       // is already committed above. A failure updating the intent's

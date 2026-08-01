@@ -117,7 +117,13 @@ const storeAlwaysOpen = {
 export function buildMoneyPath(
   db: DB,
   redis: Redis,
-  options: { requiredConfirmations?: number; quoteTtlSeconds?: number } = {},
+  options: {
+    requiredConfirmations?: number;
+    quoteTtlSeconds?: number;
+    /** Hours the customer has to pay. Negative in tests that need an order
+     * whose deadline is already in the past. */
+    orderWindowHours?: number;
+  } = {},
 ) {
   const requiredConfirmations = options.requiredConfirmations ?? 3;
 
@@ -218,6 +224,7 @@ export function buildMoneyPath(
       // The real repository: the money path must exercise the availability
       // check the same way production does.
       supplierOffers,
+      options.orderWindowHours ?? 24,
     ),
     startCheckout: new StartCheckout(
       orders,

@@ -37,6 +37,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
       backLabel="Back to orders"
       cancelAction={cancelOwnOrderAction}
       reorderAction={reorderOwnOrderAction}
+      offerResumePayment
     />
   );
 }

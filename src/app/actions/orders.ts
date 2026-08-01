@@ -194,3 +194,68 @@ export async function refreshPaymentQuoteAction(
   revalidatePath(`/orders/${parsed.data.orderId}`);
   return { message: 'Price updated.' };
 }
+
+const ResumePaymentSchema = z.object({ orderId: z.string().min(1) });
+
+export interface ResumePaymentActionResult {
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Sets up payment for an order that has none.
+ *
+ * `PlaceOrder` and `StartCheckout` are two calls, and the first one claims the
+ * cart. When the second failed — the rate feed down, Redis unavailable — the
+ * customer was left with no cart, no order id, and an order that could never be
+ * paid. This is the way back: same order, same lines, a fresh address.
+ *
+ * Safe to press twice. `createPayment` returns the existing intent when the
+ * order already has one, and `markAwaitingPayment` is compare-and-set, so this
+ * can neither allocate a second address nor un-settle a paid order.
+ *
+ * Unauthenticated for the same reason the order page is: the order id is the
+ * capability. Rate-limited because each call can reach the rate feed and
+ * allocate an address index, which is a one-way counter.
+ */
+export async function resumePaymentAction(
+  _prevState: ResumePaymentActionResult | undefined,
+  formData: FormData,
+): Promise<ResumePaymentActionResult> {
+  const parsed = ResumePaymentSchema.safeParse({ orderId: formData.get('orderId') });
+  if (!parsed.success) return { error: 'Missing order.' };
+
+  const ip = await getClientIp();
+  const limit = await checkRateLimit(`resume-payment:${ip}:${parsed.data.orderId}`, 5, 15 * 60);
+  if (!limit.allowed) return { error: tooManyAttemptsMessage(limit.retryAfterSeconds) };
+
+  const { getOrderDetail, startCheckout } = getContainer();
+  const order = await getOrderDetail.execute({ orderId: parsed.data.orderId });
+  if (!order) return { error: 'Order not found.' };
+
+  const result = await startCheckout.execute({
+    orderId: order.id,
+    customerEmail: order.customerEmail,
+    paymentMethod: 'crypto',
+    idempotencyKey: order.id,
+  });
+
+  if (isErr(result)) {
+    switch (result.error.code) {
+      case 'store_closed':
+        return { error: 'Ordering is paused right now — nothing was charged. Try again shortly.' };
+      case 'total_not_payable':
+        return {
+          error:
+            "This order's total came to nothing to pay, so there's nothing to send. Get in touch quoting your order id and we'll sort it out.",
+        };
+      case 'order_closed':
+        return { error: 'This order is no longer waiting for payment.' };
+      default:
+        return { error: "Couldn't set up payment just now. Try again in a moment." };
+    }
+  }
+
+  revalidatePath(`/orders/${order.id}`);
+  return { message: 'Payment details ready.' };
+}

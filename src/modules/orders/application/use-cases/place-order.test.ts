@@ -59,12 +59,14 @@ function makeFakeProducts(productsById: Map<string, Product>) {
 
 function makeFakeOrders() {
   const created: Order[] = [];
+  const deadlines: Date[] = [];
   const repo: OrderRepository = {
-    async create(order) {
+    async create(order, paymentDeadlineAt) {
       created.push(order);
+      deadlines.push(paymentDeadlineAt);
     },
   };
-  return { repo, created };
+  return { repo, created, deadlines };
 }
 
 function makeFakeShippingRates(rate: Money) {
@@ -579,5 +581,94 @@ describe('PlaceOrder', () => {
     expect(created).toHaveLength(0);
     // And the customer's cart survives, so reopening doesn't cost them it.
     expect(deletedOwners).toEqual([]);
+  });
+});
+
+describe('PlaceOrder and the payment deadline', () => {
+  /**
+   * The deadline used to be stamped by `StartCheckout`, which runs as a
+   * *separate* call after this one. When it failed — the rate feed down, Redis
+   * unavailable, a bad xpub — the order was written with a NULL deadline, and
+   * every query that finds work to do filters on that column with `<` or `>`,
+   * which NULL never satisfies. The order was therefore invisible to
+   * `ExpireStaleCheckouts` and to `listWatchable` at the same time: it could
+   * never expire, and nobody would ever look at its address. It sat `pending`
+   * in the admin list forever and the only exit was an admin marking it failed
+   * by hand.
+   *
+   * Stamping it here starts the clock when the order is placed, which is also
+   * the honest reading — that is when the customer committed.
+   */
+  function arrangeOneItemCart() {
+    const productId = randomUUID();
+    const cart = Cart.create({
+      id: randomUUID(),
+      owner: { type: 'guest', sessionId: 's1' },
+      lines: [
+        CartLine.create({
+          productId,
+          productName: 'Widget',
+          quantity: 1,
+          unitPrice: Money.of(1999, 'USD'),
+        }),
+      ],
+    });
+    return {
+      carts: makeFakeCarts(cart).repo,
+      products: makeFakeProducts(new Map([[productId, makeProduct(productId, 1999)]])),
+      shippingRates: makeFakeShippingRates(Money.zero('USD')),
+      coupons: makeFakeCoupons(),
+      offers: makeFakeOffersAllAvailable(),
+    };
+  }
+
+  const input = {
+    owner: { type: 'guest', sessionId: 's1' } as const,
+    customerEmail: 'test@example.com',
+    currency: 'USD',
+    shippingAddress: validShippingAddress(),
+  };
+
+  it('stamps a payment deadline when the order is written', async () => {
+    const a = arrangeOneItemCart();
+    const { repo, deadlines } = makeFakeOrders();
+    const before = Date.now();
+
+    const result = await new PlaceOrder(
+      a.carts,
+      a.products,
+      repo,
+      a.shippingRates,
+      a.coupons,
+      storeOpen(),
+      a.offers,
+      24,
+    ).execute(input);
+
+    expect(result.ok).toBe(true);
+    expect(deadlines).toHaveLength(1);
+    const deadline = deadlines[0]!.getTime();
+    expect(deadline).toBeGreaterThanOrEqual(before + 24 * 3_600_000 - 5_000);
+    expect(deadline).toBeLessThanOrEqual(Date.now() + 24 * 3_600_000 + 5_000);
+  });
+
+  it('honours a configured window other than the default', async () => {
+    const a = arrangeOneItemCart();
+    const { repo, deadlines } = makeFakeOrders();
+    const before = Date.now();
+
+    await new PlaceOrder(
+      a.carts,
+      a.products,
+      repo,
+      a.shippingRates,
+      a.coupons,
+      storeOpen(),
+      a.offers,
+      1,
+    ).execute(input);
+
+    expect(deadlines[0]!.getTime()).toBeGreaterThanOrEqual(before + 3_600_000 - 5_000);
+    expect(deadlines[0]!.getTime()).toBeLessThanOrEqual(Date.now() + 3_600_000 + 5_000);
   });
 });

@@ -75,6 +75,12 @@ const envSchema = z.object({
   // money was first seen, so it's independent of ORDER_PAYMENT_WINDOW_HOURS
   // above: underpay at hour 1 or hour 23 and you get the same window either way.
   AWAITING_CONFIRMATION_WINDOW_HOURS: z.coerce.number().int().positive().default(48),
+  // How long before that deadline to email the customer a reminder. Must be
+  // less than the window above or no warning is possible — the use case treats
+  // a non-positive gap as a misconfiguration and skips, rather than mailing
+  // everyone the instant their payment is seen. Twelve hours is enough notice
+  // to act on without being so early it's forgotten.
+  AWAITING_CONFIRMATION_WARN_HOURS_BEFORE: z.coerce.number().int().positive().default(12),
 
   // Base URL used to build absolute links in outgoing email (e.g. the
   // welcome-email tracking pixel) — never derived from a request header.

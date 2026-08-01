@@ -22,7 +22,19 @@ export class IllegalStatusTransitionError extends Error {
 }
 
 const PAYMENT_TRANSITIONS: Record<PaymentStatus, readonly PaymentStatus[]> = {
-  pending: ['awaiting_payment', 'failed', 'expired', 'cancelled'],
+  // `awaiting_confirmation` and `paid` are reachable from here because a
+  // `pending` order can already have a live payment address against it:
+  // `StartCheckout` derives the address and *then* records
+  // `awaiting_payment`, so a crash between the two leaves exactly that state —
+  // with the BIP21 URI already returned to the customer.
+  //
+  // It used to be unreachable only by accident: a `pending` order had no
+  // payment deadline, and every query that finds work filters on one. Now
+  // that the deadline is stamped at order creation the watcher does see
+  // these, and without these two edges `ConfirmPayment` would throw on every
+  // pass — an error loop every 45 seconds with the customer's money stranded
+  // behind it.
+  pending: ['awaiting_payment', 'awaiting_confirmation', 'paid', 'failed', 'expired', 'cancelled'],
   // `paid` is reachable directly too: confirmations can already meet the
   // threshold the first time a watcher pass observes the address, without an
   // intermediate awaiting_confirmation pass ever having been recorded.

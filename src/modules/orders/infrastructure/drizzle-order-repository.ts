@@ -172,10 +172,15 @@ export class DrizzleOrderRepository
   }
 
   /** Real production path: persist an order + its lines from a priced cart. */
-  async create(order: Order): Promise<void> {
+  async create(order: Order, paymentDeadlineAt: Date): Promise<void> {
     await this.db.transaction(async (tx) => {
       await tx.insert(orders).values({
         id: order.id,
+        // Stamped at creation so the order is reachable by both the expiry
+        // sweep and the watcher even if `StartCheckout` never completes.
+        // `markAwaitingPayment` COALESCEs rather than assigns, so this value
+        // stands and a re-quote can't extend the window.
+        paymentDeadlineAt,
         userId: order.userId,
         currency: order.currency,
         amountMinor: order.total.amountMinor,
@@ -428,9 +433,9 @@ export class DrizzleOrderRepository
     reference: string,
     paymentWindowExpiresAt: Date,
     paymentDeadlineAt: Date,
-  ): Promise<void> {
-    await this.db.transaction(async (tx) => {
-      await tx
+  ): Promise<boolean> {
+    return this.db.transaction(async (tx) => {
+      const result = await tx
         .update(orders)
         .set({
           paymentStatus: 'awaiting_payment',
@@ -447,8 +452,26 @@ export class DrizzleOrderRepository
           paymentDeadlineAt: sql`coalesce(${orders.paymentDeadlineAt}, ${paymentDeadlineAt.toISOString()}::timestamptz)`,
           updatedAt: new Date(),
         })
-        .where(eq(orders.id, orderId));
+        /**
+         * Guarded, like every other payment-status write. This was the one
+         * that wasn't: an unguarded `WHERE id = ?` returning nothing.
+         *
+         * `pending` covers the normal path; `awaiting_payment` keeps a retry
+         * or a resume idempotent. Everything else is either terminal or has
+         * already seen money, and writing `awaiting_payment` over it would
+         * un-settle a settled order — and because its intent would be
+         * `confirmed`, `listWatchable` would never return it again.
+         */
+        .where(
+          and(
+            eq(orders.id, orderId),
+            inArray(orders.paymentStatus, ['pending', 'awaiting_payment']),
+          ),
+        )
+        .returning({ id: orders.id });
+      if (result.length === 0) return false;
       await this.recordOrderEvent(tx, orderId, 'payment_status_changed', 'awaiting_payment');
+      return true;
     });
   }
 
@@ -775,6 +798,7 @@ export class DrizzleOrderRepository
       notes: row.notes,
       discountAmountMinor: row.discountAmountMinor,
       couponCode: row.couponCode,
+      awaitingConfirmationSince: row.awaitingConfirmationSince,
       lines: lines.map((l) => ({
         id: l.id,
         productId: l.productId,

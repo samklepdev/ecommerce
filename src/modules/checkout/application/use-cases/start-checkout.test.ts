@@ -11,14 +11,18 @@ import type {
   PaymentGateway,
 } from '@/modules/payments/application/ports/payment-gateway';
 
-function makeFakeOrders(total = Money.of(1999, 'USD')) {
+function makeFakeOrders(total = Money.of(1999, 'USD'), applies = true) {
   const markedAwaiting: { orderId: string; reference: string; expiresAt: Date }[] = [];
   const repo: CheckoutOrderRepository = {
     async repriceAndGetTotal() {
       return total;
     },
     async markAwaitingPayment(orderId, reference, paymentWindowExpiresAt) {
+      // `applies: false` stands for the order having moved on underneath us —
+      // paid, expired or cancelled between the reprice and this write.
+      if (!applies) return false;
       markedAwaiting.push({ orderId, reference, expiresAt: paymentWindowExpiresAt });
+      return true;
     },
   };
   return { repo, markedAwaiting };
@@ -215,5 +219,49 @@ describe('StartCheckout', () => {
     // A BTC address index only ever moves forward, so a refused checkout
     // must not have burned one.
     expect(createPaymentCalls).toBe(0);
+  });
+});
+
+describe('StartCheckout when the order moves underneath it', () => {
+  /**
+   * `markAwaitingPayment` was the one payment-status write in the codebase
+   * that ignored compare-and-set: an unguarded `UPDATE ... SET payment_status
+   * = 'awaiting_payment' WHERE id = ?`, returning nothing.
+   *
+   * It wasn't exploitable while its only caller ran microseconds after
+   * `PlaceOrder` minted the order. It becomes exploitable the moment a second
+   * caller exists — a resume-payment button, an admin re-issuing an invoice —
+   * because it would happily write `awaiting_payment` over `paid`. And since
+   * the intent would be `confirmed`, `listWatchable` would never return it
+   * again: the order would sit unwatched until it expired, with the customer's
+   * money already spent.
+   */
+  it('reports the write not applying rather than claiming checkout started', async () => {
+    const { repo, markedAwaiting } = makeFakeOrders(Money.of(1999, 'USD'), false);
+    const gateway = makeFakeGateway(
+      ok({
+        reference: 'bc1qtest',
+        bip21Uri: 'bitcoin:bc1qtest?amount=0.0001',
+        expiresAt: new Date(Date.now() + 900_000),
+        expectedSats: 10_000,
+      } satisfies CreatePaymentOutput),
+    );
+
+    const result = await new StartCheckout(
+      repo,
+      new PaymentGatewayRegistry([gateway]),
+      900,
+      24,
+      storeOpen(),
+    ).execute({
+      orderId: 'order-1',
+      customerEmail: 'a@b.c',
+      paymentMethod: 'crypto',
+      idempotencyKey: 'order-1',
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) expect(result.error.code).toBe('order_closed');
+    expect(markedAwaiting).toEqual([]);
   });
 });

@@ -19,7 +19,12 @@ export type StartCheckoutError =
   | { code: 'gateway_error'; message: string }
   | { code: 'store_closed' }
   /** The repriced total is zero or less — nothing a customer could pay. */
-  | { code: 'total_not_payable'; totalMinor: number };
+  | { code: 'total_not_payable'; totalMinor: number }
+  /**
+   * The order moved past the point where payment can start — paid, expired,
+   * failed or cancelled — between repricing it and recording the address.
+   */
+  | { code: 'order_closed' };
 
 /**
  * reprice (server-side) -> gateway.createPayment. No inventory reservation —
@@ -77,7 +82,17 @@ export class StartCheckout
     // repository keeps the first deadline it was given, so re-quoting an
     // order never extends how long it stays open.
     const paymentDeadlineAt = new Date(Date.now() + this.orderWindowHours * 3_600_000);
-    await this.orders.markAwaitingPayment(input.orderId, result.value.reference, paymentWindowExpiresAt, paymentDeadlineAt);
+    // Compare-and-set, and the answer is acted on. An order that reached a
+    // terminal state while the gateway was working must not be reported as
+    // freshly awaiting payment — that would show the customer a QR for an
+    // order nothing will ever settle, and could write over `paid`.
+    const applied = await this.orders.markAwaitingPayment(
+      input.orderId,
+      result.value.reference,
+      paymentWindowExpiresAt,
+      paymentDeadlineAt,
+    );
+    if (!applied) return err({ code: 'order_closed' });
 
     return ok(result.value);
   }

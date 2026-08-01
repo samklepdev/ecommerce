@@ -19,6 +19,7 @@ import { StartCheckout } from '@/modules/checkout/application/use-cases/start-ch
 import { ExpireStaleCheckouts } from '@/modules/checkout/application/use-cases/expire-stale-checkouts';
 import { RefreshPaymentQuote } from '@/modules/checkout/application/use-cases/refresh-payment-quote';
 import { ConfirmPayment } from '@/modules/orders/application/use-cases/confirm-payment';
+import { CreditLatePayment } from '@/modules/orders/application/use-cases/credit-late-payment';
 import { MarkOrderDelivered } from '@/modules/orders/application/use-cases/mark-order-delivered';
 import { CancelOrder } from '@/modules/orders/application/use-cases/cancel-order';
 import { MarkAwaitingConfirmation } from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
@@ -28,6 +29,7 @@ import { UpdateOrderContact } from '@/modules/orders/application/use-cases/updat
 import { ListOrderEvents } from '@/modules/orders/application/use-cases/list-order-events';
 import { GetRevenueSummary } from '@/modules/orders/application/use-cases/get-revenue-summary';
 import { FailStuckAwaitingConfirmationOrders } from '@/modules/orders/application/use-cases/fail-stuck-awaiting-confirmation-orders';
+import { WarnStuckAwaitingConfirmationOrders } from '@/modules/orders/application/use-cases/warn-stuck-awaiting-confirmation-orders';
 import { ReconcileUnsourcedPaidOrders } from '@/modules/orders/application/use-cases/reconcile-unsourced-paid-orders';
 import { FailOrder } from '@/modules/orders/application/use-cases/fail-order';
 import { CancelOrderFulfillment } from '@/modules/orders/application/use-cases/cancel-order-fulfillment';
@@ -354,6 +356,7 @@ export interface Container {
   expireStaleCheckouts: ExpireStaleCheckouts;
   refreshPaymentQuote: RefreshPaymentQuote;
   confirmPayment: ConfirmPayment;
+  creditLatePayment: CreditLatePayment;
   markOrderDelivered: MarkOrderDelivered;
   cancelOrderFulfillment: CancelOrderFulfillment;
   cancelOrder: CancelOrder;
@@ -363,6 +366,7 @@ export interface Container {
   updateOrderContact: UpdateOrderContact;
   listOrderEvents: ListOrderEvents;
   failStuckAwaitingConfirmationOrders: FailStuckAwaitingConfirmationOrders;
+  warnStuckAwaitingConfirmationOrders: WarnStuckAwaitingConfirmationOrders;
   failOrder: FailOrder;
   watchBitcoinPayments: WatchBitcoinPayments;
   getPaymentProgress: GetPaymentProgress;
@@ -641,6 +645,10 @@ function build(): Container {
     coupons,
     assertStoreOpenForCheckout,
     supplierOffers,
+    // The same window StartCheckout uses. Stamped here so an order whose
+    // checkout call never completes still has a deadline, and is therefore
+    // still reachable by both the expiry sweep and the watcher.
+    env.ORDER_PAYMENT_WINDOW_HOURS,
   );
   const reorderItems = new ReorderItems(orders, carts, products);
   const startCheckout = new StartCheckout(
@@ -705,6 +713,10 @@ function build(): Container {
   const getPaymentSessionForOrder = new GetPaymentSessionForOrder(paymentStore);
 
   const confirmPayment = new ConfirmPayment(orders, processed, fulfillment, paymentConfirmationNotifier);
+  // The manual counterpart to the watcher: credits bitcoin that turned up
+  // against an order already closed, which `SweepLatePayments` finds but
+  // deliberately won't settle on its own.
+  const creditLatePayment = new CreditLatePayment(paymentStore, orders, confirmPayment);
   const markOrderDelivered = new MarkOrderDelivered(orders);
   const cancelOrderFulfillment = new CancelOrderFulfillment(orders);
   const cancelOrder = new CancelOrder(orders, paymentStore);
@@ -735,10 +747,30 @@ function build(): Container {
     emailSender,
     env.APP_URL,
     env.SUPPORT_EMAIL,
+    // So the email can state when the top-up window closes. The same value
+    // FailStuckAwaitingConfirmationOrders enforces it with.
+    env.AWAITING_CONFIRMATION_WINDOW_HOURS,
   );
   const notifyUnderpaidOnce = new NotifyUnderpaidOnce(
     processed,
     new QueuedUnderpaymentNotifier(jobQueue),
+  );
+  /**
+   * The counterpart to FailStuckAwaitingConfirmationOrders: warns the customer
+   * before that deadline rather than only acting when it arrives. Re-sends the
+   * balance email — which now carries the deadline — so there is no second
+   * template to keep in step.
+   *
+   * Enqueues rather than sending inline, like the watcher does, so a mail
+   * provider outage is retried by BullMQ instead of losing the one warning a
+   * part-paying customer gets before their money is written off.
+   */
+  const warnStuckAwaitingConfirmationOrders = new WarnStuckAwaitingConfirmationOrders(
+    orders,
+    processed,
+    new QueuedUnderpaymentNotifier(jobQueue),
+    env.AWAITING_CONFIRMATION_WINDOW_HOURS,
+    env.AWAITING_CONFIRMATION_WARN_HOURS_BEFORE,
   );
   const watchBitcoinPayments = new WatchBitcoinPayments(
     paymentStore,
@@ -877,6 +909,7 @@ function build(): Container {
     expireStaleCheckouts,
     refreshPaymentQuote,
     confirmPayment,
+    creditLatePayment,
     markOrderDelivered,
     cancelOrderFulfillment,
     cancelOrder,
@@ -886,6 +919,7 @@ function build(): Container {
     updateOrderContact,
     listOrderEvents,
     failStuckAwaitingConfirmationOrders,
+    warnStuckAwaitingConfirmationOrders,
     failOrder,
     watchBitcoinPayments,
     getPaymentProgress,

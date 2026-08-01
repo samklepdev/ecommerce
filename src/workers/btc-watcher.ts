@@ -44,6 +44,7 @@ async function main(): Promise<void> {
     expireStaleCheckouts,
     pruneAnalyticsEvents,
     failStuckAwaitingConfirmationOrders,
+    warnStuckAwaitingConfirmationOrders,
     reconcileUnsourcedPaidOrders,
     sweepLatePayments,
     heartbeats,
@@ -97,6 +98,19 @@ async function main(): Promise<void> {
       await expireStaleCheckouts.execute();
     } catch (e) {
       logger.error('btc-watcher expire-stale-checkouts pass failed', {
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+
+    /**
+     * Before the pass that fails them, so an order crossing both thresholds in
+     * one tick is warned rather than only failed. The warning is deduped per
+     * order, so in the normal case it went out hours ago and this is a no-op.
+     */
+    try {
+      await warnStuckAwaitingConfirmationOrders.execute();
+    } catch (e) {
+      logger.error('btc-watcher warn-stuck-awaiting-confirmation-orders pass failed', {
         error: e instanceof Error ? e.message : String(e),
       });
     }

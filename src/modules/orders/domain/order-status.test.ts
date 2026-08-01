@@ -21,7 +21,9 @@ const PAYMENT_STATUSES: PaymentStatus[] = [
 ];
 
 const LEGAL_PAYMENT_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]> = {
-  pending: ['awaiting_payment', 'failed', 'expired', 'cancelled'],
+  // `awaiting_confirmation`/`paid` because a `pending` order can already hold
+  // a live payment address — see the dedicated block at the bottom of this file.
+  pending: ['awaiting_payment', 'awaiting_confirmation', 'paid', 'failed', 'expired', 'cancelled'],
   awaiting_payment: ['awaiting_confirmation', 'paid', 'failed', 'expired', 'cancelled'],
   // No `cancelled` here — once the chain has seen something, a customer can
   // no longer cancel.
@@ -176,5 +178,36 @@ describe('isOrderContactEditable', () => {
     for (const paymentStatus of ['pending', 'awaiting_payment', 'paid', 'failed'] as const) {
       expect(isOrderContactEditable(paymentStatus, 'unfulfilled')).toBe(true);
     }
+  });
+});
+
+describe('a pending order that already has a payment address', () => {
+  /**
+   * `StartCheckout` derives the address and *then* records
+   * `awaiting_payment`. A crash between the two leaves an order `pending`
+   * with a live intent against it — an address a customer may already be
+   * looking at, because the BIP21 URI was returned to them.
+   *
+   * That was unreachable only because a `pending` order had no payment
+   * deadline, and every query that finds work filters on one. Now that the
+   * deadline is stamped at creation, the watcher does see these — so the
+   * transitions money can arrive through have to exist, or `ConfirmPayment`
+   * throws `IllegalStatusTransitionError` on every pass and the payment is
+   * stranded behind an error loop.
+   */
+  it('can move to awaiting_confirmation when the chain sees something', () => {
+    expect(() => assertPaymentTransition('pending', 'awaiting_confirmation')).not.toThrow();
+  });
+
+  it('can move straight to paid when the first pass already meets the threshold', () => {
+    expect(() => assertPaymentTransition('pending', 'paid')).not.toThrow();
+  });
+
+  it('is still not a free-for-all', () => {
+    // The additions above are about recording money that genuinely arrived,
+    // not about loosening the machine.
+    expect(() => assertPaymentTransition('pending', 'pending')).toThrow(
+      IllegalStatusTransitionError,
+    );
   });
 });

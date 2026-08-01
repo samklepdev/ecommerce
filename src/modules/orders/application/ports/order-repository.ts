@@ -2,7 +2,15 @@ import type { Order } from '@/modules/orders/domain/order';
 import type { PaymentStatus } from '@/modules/orders/domain/order-status';
 
 export interface OrderRepository {
-  create(order: Order): Promise<void>;
+  /**
+   * `paymentDeadlineAt` is stamped here, at creation, rather than when
+   * checkout starts. `StartCheckout` is a separate call, and when it failed
+   * the order was written with a NULL deadline — which every query that finds
+   * work filters on with `<` or `>`, and NULL satisfies neither. Such an order
+   * was invisible to expiry and to the watcher at once: it could never close,
+   * and nobody would ever look at its address.
+   */
+  create(order: Order, paymentDeadlineAt: Date): Promise<void>;
 }
 
 export interface ConfirmPaymentOrderRepository {

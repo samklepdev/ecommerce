@@ -421,3 +421,65 @@ export async function updateOrderContactAction(
   revalidatePath(`/admin/orders/${parsed.data.orderId}`);
   return { message: 'Order details updated.' };
 }
+
+const CreditLatePaymentSchema = z.object({
+  orderId: z.string().min(1),
+});
+
+export interface CreditLatePaymentActionResult {
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Credits bitcoin that arrived against an order the shop had already closed.
+ *
+ * `SweepLatePayments` finds these and puts a count on the dashboard, but
+ * deliberately refuses to settle them itself — resurrecting a closed order
+ * because coins turned up makes a business decision by accident. This is that
+ * decision, made deliberately, with the amount on screen.
+ *
+ * Sudo-gated for the same reason `failOrderAction` is: it moves an order to
+ * `paid`, which is terminal, and starts supplier sourcing against it. Check
+ * the goods are still obtainable before pressing it — the alternative is
+ * refunding, and there is no refund mechanism.
+ */
+export async function creditLatePaymentAction(
+  _prevState: CreditLatePaymentActionResult | undefined,
+  formData: FormData,
+): Promise<CreditLatePaymentActionResult> {
+  const sudo = await requireRecentAdminAuth();
+  if (!sudo.ok) return { error: sudo.reason };
+  const admin = sudo.admin;
+  const parsed = CreditLatePaymentSchema.safeParse({ orderId: formData.get('orderId') });
+  if (!parsed.success) return { error: 'Missing order.' };
+
+  const { creditLatePayment, recordAuditLogEntry } = getContainer();
+  const result = await creditLatePayment.execute({ orderId: parsed.data.orderId });
+  if (isErr(result)) {
+    const messages: Record<typeof result.error.code, string> = {
+      order_not_found: 'No Bitcoin payment was ever set up for this order.',
+      no_payment_to_credit:
+        'Nothing has been seen at this order’s address since it closed, so there is nothing to credit.',
+      not_creditable:
+        'Only an expired or cancelled order can be credited this way — anything still open settles on its own.',
+    };
+    return { error: messages[result.error.code] };
+  }
+
+  await recordAuditLogEntry.execute({
+    actorUserId: admin.id,
+    actorEmail: admin.email,
+    action: 'order.late_payment_credited',
+    targetType: 'order',
+    targetId: parsed.data.orderId,
+    metadata: { creditedSats: result.value.creditedSats },
+  });
+
+  revalidatePath(`/admin/orders/${parsed.data.orderId}`);
+  revalidatePath('/admin/orders');
+  revalidatePath('/admin');
+  return {
+    message: `Credited ${satsToBtcString(result.value.creditedSats)} BTC — the order is now paid and sourcing has started.`,
+  };
+}

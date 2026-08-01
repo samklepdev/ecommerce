@@ -45,6 +45,16 @@ export interface OrderDetail extends OrderListItem {
   notes: string | null;
   discountAmountMinor: number;
   couponCode: string | null;
+  /**
+   * When the chain first showed money against this order — the moment the
+   * `AWAITING_CONFIRMATION_WINDOW_HOURS` clock started.
+   *
+   * Exposed because that clock is the sharpest one in the system: when it runs
+   * out a part-paying customer's order goes to `failed`, which is terminal,
+   * and with no refund mechanism their money is gone. Telling them the
+   * deadline is the difference between a top-up and a loss.
+   */
+  awaitingConfirmationSince: Date | null;
 }
 
 /** Narrows an admin order list. Shared by the list and its count so the two

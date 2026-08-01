@@ -6,6 +6,8 @@ import { Money } from '@/shared/domain/money';
 import { satsToBtcString } from '@/modules/payments/domain/bip21';
 import { buildCarrierTrackingUrl, carrierLabel } from '@/shared/domain/carrier-tracking';
 import { isOrderCancellable } from '@/modules/orders/domain/order-status';
+import { formatTopUpDeadline } from '@/modules/orders/domain/top-up-deadline';
+import { env } from '@/config/env';
 import type { OrderDetail } from '@/modules/orders/application/ports/order-history-repository';
 import type { SupplierOrderSummary } from '@/modules/orders/application/ports/supplier-order-repository';
 import type { PaymentSession } from '@/modules/payments/application/use-cases/get-payment-session-for-order';
@@ -16,6 +18,7 @@ import { Badge } from '@/components/ui/Badge';
 import { BitcoinCheckout } from '../checkout/BitcoinCheckout';
 import { toWidgetStatus } from '../checkout/bitcoin-checkout-status';
 import { CancelOrderButton, type CancelOrderButtonProps } from './CancelOrderButton';
+import { ResumePaymentButton } from './ResumePaymentButton';
 import { ReorderButton, type ReorderButtonProps } from './ReorderButton';
 import styles from './OrderDetailView.module.css';
 
@@ -30,6 +33,14 @@ interface OrderDetailViewProps {
   cancelAction?: CancelOrderButtonProps['action'];
   /** Same split as cancelAction — omitted on the admin order-detail page. */
   reorderAction?: ReorderButtonProps['action'];
+  /**
+   * Whether to offer setting payment up when the order is payable but has no
+   * address. Opt-in rather than inferred, because the admin page renders this
+   * same view with `paymentSession={null}` for every order — it would
+   * otherwise show an admin a "Set up payment" button on orders that are
+   * perfectly fine.
+   */
+  offerResumePayment?: boolean;
   /**
    * Whether to wrap in the storefront's `PageContainer` (960px, centred).
    *
@@ -48,6 +59,7 @@ export function OrderDetailView({
   backLabel,
   cancelAction,
   reorderAction,
+  offerResumePayment = false,
   contained = true,
 }: OrderDetailViewProps) {
   const subtotal = order.lines.reduce(
@@ -62,6 +74,18 @@ export function OrderDetailView({
   // confirmation email and the customer's wallet.
   const total = Money.of(order.amountMinor, order.currency);
   const trackedShipments = shipments.filter((s) => s.trackingNumber);
+  /**
+   * When a part-payment stops being toppable-up.
+   *
+   * Shown because the consequence of missing it is irreversible: the order is
+   * marked `failed`, which is terminal, and there is no refund mechanism, so
+   * whatever the customer already sent is gone. None of the three clocks used
+   * to appear on any customer surface at all.
+   */
+  const topUpDeadline = formatTopUpDeadline(
+    order.awaitingConfirmationSince,
+    env.AWAITING_CONFIRMATION_WINDOW_HOURS,
+  );
 
   const body = (
     <>
@@ -92,6 +116,29 @@ export function OrderDetailView({
           </div>
         </Card>
 
+        {/**
+          * Payable, but nothing to pay to.
+          *
+          * `PlaceOrder` and `StartCheckout` are separate calls and the first
+          * claims the cart, so a gateway failure between them left the
+          * customer with no cart, no address, and — until the order id was
+          * put in front of them — no way back to any of it. The order itself
+          * is the durable thing, so the recovery belongs here.
+          */}
+        {offerResumePayment &&
+          !paymentSession &&
+          (order.paymentStatus === 'pending' || order.paymentStatus === 'awaiting_payment') && (
+            <Card className={styles.section}>
+              <h2 className={styles.sectionTitle}>Payment not set up yet</h2>
+              <p className={styles.empty}>
+                We couldn&apos;t generate a payment address when you placed this order — nothing
+                was charged, and your order is safe. Set it up now to get your Bitcoin address
+                and amount.
+              </p>
+              <ResumePaymentButton orderId={order.id} />
+            </Card>
+          )}
+
         {paymentSession && (
           <BitcoinCheckout
             orderId={order.id}
@@ -101,6 +148,7 @@ export function OrderDetailView({
             amountBtc={satsToBtcString(paymentSession.expectedSats)}
             amountFiat={total.toDisplayString()}
             initialStatus={toWidgetStatus(order.paymentStatus)}
+            topUpDeadline={topUpDeadline}
           />
         )}
 

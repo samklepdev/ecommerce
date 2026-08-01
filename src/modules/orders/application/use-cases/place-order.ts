@@ -48,6 +48,12 @@ export class PlaceOrder implements UseCase<PlaceOrderInput, Result<Order, PlaceO
      * same authority-vs-display split that let a stale price reach checkout.
      */
     private readonly supplierOffers: SupplierOfferRepository,
+    /**
+     * How long the customer has to pay, in hours. The same value
+     * `StartCheckout` uses — it stamps the deadline too, with a COALESCE, so
+     * whichever runs first wins and a re-quote never extends the window.
+     */
+    private readonly orderWindowHours: number = 24,
   ) {}
 
   async execute(input: PlaceOrderInput): Promise<Result<Order, PlaceOrderError>> {
@@ -138,7 +144,16 @@ export class PlaceOrder implements UseCase<PlaceOrderInput, Result<Order, PlaceO
     const claimed = await this.carts.delete(input.owner);
     if (!claimed) return err({ code: 'cart_already_submitted' });
 
-    await this.orders.create(order);
+    /**
+     * The clock starts here, not at `StartCheckout`.
+     *
+     * That call is a separate one, and when it failed the order was written
+     * with a NULL deadline. `findExpiredAwaitingOrderIds` compares with `<`
+     * and `listWatchable` with `>`, and NULL satisfies neither — so the order
+     * could never expire *and* its address was never polled. It sat `pending`
+     * forever with no exit but an admin marking it failed.
+     */
+    await this.orders.create(order, new Date(Date.now() + this.orderWindowHours * 3_600_000));
     return ok(order);
   }
 }
