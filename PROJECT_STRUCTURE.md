@@ -94,7 +94,7 @@ ecommerce/
     │   ├── checkout/
     │   │   ├── application/
     │   │   │   └── use-cases/
-    │   │   │       └── start-checkout.ts     # reprice + reserve + create PaymentIntent
+    │   │   │       └── start-checkout.ts     # reprice + refuse unpayable + create PaymentIntent
     │   │   └── ...
     │   │
     │   ├── orders/
@@ -107,7 +107,7 @@ ecommerce/
     │   │   │   └── use-cases/
     │   │   │       ├── place-order.ts
     │   │   │       ├── confirm-payment.ts    # the ONLY path to `paid`; watcher-driven
-    │   │   │       └── mark-order-refunded.ts  # refunds are manual, out-of-band
+    │   │   │       └── cancel-order-fulfillment.ts # close an order the shop won't fulfil
     │   │   └── infrastructure/
     │   │       └── drizzle-order-repository.ts
     │   │

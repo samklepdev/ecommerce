@@ -64,7 +64,7 @@ port: if a second method is ever added, it implements `PaymentGateway` and nothi
 changes.
 
 `StartCheckout` (`checkout/application/use-cases/start-checkout.ts`) reprices server-side →
-reserves inventory → calls `createPayment` → returns a `PaymentSession` carrying a BIP21 URI
+refuses an unsellable or unpayable order → calls `createPayment` → returns a `PaymentSession` carrying a BIP21 URI
 (`bitcoin:<addr>?amount=<btc>`) for the QR, plus the raw address and expected sats.
 
 ## Payment state (read this twice)
@@ -89,20 +89,30 @@ reserves inventory → calls `createPayment` → returns a `PaymentSession` carr
   `HdAddressDeriver` derives a `bc1q…` address at path `0/index`. **Never reuse an address** —
   reuse destroys order↔payment correlation and leaks revenue history on-chain.
 - The index counter only moves forward and **must survive restarts**. Seed it above the
-  wallet's real next-unused index; never reset it. If Redis is wiped, reseed from the highest
-  index the wallet has seen.
+  wallet's real next-unused index; never reset it. A wiped Redis largely self-heals:
+  `ensureIndexFloor` raises the counter to `max(address_index) + 1` from Postgres before the
+  first allocation, so the database is the durable record of what was handed out. That recovers
+  every address *this app* issued — but not any the wallet used outside it, so if that's
+  possible, reseed above the highest index the wallet has seen.
 - **BIP32 gap limit:** watch-only wallets stop scanning after ~20 consecutive unused
   addresses. High abandoned-checkout volume can outrun this — raise the scan gap limit on the
   watching wallet if needed.
-- **Two clocks, deliberately.** `QUOTE_TTL_SECONDS` (default 15 min) is the rate lock — every
+- **Three clocks, deliberately.** `QUOTE_TTL_SECONDS` (default 15 min) is the rate lock — every
   minute of it is BTC/USD exposure on a price already quoted.
   `ORDER_PAYMENT_WINDOW_HOURS` (default 24) is how long the ORDER stays open.
+  The third is `AWAITING_CONFIRMATION_WINDOW_HOURS` (default 48) — how long an order may sit
+  in `awaiting_confirmation`, and therefore the window a part-paying customer has to top up.
+  It is the sharpest of the three: when it runs out `FailStuckAwaitingConfirmationOrders`
+  moves the order to `failed`, which is terminal, and with no refund mechanism the customer's
+  partial payment is gone.
   A lapsed quote does **not** expire the order: the customer re-quotes
   (`RefreshPaymentQuote`) and gets today's price on the **same address**. Only the order
   deadline expires an order, and `listWatchable` keys off that same deadline — watching must
   outlive the quote, or a customer paying against a stale QR sends real BTC to an address
   nobody is polling.
-- **Confirmations:** `BTC_REQUIRED_CONFIRMATIONS` (default 2). Seen-but-shallow →
+- **Confirmations:** the gate is `BTC_REQUIRED_CONFIRMATIONS` (2) **plus**
+  `BTC_SETTLEMENT_BUFFER_CONFIRMATIONS` (1) — summed in the container, so the effective
+  threshold is 3. Seen-but-shallow →
   `awaiting_confirmation`, never fulfilled.
 - **Underpayment is not payment.** `confirmedSats < expectedSats − dustTolerance` stays in
   `awaiting_confirmation` for review; never auto-fulfill it. **The resolution is a top-up
@@ -190,8 +200,8 @@ depend on a write having succeeded.
   session disappears even if nothing ever reads it again. `lastSeenAt` is only rewritten
   every 60s (`TOUCH_THROTTLE_SECONDS`); Redis is on every request path here and a write per
   request is not free.
-- **Destructive admin actions need sudo mode**: cancelling a paid order, promote, and every
-  delete call
+- **Destructive admin actions need sudo mode**: cancelling a paid order, marking an order
+  failed (it ends a part-paying customer's window to top up), promote, and every delete call
   `requireRecentAdminAuth()`, which needs the password typed within
   `ADMIN_REAUTH_WINDOW_SECONDS` (15 min). Logging in counts. Browsing does **not** extend it —
   it's bought by typing the password, not by being present.
@@ -209,10 +219,14 @@ Every mutating money- or inventory-touching operation **must** be idempotent:
 ## Inventory
 
 There is **no local stock** — this is a dropship/arbitrage model. `Product` carries no
-quantity field, and `start-checkout.ts` sources items from suppliers only *after*
+quantity field, and `ConfirmPayment` enqueues supplier sourcing only *after*
 payment confirms (`CreateSupplierOrdersForPaidOrder`). No reservation, no TTL, nothing to
-oversell. "Out of stock" means the product no longer exists in the catalog (deleted/archived),
-not a quantity check — see `PlaceOrder`'s `product_unavailable` error. If a real local-stock
+oversell. **"Out of stock" has two causes and one error.** Either the product left the catalogue
+(deleted/archived) or its supplier offer is missing/unavailable — `PlaceOrder` returns
+`product_unavailable` for both, and the storefront gates Add to Cart on the same offer
+check. It is never a quantity count. Until recently only the storefront checked the offer,
+so an item already in a cart could be bought and then not sourced; the rule now lives in
+`PlaceOrder`. If a real local-stock
 model is ever introduced, the classic read-then-write race (`SELECT stock; if > 0 then
 UPDATE`) still applies and must be avoided via `SELECT ... FOR UPDATE` or an atomic conditional
 update — but that's not the system as it exists today.
@@ -232,11 +246,28 @@ update — but that's not the system as it exists today.
 Payment and fulfillment are **separate** machines that reference each other.
 
 - Payment: `pending → awaiting_payment → awaiting_confirmation → paid` (terminal), plus
-  `failed` / `expired` branches. `awaiting_confirmation` covers BTC's on-chain lag.
+  `failed`, `expired` and `cancelled` branches. `awaiting_payment → paid` is direct too — the
+  first pass can already meet the threshold. `expired → paid` and `cancelled → paid` exist so a
+  payment that turns up anyway is recordable rather than stranded. `awaiting_confirmation` covers BTC's on-chain lag.
 - Fulfillment: `unfulfilled → processing → shipped → delivered` (+ `cancelled`), starts only
   after payment reaches `paid`.
-- Illegal transitions throw at the boundary (`assertTransition`). Add states here, never as
+- Illegal transitions throw at the boundary (`assertPaymentTransition` /
+  `assertFulfillmentTransition`). Add states here, never as
   ad-hoc string checks in use cases.
+- **Payment-status writes are compare-and-set.** `setPaymentStatus(orderId, to, expectedFrom)`
+  applies only if the row is still in `expectedFrom`, and returns whether it did. Every caller
+  reads, decides, then writes, so an unguarded UPDATE is a race — and not a theoretical one: an
+  admin marking an order failed while the watcher confirmed a payment used to write `failed`
+  over `paid`, which is terminal and unrefundable. **Never add a status write that ignores the
+  boolean.**
+- **An order may only be placed once per cart.** `PlaceOrder` claims the cart (`carts.delete`
+  reports whether *this* call removed it) **before** writing the order, so a double-submit
+  can't mint two orders and two BTC addresses. Don't reorder those two steps.
+- **Nothing sellable may be unobtainable.** `PlaceOrder` refuses a line whose supplier offer is
+  missing or unavailable. The storefront checks too, but that is display; this is the rule.
+- **Nothing unpayable is ever quoted.** Both `StartCheckout` and `EditOrderLines` refuse a total
+  of zero or less before an address is allocated — a 0-sat invoice can never be settled (the
+  watcher needs `confirmedSats > 0`) and would burn an address index for nothing.
 - **Nothing may be un-clearable.** Every state needs a reachable exit, or an order in an
   unexpected state strands forever with no admin action that touches it. Two exits exist for
   that reason: `FailOrder` (offered for `pending`, `awaiting_payment` and
@@ -293,6 +324,8 @@ Payment and fulfillment are **separate** machines that reference each other.
   resend button and change-email enqueue with **no** id, because a stable one would be deduped
   into nothing inside the retention window and the action would report success having sent no
   mail.
+- **Six job types**, all in `JobPayloads`: order-confirmation, welcome, verification,
+  payment-confirmed, **underpaid** (the balance-owed email) and create-supplier-orders.
 - **Payloads carry ids, not objects.** A job may run minutes later, after a deploy, on another
   process; anything it carries is a snapshot that may already be stale, so handlers re-read.
 - **The chain watcher is still a loop**, not a repeatable job, and deliberately so: it is a
@@ -375,6 +408,7 @@ npm run db:generate      # drizzle-kit generate (migrations)
 npm run db:migrate       # apply migrations
 npm run db:studio        # drizzle studio
 npm run queue:dev        # run the BTC watcher + job worker locally (tsx watch; one process)
+npm run worker           # the same process, production entry (no watch)
 npm run admin:promote -- <email>  # promote an existing account to admin
 npm run store:close      # kill switch: shut the storefront (optionally: -- "reason")
 npm run store:open       # reopen it
@@ -433,7 +467,7 @@ trusting a list like that; it dates faster than anything else in this file.
 
 Worth knowing rather than rediscovering:
 
-- **Migrations are in `drizzle/`** (22 so far). `db:generate` prompts
+- **Migrations are in `drizzle/`** (32 so far: `0000`–`0031`). `db:generate` prompts
   interactively when it can't tell a rename from a drop, so a migration that
   needs data moved between steps is hand-written with a matching snapshot —
   see `0021_remove_product_variants.sql` and `0028_remove_product_sku.sql`.

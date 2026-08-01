@@ -55,8 +55,11 @@ lost:
 4. **Email provider.** `RESEND_API_KEY` + `EMAIL_FROM` switch on real
    delivery. Without them nothing is sent — a customer who loses their order
    link has no confirmation email to find it in, and password reset is dead
-   in the water. Sending is on the BullMQ queue rather than in the request
-   path, so a provider having a bad minute is retried (five attempts,
+   in the water. **Most** sending is on the BullMQ queue rather than in the request
+   path — order confirmation, welcome, verification, payment-confirmed and the
+   balance-owed email. Password reset and the shipping/tracking emails are still
+   sent inline and have no job type, so a provider failure loses them. On the
+   queued ones a provider having a bad minute is retried (five attempts,
    exponential backoff) instead of losing the mail; whatever exhausts its
    attempts stays in BullMQ's failed set, and `/api/health` reports the
    depths. That means the `worker` process has to be running for any mail to
@@ -145,8 +148,14 @@ than surfacing later as a confusing runtime error.
 | `BTC_REQUIRED_CONFIRMATIONS` | `2` | Confirmations before an order is `paid` |
 | `BTC_SETTLEMENT_BUFFER_CONFIRMATIONS` | `1` | Extra depth before settlement is treated as final |
 | `BTC_WATCH_INTERVAL_MS` | `45000` | How often the watcher polls |
-| `QUOTE_TTL_SECONDS` | `900` | How long a fiat→BTC quote is held before the order expires |
+| `QUOTE_TTL_SECONDS` | `900` | How long a fiat→BTC quote is held. A lapsed quote does **not** expire the order — the customer re-quotes at today's rate on the same address |
 | `SESSION_TTL_SECONDS` | `2592000` | 30 days |
+| `ORDER_PAYMENT_WINDOW_HOURS` | `24` | How long an order stays open for payment |
+| `AWAITING_CONFIRMATION_WINDOW_HOURS` | `48` | How long an order may sit part-paid before it is failed. **The sharpest clock here** — when it runs out a customer who part-paid loses that money, because `failed` is terminal and there is no refund path |
+| `ANALYTICS_RETENTION_DAYS` | — | How long page-view/search/cart rows are kept before pruning |
+| `SESSION_IDLE_TIMEOUT_SECONDS` | 14 days | Customer idle window |
+| `ADMIN_SESSION_IDLE_TIMEOUT_SECONDS` | 1 hour | Admin idle window — an admin session can cancel a paid order |
+| `ADMIN_REAUTH_WINDOW_SECONDS` | `900` | How long a typed password authorises destructive admin actions |
 | `PASSWORD_RESET_TTL_SECONDS` | `3600` | |
 | `EMAIL_VERIFICATION_TTL_SECONDS` | `86400` | |
 
