@@ -24,4 +24,25 @@ export class QueuedFulfillmentQueue implements FulfillmentQueue {
       { jobId: jobIdFor('fulfillment', orderId) },
     );
   }
+
+  /**
+   * Same job, but discarding any earlier attempt still on record.
+   *
+   * The stable id above dedupes against *any* existing job, including one that
+   * exhausted its attempts and is sitting in the failed set — which BullMQ
+   * keeps for two weeks. `ReconcileUnsourcedPaidOrders` exists to re-queue
+   * sourcing that went missing, so for that entire window it queued nothing at
+   * all and logged that it had succeeded: a paid order with nothing ordered,
+   * invisible because its lines carry no fulfillment issue either.
+   *
+   * The id is kept rather than dropped, so two reconciler passes racing each
+   * other still queue the work once.
+   */
+  async requeueOrderPaid(orderId: string): Promise<void> {
+    await this.jobs.enqueue(
+      'fulfillment.create-supplier-orders',
+      { orderId },
+      { jobId: jobIdFor('fulfillment', orderId), replaceExisting: true },
+    );
+  }
 }

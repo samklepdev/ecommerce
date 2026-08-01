@@ -11,6 +11,19 @@ export interface ProcessedEventStore {
 
 export interface FulfillmentQueue {
   enqueueOrderPaid(orderId: string): Promise<void>;
+  /**
+   * Queue sourcing for an order a reconciler has established is outstanding,
+   * discarding any earlier attempt that is still on record.
+   *
+   * Distinct from `enqueueOrderPaid` because the two want opposite things from
+   * a deterministic job id. The normal path wants "if this is already queued,
+   * do nothing" — the watcher re-runs every 45 seconds. A reconciler has
+   * already checked the database and knows the work did *not* happen, so being
+   * deduplicated against a job that failed days ago is precisely wrong: the
+   * queue retains failures for two weeks, and for that whole window the
+   * reconciler queued nothing while reporting success.
+   */
+  requeueOrderPaid(orderId: string): Promise<void>;
 }
 
 export interface ConfirmPaymentInput {

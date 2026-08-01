@@ -81,6 +81,30 @@ export class BullMqJobQueue implements JobQueue, JobQueueMonitor {
     payload: JobPayloads[T],
     options: EnqueueOptions = {},
   ): Promise<void> {
+    if (options.replaceExisting && options.jobId) {
+      /**
+       * BullMQ's `addStandardJob` checks `EXISTS <jobIdKey>` *before* looking
+       * at the job's state and, if the key is there, returns the existing id
+       * without storing or queueing anything — and `queue.add` resolves
+       * normally, so the caller is told it worked. A job that exhausted its
+       * attempts keeps that key for the whole `removeOnFail` window, which is
+       * two weeks. Removing it first is what makes the re-queue real.
+       *
+       * A locked (currently executing) job refuses removal, which is the right
+       * outcome: the work is already happening, so there is nothing to
+       * re-queue. Swallowed rather than surfaced for that reason.
+       */
+      try {
+        await this.queue.remove(options.jobId);
+      } catch (e) {
+        logger.info('job not replaced; existing one is still running', {
+          job: name,
+          jobId: options.jobId,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+
     await this.queue.add(name, payload, {
       ...RETENTION,
       attempts: this.retry.attempts,

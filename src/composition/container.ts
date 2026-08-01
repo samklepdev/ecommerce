@@ -736,7 +736,9 @@ function build(): Container {
   // deliberately won't settle on its own.
   const creditLatePayment = new CreditLatePayment(paymentStore, orders, confirmPayment);
   const markOrderDelivered = new MarkOrderDelivered(orders);
-  const cancelOrderFulfillment = new CancelOrderFulfillment(orders);
+  // Cancels the order's outstanding supplier orders with it — otherwise they
+  // stay in the fulfillment queue as buyable work for an order nobody will ship.
+  const cancelOrderFulfillment = new CancelOrderFulfillment(orders, supplierOrders);
   const cancelOrder = new CancelOrder(orders, paymentStore);
   const markAwaitingConfirmation = new MarkAwaitingConfirmation(orders);
   const updateOrderNotes = new UpdateOrderNotes(orders);

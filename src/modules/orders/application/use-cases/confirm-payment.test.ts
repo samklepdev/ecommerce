@@ -49,6 +49,9 @@ function makeFakeFulfillment(failFirstCalls = 0) {
       }
       enqueued.push(orderId);
     },
+    async requeueOrderPaid(orderId) {
+      enqueued.push(orderId);
+    },
   };
   return { queue, enqueued };
 }

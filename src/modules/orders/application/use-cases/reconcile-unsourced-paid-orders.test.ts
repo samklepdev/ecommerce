@@ -20,13 +20,20 @@ function makeFakeOrders(orderIds: string[]) {
 
 function makeFakeFulfillment(failFor?: string) {
   const enqueued: string[] = [];
+  const requeued: string[] = [];
   const queue: FulfillmentQueue = {
     async enqueueOrderPaid(orderId) {
-      if (failFor === orderId) throw new Error('redis unavailable');
       enqueued.push(orderId);
     },
+    async requeueOrderPaid(orderId) {
+      if (failFor === orderId) throw new Error('redis unavailable');
+      requeued.push(orderId);
+    },
   };
-  return { queue, enqueued };
+  // `enqueued` is what the reconciler must NOT use — kept separate so a
+  // regression back to the deduplicated path fails loudly rather than
+  // looking identical.
+  return { queue, enqueued: requeued, plainlyEnqueued: enqueued };
 }
 
 describe('ReconcileUnsourcedPaidOrders', () => {
@@ -87,5 +94,22 @@ describe('ReconcileUnsourcedPaidOrders', () => {
     expect(enqueued).toEqual(['order-b']);
     expect(errorSpy).toHaveBeenCalled();
     vi.restoreAllMocks();
+  });
+
+  it('re-queues rather than plainly enqueueing, so a retained failure cannot swallow it', async () => {
+    /**
+     * The distinction is the whole fix. A plain enqueue carries the stable id
+     * `fulfillment-<orderId>`, and BullMQ deduplicates that against *any*
+     * existing job — including the failed one from the attempt that went
+     * missing, which it retains for two weeks. So the reconciler queued
+     * nothing for that entire window while logging that it had succeeded.
+     */
+    const { repo } = makeFakeOrders(['order-1']);
+    const { queue, enqueued, plainlyEnqueued } = makeFakeFulfillment();
+
+    await new ReconcileUnsourcedPaidOrders(repo, queue).execute();
+
+    expect(enqueued).toEqual(['order-1']);
+    expect(plainlyEnqueued).toEqual([]);
   });
 });

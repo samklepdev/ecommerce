@@ -2,6 +2,7 @@ import { Worker } from 'bullmq';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { BullMqJobQueue, createQueueConnection, QUEUE_NAME } from './bullmq-job-queue';
+import { jobIdFor } from '@/shared/application/ports/job-queue';
 import { TEST_REDIS_URL } from '../../../../tests/integration/config';
 import { useTestInfrastructure } from '../../../../tests/integration/harness';
 
@@ -117,6 +118,88 @@ describe('BullMqJobQueue (integration)', () => {
     const stats = await queue.stats();
     expect(stats.failed).toBeGreaterThanOrEqual(1);
     await queue.close();
+  });
+
+  describe('re-queueing work that already failed', () => {
+    /**
+     * The defect this exists for, and it needed a real Redis to see.
+     *
+     * A job that exhausts its attempts stays in the failed set, and
+     * `removeOnFail` keeps its key for 14 days. BullMQ's `addStandardJob`
+     * checks `EXISTS jobIdKey` **before looking at state** and, if the key is
+     * there, returns the existing id via `handleDuplicatedJob` — nothing is
+     * stored, nothing is queued, and `queue.add` resolves normally.
+     *
+     * `ReconcileUnsourcedPaidOrders` exists precisely to re-queue sourcing
+     * that went missing, and it uses a stable id (`fulfillment-<orderId>`). So
+     * for the entire retention window it logged "re-queued sourcing" every
+     * pass and queued nothing at all — a paid order with nothing ordered, and
+     * a log line asserting it had been fixed.
+     */
+    it('silently drops a plain re-enqueue while the failed job is retained', async () => {
+      const queue = new BullMqJobQueue(TEST_REDIS_URL, { attempts: 1, backoffDelayMs: 10 });
+      const failing = runWorker(async () => {
+        throw new Error('always fails');
+      });
+      const jobId = jobIdFor('fulfillment', 'order-requeue-1');
+
+      await queue.enqueue('fulfillment.create-supplier-orders', { orderId: 'order-requeue-1' }, { jobId });
+      await settled(failing, 1, 'failed');
+      await failing.close();
+
+      // The plain re-enqueue: accepted, and a no-op.
+      await queue.enqueue('fulfillment.create-supplier-orders', { orderId: 'order-requeue-1' }, { jobId });
+
+      const stats = await queue.stats();
+      expect(stats.waiting).toBe(0);
+      await queue.close();
+    });
+
+    it('actually re-queues when the caller asks to replace', async () => {
+      const queue = new BullMqJobQueue(TEST_REDIS_URL, { attempts: 1, backoffDelayMs: 10 });
+      const failing = runWorker(async () => {
+        throw new Error('always fails');
+      });
+      const jobId = jobIdFor('fulfillment', 'order-requeue-2');
+
+      await queue.enqueue('fulfillment.create-supplier-orders', { orderId: 'order-requeue-2' }, { jobId });
+      await settled(failing, 1, 'failed');
+      await failing.close();
+
+      await queue.enqueue(
+        'fulfillment.create-supplier-orders',
+        { orderId: 'order-requeue-2' },
+        { jobId, replaceExisting: true },
+      );
+
+      // Queued for real this time, and the stale failure is gone rather than
+      // left to look like an outstanding problem.
+      const stats = await queue.stats();
+      expect(stats.waiting).toBe(1);
+      expect(stats.failed).toBe(0);
+      await queue.close();
+    });
+
+    it('keeps the deterministic id, so two replacing calls still queue once', async () => {
+      // Replacing must not turn the reconciler into a job generator: it runs
+      // every watcher pass, and the id is still what stops a pile-up.
+      const queue = new BullMqJobQueue(TEST_REDIS_URL, { attempts: 1, backoffDelayMs: 10 });
+      const jobId = jobIdFor('fulfillment', 'order-requeue-3');
+
+      await queue.enqueue(
+        'fulfillment.create-supplier-orders',
+        { orderId: 'order-requeue-3' },
+        { jobId, replaceExisting: true },
+      );
+      await queue.enqueue(
+        'fulfillment.create-supplier-orders',
+        { orderId: 'order-requeue-3' },
+        { jobId, replaceExisting: true },
+      );
+
+      expect((await queue.stats()).waiting).toBe(1);
+      await queue.close();
+    });
   });
 
   describe('stats', () => {

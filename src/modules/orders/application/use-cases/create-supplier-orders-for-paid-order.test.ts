@@ -243,4 +243,56 @@ describe('CreateSupplierOrdersForPaidOrder', () => {
 
     expect(getFulfillment()).toBe('processing'); // unchanged, no illegal re-transition attempted
   });
+
+  describe('when the shop has cancelled the order', () => {
+    /**
+     * `CancelOrderFulfillment` records that the shop will not fulfil an order.
+     * Sourcing gated on payment alone, so it went on creating supplier orders
+     * for one — and those land in `/admin/fulfillment` with a live "Mark
+     * ordered" button and a shipping address, with nothing showing the parent
+     * order is dead. Working the queue then buys the goods: real money out,
+     * for an order nobody is going to ship.
+     *
+     * Reachable in one step, no race required: cancel an unpaid order a
+     * customer has given up on, then have them pay anyway. The watcher
+     * confirms it, `ConfirmPayment` enqueues sourcing, and the order is
+     * `paid` + `cancelled`.
+     */
+    function arrange(fulfillmentStatus: FulfillmentStatus) {
+      const productA = randomUUID();
+      const { repo: orders } = makeFakeOrderLines([{ id: 'line-a', productId: productA, quantity: 1 }]);
+      const offers = makeFakeSupplierOffers(
+        new Map([[productA, makeOffer(productA, 'supplier-1', 1000)]]),
+      );
+      const { repo: supplierOrders, created } = makeFakeSupplierOrders();
+      const { repo: fulfillment } = makeFakeOrderFulfillment('paid', fulfillmentStatus);
+      return { orders, offers, supplierOrders, created, fulfillment };
+    }
+
+    it('buys nothing', async () => {
+      const a = arrange('cancelled');
+
+      await new CreateSupplierOrdersForPaidOrder(
+        a.orders,
+        a.offers,
+        a.supplierOrders,
+        a.fulfillment,
+      ).execute({ orderId: 'order-1' });
+
+      expect(a.created).toEqual([]);
+    });
+
+    it('still sources an order that is merely unfulfilled', async () => {
+      const a = arrange('unfulfilled');
+
+      await new CreateSupplierOrdersForPaidOrder(
+        a.orders,
+        a.offers,
+        a.supplierOrders,
+        a.fulfillment,
+      ).execute({ orderId: 'order-1' });
+
+      expect(a.created).toHaveLength(1);
+    });
+  });
 });
