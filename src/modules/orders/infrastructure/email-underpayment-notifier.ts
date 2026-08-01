@@ -52,7 +52,20 @@ export class EmailUnderpaymentNotifier implements UnderpaymentNotifier {
     // asked to send, and asking again for sats already in the mempool is how
     // an accidental overpayment happens — with no refund mechanism to undo it.
     const pendingSats = intent.pendingSats ?? 0;
-    const outstandingSats = Math.max(0, intent.expectedSats - confirmedSats - pendingSats);
+    /**
+     * One figure for "what they have sent", used for both the received line
+     * and the subtraction below.
+     *
+     * These have to come from the same number. Reporting `confirmedSats` as
+     * received while subtracting `confirmedSats + pendingSats` from the total
+     * made the email contradict itself — and because the watcher's first
+     * underpaid pass usually lands while the payment is still unconfirmed,
+     * the common case read "we received 0.00000000 BTC, the total is
+     * 0.00100000, send the remaining 0.00060000". A customer who does that
+     * subtraction themselves overpays, and cannot get it back.
+     */
+    const receivedSats = confirmedSats + pendingSats;
+    const outstandingSats = Math.max(0, intent.expectedSats - receivedSats);
     if (outstandingSats === 0) {
       // Topped up between the watcher deciding to notify and this job running.
       // Mailing "you owe 0.00000000 BTC" would be worse than saying nothing.
@@ -63,7 +76,7 @@ export class EmailUnderpaymentNotifier implements UnderpaymentNotifier {
     const { html, text } = await renderUnderpaidEmail({
       orderId: order.id,
       orderUrl: `${this.appUrl}/orders/${order.id}`,
-      receivedBtc: satsToBtcString(confirmedSats),
+      receivedBtc: satsToBtcString(receivedSats),
       expectedBtc: satsToBtcString(intent.expectedSats),
       outstandingBtc: satsToBtcString(outstandingSats),
       address: intent.address,

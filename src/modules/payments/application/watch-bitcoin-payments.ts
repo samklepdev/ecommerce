@@ -43,13 +43,23 @@ export class WatchBitcoinPayments {
         // that repriced the payment already in flight.
         const seenSats = status.confirmedSats + status.pendingSats;
 
-        // Nothing on-chain yet is not the same as a short payment, and the
-        // difference matters: `underpaid` moves the order to
-        // awaiting_confirmation, which puts it beyond the reach of both
-        // ExpireStaleCheckouts and the customer's own cancel button. Without
-        // this guard 0 < expected-dust is true, so every order that had
-        // simply not been paid yet looked underpaid on the first pass.
-        const seen = seenSats > 0;
+        /**
+         * Nothing on-chain yet is not the same as a short payment, and the
+         * difference matters: `underpaid` moves the order to
+         * `awaiting_confirmation`, which puts it beyond the reach of both
+         * `ExpireStaleCheckouts` and the customer's own cancel button. Without
+         * this guard 0 < expected-dust is true, so every order that had simply
+         * not been paid yet looked underpaid on the first pass.
+         *
+         * Floored at the dust tolerance rather than at zero, because
+         * `awaiting_confirmation` is a one-way door: no cancel, no re-quote,
+         * no benign expiry, and it starts the 48-hour clock that ends in
+         * terminal `failed`. The address is public the moment the customer
+         * pays — it is in the BIP21 QR before that — so a bare `> 0` let
+         * anyone hold anyone else's order open with 546 satoshis. Anything
+         * above the tolerance is a real payment and is treated as one.
+         */
+        const seen = seenSats > DUST_TOLERANCE_SATS;
 
         // Counts the mempool too, and must. This is the predicate that emails
         // someone "you still owe X" — reading confirmed-only here would fire

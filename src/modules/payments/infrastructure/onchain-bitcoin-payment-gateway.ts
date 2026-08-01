@@ -18,6 +18,14 @@ import type { HdAddressDeriver } from '@/modules/payments/infrastructure/bitcoin
 import { toBip21 } from '@/modules/payments/domain/bip21';
 import { logger } from '@/shared/infrastructure/logger';
 
+/**
+ * Mirrors the watcher's tolerance. Both decide the same question — "is this a
+ * payment, or noise at a public address?" — and must not disagree: if the
+ * watcher ignores dust but this doesn't, the customer gets an order the
+ * watcher won't advance and a re-quote it won't allow.
+ */
+const DUST_TOLERANCE_SATS = 1000;
+
 export class OnChainBitcoinPaymentGateway implements PaymentGateway {
   readonly method = 'crypto' as const;
 
@@ -151,7 +159,11 @@ export class OnChainBitcoinPaymentGateway implements PaymentGateway {
       // and the next 45-second pass. This closes that gap. It costs one
       // Esplora call per re-quote, which is user-initiated and rare.
       const status = await this.chain.getStatus(existing.address, existing.expectedSats);
-      if (status.confirmedSats + status.pendingSats > 0) {
+      // Floored at the dust tolerance for the same reason the watcher's `seen`
+      // is: the address is public, so a bare `> 0` let anyone permanently block
+      // a customer's re-quote — and the lapsed-quote panel would then tell them
+      // "we can see your payment" when they had sent nothing.
+      if (status.confirmedSats + status.pendingSats > DUST_TOLERANCE_SATS) {
         return err({ code: 'payment_in_flight' });
       }
 

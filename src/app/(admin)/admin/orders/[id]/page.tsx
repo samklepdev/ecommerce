@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getContainer } from '@/composition/container';
 import {
   areOrderLinesEditable,
+  isLatePaymentCreditable,
   isOrderContactEditable,
 } from '@/modules/orders/domain/order-status';
 import { requireAdmin } from '@/app/lib/session';
@@ -68,8 +69,7 @@ export default async function AdminOrderDetailPage({ params }: AdminOrderDetailP
    * here, by a person, with the amount in view.
    */
   const creditableSats =
-    (order.paymentStatus === 'expired' || order.paymentStatus === 'cancelled') &&
-    paymentSession?.latePaymentSats
+    isLatePaymentCreditable(order.paymentStatus) && paymentSession?.latePaymentSats
       ? paymentSession.latePaymentSats
       : null;
 

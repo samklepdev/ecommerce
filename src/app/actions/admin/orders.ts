@@ -234,8 +234,15 @@ function describeEditError(code: string): string {
       return 'An order needs at least one item. Cancel the order instead.';
     case 'product_unavailable':
       return "That product can't be added (it no longer exists, or it's priced in another currency).";
+    case 'payment_in_flight':
+      // The likeliest reason an edit is refused now that the gateway reads the
+      // chain. Says what to do next, because "try again" is wrong here — it
+      // will keep failing until the payment settles.
+      return "Bitcoin is already on its way to this order's address, so the amount owed can't be changed. Nothing was changed. Wait for the payment to settle, then cancel or refund out-of-band if the order still needs to change.";
     case 'reprice_failed':
-      return 'The items were saved, but the Bitcoin amount could not be restated. Check the order before telling the customer anything.';
+      // Nothing was written: the lines and the amount owed move together or
+      // not at all, so a failed re-quote leaves the order exactly as it was.
+      return 'The Bitcoin amount could not be restated, so nothing was changed. Reload the order and try again.';
     case 'line_not_found':
       return 'That line is no longer on the order.';
     case 'total_not_payable':

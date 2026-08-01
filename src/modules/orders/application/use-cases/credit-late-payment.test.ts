@@ -185,4 +185,22 @@ describe('CreditLatePayment', () => {
     expect(isErr(result)).toBe(true);
     if (isErr(result)) expect(result.error.code).toBe('order_not_found');
   });
+
+  it('credits a payment that arrived against a failed order', async () => {
+    // The most likely late payment of all: the customer part-paid, the 48h
+    // top-up window closed, and the balance arrived afterwards against the
+    // address the balance email gave them.
+    const { repo, getStatus } = makeFakeOrders('failed');
+    const { store, confirmed } = makeFakePayments(100_000);
+    const { confirmPayment, enqueued } = makeConfirmPayment(repo);
+
+    const result = await new CreditLatePayment(store, repo, confirmPayment).execute({
+      orderId: 'order-1',
+    });
+
+    expect(isOk(result)).toBe(true);
+    expect(getStatus()).toBe('paid');
+    expect(enqueued).toEqual(['order-1']);
+    expect(confirmed).toEqual(['order-1']);
+  });
 });
