@@ -29,7 +29,7 @@ confirm). That is the last gap before mainnet is a reasonable conversation.
 
 ## Confirmed defects, ordered by what they cost
 
-### 1. The checkout page shows a price the customer may not be charged
+### 1. The checkout page shows a price the customer may not be charged — FIXED
 
 `src/app/(storefront)/checkout/page.tsx:81` renders `line.unitPrice` — the
 price snapshotted at add-to-cart. `PlaceOrder` re-reads the live catalogue and
@@ -46,7 +46,7 @@ The *authority* side is correct and CLAUDE.md's "re-price at checkout" rule is
 honoured. What's broken is **disclosure**. Fix: call `RepriceCart` on the cart
 and checkout pages and surface `staleProductIds` before the customer commits.
 
-### 2. An admin line edit can drive the total negative
+### 2. An admin line edit can drive the total negative — FIXED
 
 `src/modules/orders/application/use-cases/edit-order-lines.ts:161`
 
@@ -63,7 +63,7 @@ the same state.
 **Needs a decision:** re-clamp the discount to the new subtotal, or refuse the
 edit outright.
 
-### 3. Bulk markup has no lower bound
+### 3. Bulk markup has no lower bound — FIXED
 
 `src/app/actions/admin/catalog.ts:621` + `apply-markup-to-products.ts:40`
 
@@ -73,7 +73,7 @@ typo — makes every selected product free. `−150` makes prices negative, whic
 feeds the same negative-sats path as #2. The single-product editor rejects
 ≤ 0; this path doesn't.
 
-### 4. A zero total is reachable with no admin action at all
+### 4. A zero total is reachable with no admin action at all — FIXED (admin edit path; checkout path still open)
 
 Fixed coupon ≥ subtotal is clamped to the subtotal, and shipping defaults to 0
 when no rate row exists → total 0 → `expected_sats = 0`. The watcher's
@@ -104,7 +104,7 @@ The Country field in the form is free text, so `"United Kingdom"` instead of
 `update-order-contact.ts:28` claims "an admin can't write an order an address
 that checkout would have rejected". **That comment is false.**
 
-### 7. US territories cannot check out
+### 7. US territories cannot check out — FIXED
 
 `US_STATES` is 50 states + DC. A Puerto Rico customer (`PR`, ZIP `00901`) is
 rejected with "Choose a US state", and `PR` isn't in the country list either,
@@ -168,3 +168,46 @@ single highest-value thing still outstanding.
 Also not done: driving the actual UI in a browser. The dev server runs and
 serves pages, but no one has watched the top-up panel render or a status badge
 update after a payment lands.
+
+
+---
+
+## Fixed on 2026-07-31, after the audit
+
+- **The `FailOrder` race** (found by the independent review, not in the list
+  above, and worse than anything in it). `setPaymentStatus` was an unguarded
+  UPDATE, so an admin's Fail click could overwrite a payment that confirmed
+  moments earlier — `failed` is terminal and there are no refunds, so the
+  customer's money was simply gone. Now a compare-and-set at the repository,
+  which closes it for both callers rather than the one that was reported. The
+  action is sudo-gated too.
+- **The stale price at checkout**, verified against the running app: a cart
+  holding a price 90% below the live one now renders the live total, a notice,
+  and the superseded price struck through.
+- **Negative and zero totals**, refused outright per decision, at both the
+  admin line edit and the bulk-markup path.
+- **US territories and APO/FPO**, per decision.
+- **The stable BullMQ job id** that silently swallowed the balance email.
+
+### Still open
+
+Ordered by what they cost:
+
+1. **Cart writes are non-atomic** — a double-submitted checkout can mint two
+   orders and two BTC addresses from one cart.
+2. **`ConfirmPayment`'s recovery branch is unreachable** since `listWatchable`
+   narrowed; a lost payment-confirmed email is now lost for good.
+3. **The late-payment sweep sees each address once** — a balance sent after an
+   order fails is never flagged.
+4. **A re-quote can move the goalposts** during the mempool window.
+5. **The admin contact editor bypasses every address validator**, and its
+   comment claims otherwise.
+6. **A zero total can still reach checkout** by coupon + no shipping row; only
+   the admin edit path is guarded.
+7. The smaller validation items in section 8 above.
+
+### Still not done
+
+Nobody has driven the UI in a browser — the extension would not connect. The
+price-change path was verified by fetching real rendered HTML from the running
+server, which is better than nothing and short of a human looking at it.
