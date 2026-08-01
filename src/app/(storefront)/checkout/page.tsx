@@ -7,6 +7,7 @@ import { repriceCartForDisplay } from '@/app/lib/cart-pricing';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
 import { Card } from '@/components/ui/Card';
+import { Alert } from '@/components/ui/Alert';
 import styles from './page.module.css';
 
 // Checkout is personalized and mutates state — never cached.
@@ -73,15 +74,15 @@ export default async function CheckoutPage() {
               {/* Called out before the customer commits, never applied
                   silently — this is the amount they are about to send. */}
               {priced.hasPriceChanges && (
-                <p className={styles.priceNotice} role="status">
+                <Alert tone="warning">
                   Some prices changed since you added these items. The amounts below are
                   current, and they are what you will be charged.
-                </p>
+                </Alert>
               )}
               {priced.hasUnavailable && (
-                <p className={styles.priceNotice} role="status">
+                <Alert tone="danger">
                   An item is no longer available. Remove it from your cart to continue.
-                </p>
+                </Alert>
               )}
 
               <ul className={styles.lines}>

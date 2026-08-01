@@ -8,6 +8,7 @@ import { PageContainer } from '@/components/ui/PageContainer';
 import { Stack } from '@/components/ui/Stack';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Alert } from '@/components/ui/Alert';
 import { TrashIcon } from '@/components/ui/TrashIcon';
 import { CartLineQuantityStepper } from './CartLineQuantityStepper';
 import styles from './page.module.css';
@@ -63,9 +64,9 @@ export default async function CartPage() {
         <h1>Your cart</h1>
 
         {priced.hasPriceChanges && (
-          <p className={styles.priceNotice} role="status">
+          <Alert tone="warning">
             Some prices changed since you added these items. The amounts shown are current.
-          </p>
+          </Alert>
         )}
 
         <Stack gap={3}>
