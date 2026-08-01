@@ -105,6 +105,20 @@ export function BitcoinCheckout({
   // new price, not a new checkout. Reads "0:00" rather than a missing
   // countdown, so this only fires once the clock has genuinely elapsed.
   const quoteLapsed = status === 'awaiting' && countdown === '0:00';
+  /**
+   * Whether the shop is still waiting to receive money — and therefore whether
+   * showing a payment QR is honest.
+   *
+   * `confirming` on its own is not enough: it also covers "they paid in full and
+   * we're waiting for blocks", where a scannable QR invites a second payment for
+   * an order already settled. With no refund mechanism, that money is simply
+   * gone. It also excludes a shortfall smaller than the dust tolerance, where
+   * `underpaid` is false and the remainder would render as a nonsense sub-dust
+   * amount nobody should send.
+   */
+  const owesBalance = status === 'confirming' && progress.underpaid && progress.shortfallSats > 0;
+  const awaitingAnything = status === 'awaiting';
+  const showPaymentQr = !quoteLapsed && (awaitingAnything || owesBalance);
   const router = useRouter();
   const lastStatusRef = useRef<WidgetStatus | null>(null);
 
@@ -210,7 +224,7 @@ export function BitcoinCheckout({
           ) : (
             <p className={styles.message}>
               {status === 'confirming'
-                ? `Payment seen, waiting for confirmations… (${progress.confirmations} of ${progress.requiredConfirmations})`
+                ? `Payment seen, waiting for confirmations… (${progress.confirmations} of ${progress.requiredConfirmations}). No further payment is needed.`
                 : 'Send exactly this amount to the address below.'}
             </p>
           )}
@@ -239,13 +253,14 @@ export function BitcoinCheckout({
             </div>
           )}
 
-          {/* Hidden while the price is stale: a QR encodes the amount, and
-              scanning a lapsed one would send the wrong number of sats. Once
-              part-paid, it encodes the *remainder* — scanning the original
-              would send the full amount a second time. */}
-          {!quoteLapsed && (
+          {/* Shown only when money is genuinely owed — see `showPaymentQr`. A QR
+              encodes an amount, so a stale one sends the wrong number of sats and
+              one shown after full payment invites paying twice. When a balance is
+              owed it encodes the *remainder*; scanning the original would send the
+              whole amount again. */}
+          {showPaymentQr && (
             <div className={styles.qrWrapper}>
-              <QRCodeSVG value={progress.topUpUri ?? bip21Uri} size={220} />
+              <QRCodeSVG value={owesBalance && progress.topUpUri ? progress.topUpUri : bip21Uri} size={220} />
             </div>
           )}
 

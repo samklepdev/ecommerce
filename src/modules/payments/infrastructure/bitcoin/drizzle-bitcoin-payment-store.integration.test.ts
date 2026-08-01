@@ -22,7 +22,14 @@ describe('DrizzleBitcoinPaymentStore late payments (integration)', () => {
   let seq = 0;
   async function seedIntent(
     database: DB,
-    opts: { status: string; createdAt?: Date; latePaymentSeenAt?: Date },
+    opts: {
+      status: string;
+      createdAt?: Date;
+      latePaymentSeenAt?: Date;
+      /** The *order's* payment status. Defaults to a terminal one, since that's
+       * what makes an intent sweepable. */
+      orderStatus?: string;
+    },
   ) {
     seq += 1;
     const orderId = `order-${seq}`;
@@ -33,6 +40,7 @@ describe('DrizzleBitcoinPaymentStore late payments (integration)', () => {
       shippingAmountMinor: 0,
       discountAmountMinor: 0,
       customerEmail: 'buyer@example.com',
+      paymentStatus: opts.orderStatus ?? 'expired',
     });
     await database.insert(bitcoinPaymentIntents).values({
       orderId,
@@ -51,17 +59,20 @@ describe('DrizzleBitcoinPaymentStore late payments (integration)', () => {
 
   const longAgo = new Date('2020-01-01T00:00:00Z');
 
-  it('returns expired and cancelled intents, and nothing else', async () => {
-    await seedIntent(db as DB, { status: 'expired' });
-    await seedIntent(db as DB, { status: 'cancelled' });
-    // `awaiting` is still being polled by the watcher, and `confirmed` was paid
-    // through the normal path — neither has anything to explain.
-    await seedIntent(db as DB, { status: 'awaiting' });
-    await seedIntent(db as DB, { status: 'confirmed' });
+  it('returns every closed order, and nothing still live', async () => {
+    // Keyed on the ORDER's status, not the intent's — see the query's comment.
+    // The intent status varies here deliberately: it is not what decides this,
+    // and a failed order's intent is never marked at all.
+    const expired = await seedIntent(db as DB, { status: 'expired', orderStatus: 'expired' });
+    const cancelled = await seedIntent(db as DB, { status: 'cancelled', orderStatus: 'cancelled' });
+    const failed = await seedIntent(db as DB, { status: 'awaiting', orderStatus: 'failed' });
+    // Still collecting, or settled through the normal path.
+    await seedIntent(db as DB, { status: 'awaiting', orderStatus: 'awaiting_payment' });
+    await seedIntent(db as DB, { status: 'confirmed', orderStatus: 'paid' });
 
     const found = await store().listSweepable(longAgo);
 
-    expect(found.map((i) => i.status).sort()).toEqual(['cancelled', 'expired']);
+    expect(found.map((i) => i.orderId).sort()).toEqual([cancelled, expired, failed].sort());
   });
 
   it('excludes an intent that was already flagged', async () => {
@@ -134,6 +145,32 @@ describe('DrizzleBitcoinPaymentStore late payments (integration)', () => {
     const orderId = await seedIntent(db as DB, { status: 'awaiting' });
 
     expect((await store().getByOrderId(orderId))?.confirmedSats).toBe(0);
+  });
+
+  it('sweeps a failed order, whose intent nothing ever marks', async () => {
+    // Neither `FailOrder` nor the stuck-order pass touches the payment intent,
+    // so it stays `awaiting` for good. Keyed on the *order's* terminal status
+    // rather than the intent's, this is caught anyway — which matters because
+    // the underpayment email tells the customer to send the balance to exactly
+    // this address, and `failed` is where an underpaid order ends up.
+    const orderId = await seedIntent(db as DB, { status: 'awaiting', orderStatus: 'failed' });
+
+    const found = await store().listSweepable(longAgo);
+
+    expect(found.map((i) => i.orderId)).toEqual([orderId]);
+  });
+
+  it('does not sweep an order that is still collecting', async () => {
+    await seedIntent(db as DB, { status: 'awaiting', orderStatus: 'awaiting_payment' });
+    await seedIntent(db as DB, { status: 'awaiting', orderStatus: 'awaiting_confirmation' });
+
+    expect(await store().listSweepable(longAgo)).toEqual([]);
+  });
+
+  it('does not sweep an order that was paid', async () => {
+    await seedIntent(db as DB, { status: 'confirmed', orderStatus: 'paid' });
+
+    expect(await store().listSweepable(longAgo)).toEqual([]);
   });
 
   it('counts zero when nothing has been flagged', async () => {
@@ -212,6 +249,22 @@ describe('DrizzleBitcoinPaymentStore#listWatchable (integration)', () => {
     // of awaiting_confirmation at 48h, and it drops out here with no separate
     // horizon to keep in sync.
     await seed('failed', wellPast);
+
+    expect(await store().listWatchable()).toEqual([]);
+  });
+
+  it('stops watching an order that has failed, even inside its payment window', async () => {
+    // A terminal order can never reach `paid`. Watching one means that if money
+    // does arrive, `assertPaymentTransition('failed', 'paid')` throws on every
+    // pass — an error loop every 45 seconds that drowns out real ones.
+    await seed('failed', future);
+
+    expect(await store().listWatchable()).toEqual([]);
+  });
+
+  it('stops watching expired and cancelled orders inside their window too', async () => {
+    await seed('expired', future);
+    await seed('cancelled', future);
 
     expect(await store().listWatchable()).toEqual([]);
   });

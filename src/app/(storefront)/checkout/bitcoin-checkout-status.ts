@@ -9,9 +9,10 @@ export type WidgetStatus =
   | 'cancelled';
 
 
-/** Domain payment status -> the states `BitcoinCheckout` renders. `failed`
- * each keep their own state — collapsing them into `expired` would tell a
- * customer whose order failed that their payment window merely expired.
+/** Domain payment status -> the states `BitcoinCheckout` renders. `failed`,
+ * `expired` and `cancelled` each keep their own state — collapsing them would
+ * tell a customer whose order failed that their payment window merely expired,
+ * or tell someone who cancelled that something went wrong.
  *
  * Shared by the status route (what the widget polls) and the order pages
  * (what the widget first paints), so a confirmed order never renders as
