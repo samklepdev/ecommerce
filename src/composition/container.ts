@@ -436,6 +436,9 @@ function build(): Container {
     indexAllocator,
     rates,
     paymentStore,
+    // Read before repricing, so a re-quote can't restate the amount owed
+    // under a payment the customer has already broadcast.
+    chain,
     env.QUOTE_TTL_SECONDS,
   );
   const gateways = new PaymentGatewayRegistry([btcGateway]);

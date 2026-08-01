@@ -47,6 +47,9 @@ export async function GET(
     // this order still owes, which is exactly what the person holding the order
     // link needs, and nothing about any other order.
     confirmedSats: progress.confirmedSats,
+    // So the widget can say "we can see your payment" rather than showing a
+    // countdown and a re-quote button at someone who has already sent it.
+    pendingSats: progress.pendingSats,
     shortfallSats: progress.shortfallSats,
     topUpUri: progress.topUpUri,
   });

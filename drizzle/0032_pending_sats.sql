@@ -1,0 +1,22 @@
+-- Records value seen at the address that has not confirmed yet.
+--
+-- Only confirmed transactions counted before, so a customer who had broadcast
+-- but whose payment was still in the mempool was indistinguishable from one
+-- who had done nothing at all. Three things followed from that, all of them
+-- costing the customer their money:
+--
+--   * their order kept ticking toward its deadline and could expire while a
+--     low-fee transaction waited for a block;
+--   * the checkout widget declared the quote lapsed and offered "get today's
+--     price", which repriced the payment already in flight — turning a full
+--     payment into an underpayment that goes terminal at 48 hours;
+--   * nothing anywhere could tell them "we can see it, it's waiting".
+--
+-- Never counts toward settlement. An order must never reach `paid` on mempool
+-- value, so `confirmed_sats` keeps its exact meaning and this sits beside it.
+--
+-- Defaults to 0, not null, matching `confirmations` and `confirmed_sats`:
+-- existing rows have genuinely never had this observed, and the watcher
+-- rewrites it on the next pass over any intent still being watched.
+
+ALTER TABLE "bitcoin_payment_intents" ADD COLUMN "pending_sats" bigint DEFAULT 0 NOT NULL;

@@ -225,6 +225,13 @@
       "when": 1785600000004,
       "tag": "0031_drop_refunded_status",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1785600000005,
+      "tag": "0032_pending_sats",
+      "breakpoints": true
     }
   ]
 }

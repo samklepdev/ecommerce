@@ -27,6 +27,8 @@ import { DrizzleShippingRateRepository } from '@/modules/shipping/infrastructure
 import { DrizzleCouponRepository } from '@/modules/coupons/infrastructure/drizzle-coupon-repository';
 import { PlaceOrder } from '@/modules/orders/application/use-cases/place-order';
 import { StartCheckout } from '@/modules/checkout/application/use-cases/start-checkout';
+import { ExpireStaleCheckouts } from '@/modules/checkout/application/use-cases/expire-stale-checkouts';
+import { RefreshPaymentQuote } from '@/modules/checkout/application/use-cases/refresh-payment-quote';
 import { ConfirmPayment } from '@/modules/orders/application/use-cases/confirm-payment';
 import { MarkAwaitingConfirmation } from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
 import { NotifyUnderpaidOnce } from '@/modules/orders/application/use-cases/notify-underpaid-once';
@@ -60,13 +62,24 @@ export class FakeChain implements ChainDataProvider {
   async getStatus(address: string): Promise<AddressChainStatus> {
     this.queried.push(address);
     return (
-      this.byAddress.get(address) ?? { address, confirmedSats: 0, confirmations: 0 }
+      this.byAddress.get(address) ?? {
+        address,
+        confirmedSats: 0,
+        pendingSats: 0,
+        confirmations: 0,
+      }
     );
   }
 
   /** Simulates a customer sending coins, with a given depth. */
   pay(address: string, confirmedSats: number, confirmations: number): void {
-    this.byAddress.set(address, { address, confirmedSats, confirmations });
+    this.byAddress.set(address, { address, confirmedSats, pendingSats: 0, confirmations });
+  }
+
+  /** Simulates a customer having broadcast, with nothing confirmed yet — the
+   * state that used to be indistinguishable from not having paid at all. */
+  broadcast(address: string, pendingSats: number): void {
+    this.byAddress.set(address, { address, confirmedSats: 0, pendingSats, confirmations: 0 });
   }
 }
 
@@ -128,6 +141,7 @@ export function buildMoneyPath(
     new RedisAddressIndexAllocator(redis),
     new FixedRateProvider(),
     paymentStore,
+    chain,
     options.quoteTtlSeconds ?? 900,
   );
 
@@ -212,6 +226,10 @@ export function buildMoneyPath(
       24,
       storeAlwaysOpen,
     ),
+    /** The sweep that closes orders whose payment window ran out. Here so a
+     * test can prove an in-flight payment isn't expired underneath it. */
+    expireStaleCheckouts: new ExpireStaleCheckouts(orders, paymentStore),
+    refreshPaymentQuote: new RefreshPaymentQuote(orders, gateway),
     watcher: new WatchBitcoinPayments(
       paymentStore,
       chain,

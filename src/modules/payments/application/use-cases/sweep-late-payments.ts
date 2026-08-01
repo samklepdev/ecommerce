@@ -47,7 +47,10 @@ export class SweepLatePayments implements UseCase<void, void> {
 
     for (const intent of intents) {
       try {
-        const status = await this.chain.getStatus(intent.address);
+        const status = await this.chain.getStatus(intent.address, intent.expectedSats);
+        // Confirmed only: this flags money the shop is actually holding
+        // against a closed order. Something still in the mempool isn't that
+        // yet, and the next hourly pass will see it once it lands.
         if (status.confirmedSats <= 0) continue;
 
         const changed = await this.payments.recordLatePayment(

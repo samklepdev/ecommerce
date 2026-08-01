@@ -12,6 +12,7 @@ import type {
   AddressIndexAllocator,
   BitcoinPaymentStore,
   BtcRateProvider,
+  ChainDataProvider,
 } from '@/modules/payments/application/ports/bitcoin-ports';
 import type { HdAddressDeriver } from '@/modules/payments/infrastructure/bitcoin/address-deriver';
 import { toBip21 } from '@/modules/payments/domain/bip21';
@@ -25,6 +26,10 @@ export class OnChainBitcoinPaymentGateway implements PaymentGateway {
     private readonly indexAllocator: AddressIndexAllocator,
     private readonly rates: BtcRateProvider,
     private readonly paymentStore: BitcoinPaymentStore,
+    /** Read before repricing, to refuse restating an amount a customer may
+     * already have paid. Not used to create a payment — there is nothing at a
+     * freshly derived address to look at. */
+    private readonly chain: ChainDataProvider,
     private readonly quoteTtlSeconds: number,
   ) {}
 
@@ -130,6 +135,26 @@ export class OnChainBitcoinPaymentGateway implements PaymentGateway {
     if (existing.status !== 'awaiting') return err({ code: 'payment_not_repriceable' });
 
     try {
+      // Ask the chain, not our own status columns.
+      //
+      // The order's payment status only advances on *confirmed* value, so for
+      // the whole zero-conf window a customer who has already broadcast still
+      // reads `awaiting_payment` — which is exactly the state every caller
+      // here treats as safe to reprice. Restating the amount then moves the
+      // goalposts under a payment in flight: if the rate fell, their full
+      // payment lands as an underpayment, they're emailed a demand for a
+      // balance they don't owe, and at 48 hours the order goes terminal with
+      // no refund path.
+      //
+      // The watcher now moves an order to `awaiting_confirmation` on mempool
+      // value, which closes most of this, but not the gap between a broadcast
+      // and the next 45-second pass. This closes that gap. It costs one
+      // Esplora call per re-quote, which is user-initiated and rare.
+      const status = await this.chain.getStatus(existing.address, existing.expectedSats);
+      if (status.confirmedSats + status.pendingSats > 0) {
+        return err({ code: 'payment_in_flight' });
+      }
+
       const satsPerFiatUnit = await this.rates.satsPerFiatUnit(input.amount.currency);
       // Same 2-decimal assumption as createPayment.
       const expectedSats = Math.round((input.amount.amountMinor / 100) * satsPerFiatUnit);

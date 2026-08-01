@@ -235,6 +235,7 @@ export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore, OnChainA
     progress: {
       confirmations: number;
       confirmedSats: number;
+      pendingSats: number;
       underpaid: boolean;
       overpaid: boolean;
     },
@@ -244,6 +245,7 @@ export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore, OnChainA
       .set({
         confirmations: progress.confirmations,
         confirmedSats: progress.confirmedSats,
+        pendingSats: progress.pendingSats,
         underpaid: progress.underpaid,
         overpaid: progress.overpaid,
       })
@@ -264,6 +266,7 @@ function toIntent(row: Row): BitcoinPaymentIntent {
     status: row.status as BitcoinPaymentIntent['status'],
     confirmations: row.confirmations,
     confirmedSats: row.confirmedSats,
+    pendingSats: row.pendingSats,
     underpaid: row.underpaid,
     overpaid: row.overpaid,
   };

@@ -19,6 +19,13 @@ export interface PaymentProgress {
   /** What has actually arrived so far. */
   confirmedSats: number;
   /**
+   * What has been sent but hasn't confirmed yet. Lets the page say "we can see
+   * your payment" instead of "awaiting payment" at someone who has already
+   * sent it — and, in the widget, suppress the re-quote prompt that would
+   * otherwise reprice a payment in flight.
+   */
+  pendingSats: number;
+  /**
    * What is still owed, in sats — the figure a part-paid customer needs.
    *
    * Never negative, and 0 whenever a top-up isn't the right answer: fully paid,
@@ -59,6 +66,7 @@ export class GetPaymentProgress implements UseCase<GetPaymentProgressInput, Paym
 
     const expectedSats = intent?.expectedSats ?? 0;
     const confirmedSats = intent?.confirmedSats ?? 0;
+    const pendingSats = intent?.pendingSats ?? 0;
 
     // Only while the order is still collecting. A closed order (failed,
     // expired, cancelled) must not invite a top-up: that would take money for
@@ -66,9 +74,17 @@ export class GetPaymentProgress implements UseCase<GetPaymentProgressInput, Paym
     // definition, even if it was short by less than the dust tolerance.
     const stillCollecting =
       status === 'pending' || status === 'awaiting_payment' || status === 'awaiting_confirmation';
+    // Counts unconfirmed value, and must: this figure drives the top-up QR the
+    // widget renders. Computed against confirmed value alone, a customer whose
+    // payment was still in the mempool was shown the full balance and a QR to
+    // pay it again — the one mistake that cannot be undone here, since there
+    // is no refund mechanism.
+    //
     // `max(0, …)` rather than a signed difference: an overpaid order owes
     // nothing, and a negative "shortfall" would render as a nonsense amount.
-    const shortfallSats = stillCollecting ? Math.max(0, expectedSats - confirmedSats) : 0;
+    const shortfallSats = stillCollecting
+      ? Math.max(0, expectedSats - confirmedSats - pendingSats)
+      : 0;
 
     return {
       status,
@@ -78,6 +94,7 @@ export class GetPaymentProgress implements UseCase<GetPaymentProgressInput, Paym
       overpaid: intent?.overpaid ?? false,
       expectedSats,
       confirmedSats,
+      pendingSats,
       shortfallSats,
       topUpUri: shortfallSats > 0 && intent ? toBip21(intent.address, shortfallSats) : null,
     };
