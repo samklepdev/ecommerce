@@ -12,6 +12,7 @@ import { satsToBtcString } from '@/modules/payments/domain/bip21';
 import { FailOrderButton } from './FailOrderButton';
 import { CancelOrderButton } from './CancelOrderButton';
 import { CreditLatePaymentButton } from './CreditLatePaymentButton';
+import { BitcoinPaymentPanel } from './BitcoinPaymentPanel';
 import { MarkDeliveredButton } from './MarkDeliveredButton';
 import { OrderNotesEditor } from './OrderNotesEditor';
 import { OrderEventsTimeline } from './OrderEventsTimeline';
@@ -38,12 +39,13 @@ export default async function AdminOrderDetailPage({ params }: AdminOrderDetailP
     listOrderEvents,
     listAllProductsForAdmin,
     getPaymentSessionForOrder,
+    getPaymentProgress,
   } = getContainer();
 
   const order = await getOrderDetail.execute({ orderId: id });
   if (!order) notFound();
 
-  const [shipments, events, catalog, paymentSession] = await Promise.all([
+  const [shipments, events, catalog, paymentSession, paymentProgress] = await Promise.all([
     getShipmentsForOrder.execute({ orderId: order.id }),
     listOrderEvents.execute({ orderId: order.id }),
     // The picker for "add a product to this order". Bounded — past this many
@@ -53,6 +55,10 @@ export default async function AdminOrderDetailPage({ params }: AdminOrderDetailP
     // `OrderDetailView` below: that renders the customer's polling checkout
     // widget, which has no business running on an admin screen.
     getPaymentSessionForOrder.execute({ orderId: order.id }),
+    // The chain-side figures: confirmed, pending, confirmations, shortfall.
+    // Together with the session's address this is everything the database
+    // knows about the payment, none of which was visible in the console.
+    getPaymentProgress.execute({ orderId: order.id }),
   ]);
 
   /**
@@ -83,6 +89,20 @@ export default async function AdminOrderDetailPage({ params }: AdminOrderDetailP
         backLabel="Back to orders"
         contained={false}
       />
+      {paymentSession && paymentProgress && (
+        <BitcoinPaymentPanel
+          address={paymentSession.address}
+          expectedSats={paymentProgress.expectedSats}
+          confirmedSats={paymentProgress.confirmedSats}
+          pendingSats={paymentProgress.pendingSats}
+          confirmations={paymentProgress.confirmations}
+          requiredConfirmations={paymentProgress.requiredConfirmations}
+          underpaid={paymentProgress.underpaid}
+          overpaid={paymentProgress.overpaid}
+          latePaymentSats={paymentSession.latePaymentSats}
+        />
+      )}
+
       <div className={styles.actions}>
         {order.paymentRecoveredFrom && (
           <Badge tone="warning">Recovered from {order.paymentRecoveredFrom}</Badge>

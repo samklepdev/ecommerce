@@ -1,0 +1,86 @@
+/* Same hairline-panel language as the editors on this page: a bordered
+   surface, a mono eyebrow title, no radius. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 20px;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--ui-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Auto-fit rather than a fixed column count: the fields that appear depend on
+   the order's state, and a fixed grid leaves holes when they don't. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px 20px;
+  margin: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.label {
+  font-family: var(--ui-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* Tabular figures so amounts line up against each other down the column —
+   these are read comparatively ("is confirmed short of expected?"). */
+.amount {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+
+/* The address spans the grid: it's 42 characters of unbroken string and
+   wrapping it inside one narrow column splits it mid-hash. */
+.address {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-family: var(--ui-mono);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.field:has(.address) {
+  grid-column: 1 / -1;
+}
+
+/* Money that is missing or unaccounted for — the figures that need acting on
+   rather than merely reading. */
+.owed {
+  font-weight: 600;
+}

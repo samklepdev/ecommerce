@@ -17,7 +17,9 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  max-width: 420px;
+  /* Wraps rather than overflowing: the status filters were added alongside
+     the email box, and on a narrow console they need a second row. */
+  flex-wrap: wrap;
 }
 
 /* The table sits on its own white surface, like the products and suppliers
@@ -63,4 +65,20 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+
+/* Sized to sit alongside the email box rather than stretch with it — the
+   status filters are short, fixed vocabularies. */
+.filterSelect {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+}
+
+.filterNote {
+  margin: 0;
+  color: var(--color-muted);
 }

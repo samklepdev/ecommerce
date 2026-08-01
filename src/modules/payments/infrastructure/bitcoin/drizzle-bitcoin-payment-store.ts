@@ -25,18 +25,36 @@ export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore, OnChainA
         underpaid: bitcoinPaymentIntents.underpaid,
         overpaid: bitcoinPaymentIntents.overpaid,
         confirmations: bitcoinPaymentIntents.confirmations,
-        paidAt: orders.updatedAt,
+        /**
+         * `paid_at`, not `updated_at`.
+         *
+         * This used to alias `updated_at`, which shipping, cancelling, editing
+         * lines, updating contact details and recording a payment recovery all
+         * rewrite. An order settled on 5 January and shipped on 10 February
+         * therefore left January's report and appeared in February's — the
+         * sats weren't missing, they were filed under the wrong month, and any
+         * order still moving through fulfillment was invisible in the period
+         * it was actually paid in. Reconciling against an exchange with that
+         * is impossible.
+         */
+        paidAt: orders.paidAt,
       })
       .from(bitcoinPaymentIntents)
       .innerJoin(orders, eq(orders.id, bitcoinPaymentIntents.orderId))
       .where(
         and(
           eq(orders.paymentStatus, 'paid'),
-          gte(orders.updatedAt, since),
-          lte(orders.updatedAt, until),
+          gte(orders.paidAt, since),
+          lte(orders.paidAt, until),
         ),
       );
-    return rows;
+
+    // The range predicate above already excludes a NULL `paid_at`, but the
+    // column is nullable and the report's type says otherwise. Narrowing here
+    // rather than asserting keeps that a fact about the data instead of a
+    // claim about it — a paid order that somehow has no paid-at is dropped
+    // from the report rather than crashing it or reporting an Invalid Date.
+    return rows.filter((r): r is OnChainOrderActivity => r.paidAt !== null);
   }
 
   async save(intent: BitcoinPaymentIntent): Promise<void> {
