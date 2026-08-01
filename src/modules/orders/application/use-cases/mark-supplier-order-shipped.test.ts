@@ -139,4 +139,60 @@ describe('MarkSupplierOrderShipped notifications', () => {
 
     expect(notified).toEqual([]);
   });
+
+  describe('when the order has been cancelled underneath the parcel', () => {
+    /**
+     * `CancelOrderFulfillment` is offered at any payment status, and
+     * `FULFILLMENT_TRANSITIONS.cancelled` is empty — so `cancelled -> shipped`
+     * throws.
+     *
+     * The throw came *after* the supplier row had been flipped and the
+     * customer emailed a tracking number, and the action does not catch it:
+     * the admin got a 500, the customer got "your order has shipped" for an
+     * order the shop had cancelled, and the audit-log write never ran. The
+     * state was committed; only the record of it was lost.
+     */
+    function arrange() {
+      const supplierOrders = makeFakeSupplierOrders({ markShippedResult: true, allShipped: true });
+      const { repo: orders, getFulfillment } = makeFakeOrderFulfillment('paid', 'cancelled');
+      const { notifier, notified } = makeFakeNotifier();
+      return { supplierOrders, orders, getFulfillment, notifier, notified };
+    }
+
+    const input = {
+      supplierOrderId: 'so-1',
+      orderId: 'order-1',
+      trackingNumber: 'TRACK1',
+    };
+
+    it('does not throw', async () => {
+      const a = arrange();
+
+      await expect(
+        new MarkSupplierOrderShipped(a.supplierOrders, a.orders, a.notifier).execute(input),
+      ).resolves.toBe(true);
+    });
+
+    it('leaves the order cancelled rather than advancing it', async () => {
+      const a = arrange();
+
+      await new MarkSupplierOrderShipped(a.supplierOrders, a.orders, a.notifier).execute(input);
+
+      expect(a.getFulfillment()).toBe('cancelled');
+    });
+
+    it('still records the parcel, because it is genuinely moving', async () => {
+      // The supplier order really did ship. Refusing to record that would put
+      // a different lie in the durable record.
+      const a = arrange();
+
+      const result = await new MarkSupplierOrderShipped(
+        a.supplierOrders,
+        a.orders,
+        a.notifier,
+      ).execute(input);
+
+      expect(result).toBe(true);
+    });
+  });
 });

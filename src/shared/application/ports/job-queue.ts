@@ -38,6 +38,23 @@ export interface EnqueueOptions {
    * button); see the note on `jobIdFor`.
    */
   jobId?: string;
+  /**
+   * Discard any existing job with this id before queueing, so the work is
+   * genuinely re-queued rather than silently deduplicated away.
+   *
+   * Needed because a deterministic id dedupes against **any** existing job,
+   * including one that already exhausted its attempts and is sitting in the
+   * failed set — which the queue retains for two weeks. A caller re-queueing
+   * work it has independently established is outstanding would otherwise be
+   * refused for that whole window while being told it succeeded. That is
+   * exactly what happened to `ReconcileUnsourcedPaidOrders`: a paid order with
+   * nothing ordered, and a log line every pass claiming it had been fixed.
+   *
+   * Only for callers that *know* the work still needs doing — a reconciler
+   * that has just queried the database, not a retry loop. The id is still
+   * worth keeping alongside it, so two passes racing each other queue once.
+   */
+  replaceExisting?: boolean;
 }
 
 /**

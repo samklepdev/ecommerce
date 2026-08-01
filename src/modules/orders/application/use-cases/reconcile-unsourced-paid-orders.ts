@@ -66,7 +66,11 @@ export class ReconcileUnsourcedPaidOrders implements UseCase<void, void> {
 
     for (const orderId of orderIds) {
       try {
-        await this.fulfillment.enqueueOrderPaid(orderId);
+        // `requeue`, not `enqueue`: a plain enqueue is deduplicated against the
+        // failed job from the attempt that went missing, so it would queue
+        // nothing for the two weeks BullMQ retains it — while logging below
+        // that it had re-queued successfully.
+        await this.fulfillment.requeueOrderPaid(orderId);
         // `warn`, matching ConfirmPayment's recovery paths: it self-heals from
         // here, but a lost job is worth knowing about because the next thing
         // the queue drops might not have a reconciler.

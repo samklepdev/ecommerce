@@ -73,6 +73,28 @@ export class CreateSupplierOrdersForPaidOrder
       return;
     }
 
+    /**
+     * And the shop must still intend to fulfil it.
+     *
+     * `CancelOrderFulfillment` records a decision not to ship, and
+     * deliberately leaves payment alone — so an order can be `paid` and
+     * `cancelled` at once. Gating on payment alone meant sourcing went on
+     * buying for it: the supplier orders land in `/admin/fulfillment` with a
+     * live "Mark ordered" button and a shipping address, with nothing showing
+     * the parent order is dead. Whoever works that queue spends real money on
+     * goods nobody will ship.
+     *
+     * Reachable without any race: cancel an unpaid order the customer has
+     * given up on, then have them pay anyway.
+     */
+    const fulfillmentStatusBefore = await this.orderFulfillment.getFulfillmentStatus(input.orderId);
+    if (fulfillmentStatusBefore === 'cancelled') {
+      logger.warn('supplier orders skipped: order fulfillment was cancelled', {
+        orderId: input.orderId,
+      });
+      return;
+    }
+
     const lines = await this.orders.getUnsourcedOrderLines(input.orderId);
     if (lines.length === 0) return; // dev harness orders have no lines
 

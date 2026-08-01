@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, inArray, ne } from 'drizzle-orm';
+import { and, eq, inArray, ne, notExists, sql } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { orderLines, supplierOrderLines, supplierOrders } from '@/shared/infrastructure/db/schema';
@@ -205,13 +205,46 @@ export class DrizzleSupplierOrderRepository implements SupplierOrderRepository {
     return result.length > 0;
   }
 
+  /**
+   * Whether the whole order is genuinely on its way.
+   *
+   * Two questions, and this used to ask only the first. "Has every supplier
+   * order shipped" says nothing about lines that never got a supplier order at
+   * all — and `CreateSupplierOrdersForPaidOrder` creates them only for lines it
+   * can source, flagging the rest. So a two-line order with one unsourceable
+   * line had exactly one supplier order, and shipping it advanced the whole
+   * order to `shipped` and then offered `delivered`: the customer was told
+   * their complete order had arrived when half of it was never bought.
+   */
   async allShippedForOrder(orderId: string): Promise<boolean> {
     const rows = await this.db.query.supplierOrders.findMany({
       where: and(eq(supplierOrders.orderId, orderId), ne(supplierOrders.status, 'cancelled')),
       columns: { status: true },
     });
     if (rows.length === 0) return false;
-    return rows.every((r) => r.status === 'shipped');
+    if (!rows.every((r) => r.status === 'shipped')) return false;
+
+    // And nothing is left behind. Mirrors `getUnsourcedOrderLines`' definition
+    // of covered — the existence of a supplier_order_line, regardless of that
+    // supplier order's status, because a cancelled one is a decision already
+    // taken rather than an omission.
+    const [uncovered] = await this.db
+      .select({ id: orderLines.id })
+      .from(orderLines)
+      .where(
+        and(
+          eq(orderLines.orderId, orderId),
+          notExists(
+            this.db
+              .select({ one: sql`1` })
+              .from(supplierOrderLines)
+              .where(eq(supplierOrderLines.orderLineId, orderLines.id)),
+          ),
+        ),
+      )
+      .limit(1);
+
+    return uncovered === undefined;
   }
 
   async allCancelledForOrder(orderId: string): Promise<boolean> {

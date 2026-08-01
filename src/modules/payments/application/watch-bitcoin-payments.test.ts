@@ -112,7 +112,7 @@ function makeWatcher(
   notifyUnderpaid: NotifyUnderpaidOnce = makeNotifyUnderpaid().notify,
 ) {
   const processedEvents = { seen: async () => false, markSeen: async () => {} };
-  const fulfillment = { enqueueOrderPaid: async () => {} };
+  const fulfillment = { enqueueOrderPaid: async () => {}, requeueOrderPaid: async () => {} };
   const paymentConfirmationNotifier = { notifyPaymentConfirmed: async () => {} };
   const confirmPayment = new ConfirmPayment(orders, processedEvents, fulfillment, paymentConfirmationNotifier);
   const markAwaitingConfirmation = new MarkAwaitingConfirmation(orders);

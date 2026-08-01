@@ -4,7 +4,9 @@ import {
   assertFulfillmentTransition,
   IllegalStatusTransitionError,
 } from '@/modules/orders/domain/order-status';
+import { logger } from '@/shared/infrastructure/logger';
 import type { OrderFulfillmentRepository } from '@/modules/orders/application/ports/order-fulfillment-repository';
+import type { SupplierOrderRepository } from '@/modules/orders/application/ports/supplier-order-repository';
 
 export interface CancelOrderFulfillmentInput {
   orderId: string;
@@ -39,7 +41,18 @@ export type CancelOrderFulfillmentError = { code: 'not_found' } | { code: 'illeg
 export class CancelOrderFulfillment
   implements UseCase<CancelOrderFulfillmentInput, Result<void, CancelOrderFulfillmentError>>
 {
-  constructor(private readonly orders: OrderFulfillmentRepository) {}
+  constructor(
+    private readonly orders: OrderFulfillmentRepository,
+    /**
+     * Cancelled downward too. `listNeedingAction` filters purely on a supplier
+     * order's own status with no join to its parent, so without this the
+     * cancelled order's supplier orders stayed in `/admin/fulfillment` with a
+     * working "Mark ordered" button and a shipping address, and nothing on the
+     * card said the order was dead — so whoever worked the queue bought the
+     * goods.
+     */
+    private readonly supplierOrders: SupplierOrderRepository,
+  ) {}
 
   async execute(
     input: CancelOrderFulfillmentInput,
@@ -60,6 +73,30 @@ export class CancelOrderFulfillment
     }
 
     await this.orders.setFulfillmentStatus(input.orderId, 'cancelled');
+
+    /**
+     * After the order, not before: the order row is the decision, and a
+     * failure cancelling a supplier order must not leave the order looking
+     * live. The repository's own guard limits this to `needs_ordering` and
+     * `ordered`, so a parcel already with a courier keeps its `shipped`
+     * status — recording that as cancelled would be a different lie.
+     *
+     * Failures are logged rather than surfaced: the order is already closed,
+     * and a stuck supplier order is visible in the fulfillment queue, which is
+     * where someone would look anyway.
+     */
+    for (const supplierOrder of await this.supplierOrders.listByOrderId(input.orderId)) {
+      try {
+        await this.supplierOrders.cancel(supplierOrder.id);
+      } catch (e) {
+        logger.error('order cancelled, but a supplier order could not be', {
+          orderId: input.orderId,
+          supplierOrderId: supplierOrder.id,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+
     return ok(undefined);
   }
 }

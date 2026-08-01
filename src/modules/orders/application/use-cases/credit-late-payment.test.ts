@@ -57,6 +57,9 @@ function makeConfirmPayment(orders: ConfirmPaymentOrderRepository) {
       async enqueueOrderPaid(orderId) {
         enqueued.push(orderId);
       },
+      async requeueOrderPaid(orderId) {
+        enqueued.push(orderId);
+      },
     },
     { notifyPaymentConfirmed: async () => {} },
   );
