@@ -94,13 +94,21 @@ function makeFakeShippingRates(rate: Money) {
   return repo;
 }
 
-function makeFakeCoupons(coupon: Coupon | null = null) {
+function makeFakeCoupons(coupon: Coupon | null = null, redeemable = true) {
+  const redeemed: string[] = [];
   const repo: Partial<CouponRepository> = {
     async findByCode() {
       return coupon;
     },
+    // Mirrors the repository's conditional UPDATE: `false` means the code was
+    // exhausted, expired or deactivated between the check and the claim.
+    async redeem(code) {
+      if (!redeemable) return false;
+      redeemed.push(code);
+      return true;
+    },
   };
-  return repo as CouponRepository;
+  return Object.assign(repo as CouponRepository, { redeemed });
 }
 
 function validShippingAddress() {
@@ -794,5 +802,140 @@ describe('PlaceOrder and a product priced in another currency', () => {
 
     expect(isOk(result)).toBe(true);
     expect(created).toHaveLength(1);
+  });
+});
+
+describe('PlaceOrder and coupon limits', () => {
+  function arrange() {
+    const productId = randomUUID();
+    const cart = Cart.create({
+      id: randomUUID(),
+      owner: { type: 'guest', sessionId: 's1' },
+      lines: [
+        CartLine.create({
+          productId,
+          productName: 'Widget',
+          quantity: 1,
+          unitPrice: Money.of(5000, 'USD'),
+        }),
+      ],
+    });
+    return {
+      carts: makeFakeCarts(cart),
+      products: makeFakeProducts(new Map([[productId, makeProduct(productId, 5000)]])),
+      shippingRates: makeFakeShippingRates(Money.zero('USD')),
+      offers: makeFakeOffersAllAvailable(),
+    };
+  }
+
+  const input = {
+    owner: { type: 'guest', sessionId: 's1' } as const,
+    customerEmail: 'test@example.com',
+    currency: 'USD',
+    shippingAddress: validShippingAddress(),
+    couponCode: 'SAVE10',
+  };
+
+  function coupon(overrides: Record<string, unknown> = {}) {
+    return Coupon.create({
+      id: 'c1',
+      code: 'SAVE10',
+      discountType: 'percentage',
+      percentageValue: 10,
+      ...overrides,
+    });
+  }
+
+  function place(
+    a: ReturnType<typeof arrange>,
+    coupons: ReturnType<typeof makeFakeCoupons>,
+    orders: ReturnType<typeof makeFakeOrders>,
+  ) {
+    return new PlaceOrder(
+      a.carts.repo,
+      a.products,
+      orders.repo,
+      a.shippingRates,
+      coupons,
+      storeOpen(),
+      a.offers,
+    ).execute(input);
+  }
+
+  it('claims a redemption when the coupon applies', async () => {
+    const a = arrange();
+    const coupons = makeFakeCoupons(coupon());
+    const orders = makeFakeOrders();
+
+    expect(isOk(await place(a, coupons, orders))).toBe(true);
+    expect(coupons.redeemed).toEqual(['SAVE10']);
+  });
+
+  /**
+   * Refused while the cart is still theirs. An expired or spent code is the
+   * commonest coupon failure, and losing a cart to it would be a far worse
+   * outcome than a clear message.
+   */
+  it('refuses an expired coupon without touching the cart', async () => {
+    const a = arrange();
+    const coupons = makeFakeCoupons(coupon({ expiresAt: new Date('2020-01-01') }));
+    const orders = makeFakeOrders();
+
+    const result = await place(a, coupons, orders);
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) expect(result.error.code).toBe('invalid_coupon');
+    expect(a.carts.deletedOwners).toEqual([]);
+    expect(coupons.redeemed).toEqual([]);
+    expect(orders.created).toEqual([]);
+  });
+
+  it('refuses a fully-redeemed coupon without touching the cart', async () => {
+    const a = arrange();
+    const coupons = makeFakeCoupons(coupon({ maxRedemptions: 2, redemptionCount: 2 }));
+    const orders = makeFakeOrders();
+
+    const result = await place(a, coupons, orders);
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) expect(result.error.code).toBe('invalid_coupon');
+    expect(a.carts.deletedOwners).toEqual([]);
+  });
+
+  /**
+   * The race the atomic claim exists for: the code was usable when checked and
+   * gone by the time it was claimed. Distinct from `invalid_coupon` because
+   * the customer did nothing wrong, and — unlike the cases above — their cart
+   * has already been claimed by the time we find out.
+   */
+  it('reports the race distinctly, and writes no order', async () => {
+    const a = arrange();
+    const coupons = makeFakeCoupons(coupon({ maxRedemptions: 1 }), false);
+    const orders = makeFakeOrders();
+
+    const result = await place(a, coupons, orders);
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) expect(result.error.code).toBe('coupon_exhausted');
+    expect(orders.created).toEqual([]);
+  });
+
+  it('claims nothing when no coupon was given', async () => {
+    const a = arrange();
+    const coupons = makeFakeCoupons(coupon());
+    const orders = makeFakeOrders();
+
+    const result = await new PlaceOrder(
+      a.carts.repo,
+      a.products,
+      orders.repo,
+      a.shippingRates,
+      coupons,
+      storeOpen(),
+      a.offers,
+    ).execute({ ...input, couponCode: undefined });
+
+    expect(isOk(result)).toBe(true);
+    expect(coupons.redeemed).toEqual([]);
   });
 });

@@ -10,6 +10,8 @@ export interface CouponsPanelCoupon {
   id: string;
   code: string;
   discountDisplay: string;
+  /** Expiry and redemption limits, already worded. */
+  limitsDisplay: string;
   isActive: boolean;
 }
 
@@ -61,6 +63,7 @@ export function CouponsPanel({ coupons }: { coupons: CouponsPanelCoupon[] }) {
               <tr>
                 <th>Code</th>
                 <th>Discount</th>
+                <th>Limits</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -71,6 +74,7 @@ export function CouponsPanel({ coupons }: { coupons: CouponsPanelCoupon[] }) {
                   id={c.id}
                   code={c.code}
                   discountDisplay={c.discountDisplay}
+                  limitsDisplay={c.limitsDisplay}
                   isActive={c.isActive}
                 />
               ))}

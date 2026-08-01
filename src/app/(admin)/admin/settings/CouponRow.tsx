@@ -30,10 +30,11 @@ export interface CouponRowProps {
   id: string;
   code: string;
   discountDisplay: string;
+  limitsDisplay: string;
   isActive: boolean;
 }
 
-export function CouponRow({ id, code, discountDisplay, isActive }: CouponRowProps) {
+export function CouponRow({ id, code, discountDisplay, limitsDisplay, isActive }: CouponRowProps) {
   const [state, formAction, isTogglePending] = useActionState(setCouponActiveAction, initialState);
   const [deleteState, deleteFormAction, isDeletePending] = useActionState(
     deleteCouponAction,
@@ -47,6 +48,7 @@ export function CouponRow({ id, code, discountDisplay, isActive }: CouponRowProp
     <tr>
       <td>{code}</td>
       <td>{discountDisplay}</td>
+      <td>{limitsDisplay}</td>
       <td className={styles.statusCell}>
         <Badge tone={isActive ? 'success' : 'neutral'}>{isActive ? 'active' : 'inactive'}</Badge>
         {/* One form, two submit buttons — the toggle overrides the action, the

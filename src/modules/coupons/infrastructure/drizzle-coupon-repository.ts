@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, gt, isNull, or, sql } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { coupons } from '@/shared/infrastructure/db/schema';
@@ -16,6 +16,9 @@ function toCoupon(row: Row): Coupon {
     fixedAmountMinor: row.fixedAmountMinor ?? undefined,
     currency: row.currency ?? undefined,
     isActive: row.isActive,
+    expiresAt: row.expiresAt,
+    maxRedemptions: row.maxRedemptions,
+    redemptionCount: row.redemptionCount,
     createdAt: row.createdAt,
   });
 }
@@ -43,10 +46,41 @@ export class DrizzleCouponRepository implements CouponRepository {
     return row ? toCoupon(row) : null;
   }
 
+  /**
+   * One statement, so the limit holds under concurrency.
+   *
+   * Every condition lives in the `WHERE`: the increment happens only if the
+   * row still satisfies all of them at the moment Postgres applies it. Reading
+   * the coupon and then deciding would let two simultaneous checkouts both see
+   * "0 used, limit 1" and both proceed — which is the whole point of having a
+   * limit.
+   */
+  async redeem(code: string, now: Date): Promise<boolean> {
+    const normalized = code.trim().toUpperCase();
+    const result = await this.db
+      .update(coupons)
+      .set({ redemptionCount: sql`${coupons.redemptionCount} + 1` })
+      .where(
+        and(
+          eq(coupons.code, normalized),
+          eq(coupons.isActive, true),
+          or(isNull(coupons.expiresAt), gt(coupons.expiresAt, now)),
+          or(
+            isNull(coupons.maxRedemptions),
+            sql`${coupons.redemptionCount} < ${coupons.maxRedemptions}`,
+          ),
+        ),
+      )
+      .returning({ id: coupons.id });
+    return result.length > 0;
+  }
+
   async create(coupon: Coupon): Promise<void> {
     await this.db.insert(coupons).values({
       id: coupon.id,
       code: coupon.code,
+      expiresAt: coupon.expiresAt,
+      maxRedemptions: coupon.maxRedemptions,
       discountType: coupon.discountType,
       percentageValue: coupon.percentageValue,
       fixedAmountMinor: coupon.fixedAmountMinor,

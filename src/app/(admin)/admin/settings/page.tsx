@@ -2,6 +2,7 @@ import { env } from '@/config/env';
 import { getContainer } from '@/composition/container';
 import { requireAdmin } from '@/app/lib/session';
 import { Money } from '@/shared/domain/money';
+import { couponLimitsDisplay } from '@/modules/coupons/domain/coupon';
 import { ShippingRateEditor } from './ShippingRateEditor';
 import { CouponsPanel } from './CouponsPanel';
 import { StoreSwitch } from './StoreSwitch';
@@ -106,6 +107,10 @@ export default async function AdminSettingsPage() {
               c.discountType === 'percentage'
                 ? `${c.percentageValue}% off`
                 : `${Money.of(c.fixedAmountMinor ?? 0, c.currency ?? 'USD').toDisplayString()} off`,
+            // Shown because a code with no limits is the thing that outlives
+            // its campaign — the admin needs to see which those are without
+            // opening anything.
+            limitsDisplay: couponLimitsDisplay(c),
           }))}
         />
       </section>

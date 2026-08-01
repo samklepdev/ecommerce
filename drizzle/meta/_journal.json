@@ -239,6 +239,13 @@
       "when": 1785600000006,
       "tag": "0033_orders_paid_at",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1785600000007,
+      "tag": "0034_coupon_limits",
+      "breakpoints": true
     }
   ]
 }
