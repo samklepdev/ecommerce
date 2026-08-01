@@ -8,6 +8,7 @@ import { CartLine } from '@/modules/cart/domain/cart-line';
 import { Product } from '@/modules/catalog/domain/product';
 import { Slug } from '@/modules/catalog/domain/slug';
 import { Money } from '@/shared/domain/money';
+import { isErr, isOk } from '@/shared/domain/result';
 import type { CartRepository } from '@/modules/cart/application/ports/cart-repository';
 import type { SupplierOfferRepository } from '@/modules/sourcing/application/ports/supplier-offer-repository';
 import type { ProductRepository } from '@/modules/catalog/application/ports/product-repository';
@@ -25,6 +26,20 @@ function makeProduct(id: string, unitAmountMinor: number, name = `Widget ${id.sl
     description: null,
     status: 'active',
     price: Money.of(unitAmountMinor, 'USD'),
+  });
+}
+
+/** Same shape as `makeProduct`, with the currency under the test's control —
+ * a product's currency is admin-entered free text, so a mismatch is one typo
+ * away. */
+function makeProductInCurrency(id: string, unitAmountMinor: number, currency: string) {
+  return Product.create({
+    id,
+    slug: Slug.create(`widget-${id.slice(0, 4)}`),
+    name: `Widget ${id.slice(0, 4)}`,
+    description: null,
+    status: 'active',
+    price: Money.of(unitAmountMinor, currency),
   });
 }
 
@@ -670,5 +685,114 @@ describe('PlaceOrder and the payment deadline', () => {
 
     expect(deadlines[0]!.getTime()).toBeGreaterThanOrEqual(before + 3_600_000 - 5_000);
     expect(deadlines[0]!.getTime()).toBeLessThanOrEqual(Date.now() + 3_600_000 + 5_000);
+  });
+});
+
+describe('PlaceOrder and a product priced in another currency', () => {
+  /**
+   * A product's currency is admin-entered free text, so a mismatched one is
+   * one typo away — and `EditOrderLines` already guards against exactly this
+   * (`product.price.currency !== order.currency`). The customer-facing path
+   * did not.
+   *
+   * Without the guard nothing notices until `Order.create`'s total reduces
+   * from `Money.zero(currency)` and throws `Currency mismatch` — which happens
+   * *after* `carts.delete` has claimed the cart. The customer loses their
+   * entire cart to a 500 page, no order is written, and there is no order id
+   * to recover from. The claim-before-write ordering is right; the fix is to
+   * refuse before reaching it.
+   */
+  function arrangeMismatchedCart() {
+    const productId = randomUUID();
+    const cart = Cart.create({
+      id: randomUUID(),
+      owner: { type: 'guest', sessionId: 's1' },
+      lines: [
+        CartLine.create({
+          productId,
+          productName: 'Widget',
+          quantity: 1,
+          unitPrice: Money.of(1999, 'USD'),
+        }),
+      ],
+    });
+    return {
+      productId,
+      carts: makeFakeCarts(cart),
+      // Same id, priced in EUR — an admin edited the product after it was added.
+      products: makeFakeProducts(new Map([[productId, makeProduct(productId, 1999)]])),
+      eurProducts: makeFakeProducts(
+        new Map([[productId, makeProductInCurrency(productId, 1999, 'EUR')]]),
+      ),
+      shippingRates: makeFakeShippingRates(Money.zero('USD')),
+      coupons: makeFakeCoupons(),
+      offers: makeFakeOffersAllAvailable(),
+    };
+  }
+
+  const input = {
+    owner: { type: 'guest', sessionId: 's1' } as const,
+    customerEmail: 'test@example.com',
+    currency: 'USD',
+    shippingAddress: validShippingAddress(),
+  };
+
+  it('refuses the order rather than throwing', async () => {
+    const a = arrangeMismatchedCart();
+    const { repo: orders, created } = makeFakeOrders();
+
+    const result = await new PlaceOrder(
+      a.carts.repo,
+      a.eurProducts,
+      orders,
+      a.shippingRates,
+      a.coupons,
+      storeOpen(),
+      a.offers,
+    ).execute(input);
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result) && result.error.code === 'product_unavailable') {
+      expect(result.error.productId).toBe(a.productId);
+    } else {
+      expect.unreachable('expected product_unavailable');
+    }
+    expect(created).toEqual([]);
+  });
+
+  it('leaves the cart intact, so the customer still has something to fix', async () => {
+    // The whole point of catching it here rather than at `Order.create`.
+    const a = arrangeMismatchedCart();
+    const { repo: orders } = makeFakeOrders();
+
+    await new PlaceOrder(
+      a.carts.repo,
+      a.eurProducts,
+      orders,
+      a.shippingRates,
+      a.coupons,
+      storeOpen(),
+      a.offers,
+    ).execute(input);
+
+    expect(a.carts.deletedOwners).toEqual([]);
+  });
+
+  it('still places a matching-currency order', async () => {
+    const a = arrangeMismatchedCart();
+    const { repo: orders, created } = makeFakeOrders();
+
+    const result = await new PlaceOrder(
+      a.carts.repo,
+      a.products,
+      orders,
+      a.shippingRates,
+      a.coupons,
+      storeOpen(),
+      a.offers,
+    ).execute(input);
+
+    expect(isOk(result)).toBe(true);
+    expect(created).toHaveLength(1);
   });
 });

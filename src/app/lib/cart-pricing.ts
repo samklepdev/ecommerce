@@ -64,29 +64,63 @@ export function repriceCartForDisplay(
   lines: readonly PricedCartLine[],
   products: ReadonlyMap<string, LiveProduct>,
   currency: string,
+  /**
+   * Products that exist and are priced correctly but cannot actually be
+   * bought — their supplier offer is missing or unavailable.
+   *
+   * `PlaceOrder` refuses these outright, but the catalogue lookup can't
+   * express it (the product is fine), so the page supplies it. Optional, and
+   * empty by default, so a caller that hasn't got the answer keeps the old
+   * behaviour rather than silently claiming everything is fine.
+   */
+  unsellableProductIds: ReadonlySet<string> = new Set(),
 ): RepricedCart {
   let subtotal = MoneyVO.zero(currency);
   let hasPriceChanges = false;
   let hasUnavailable = false;
 
   const repriced = lines.map((line) => {
-    const product = products.get(line.productId);
+    const found = products.get(line.productId);
+    /**
+     * A product priced in another currency counts as unavailable.
+     *
+     * A product's currency is admin-entered free text, so a cart can hold a
+     * line this cart's currency cannot add to. Repricing against it threw
+     * `Currency mismatch` out of a server component, 500-ing `/cart` and
+     * `/checkout` for that visitor on every visit — and the page that would
+     * let them remove the item was the page that crashed, so the only way out
+     * was clearing the session cookie.
+     *
+     * Folded into the existing unavailable state rather than given its own:
+     * both pages already render it, and `PlaceOrder` refuses both for the same
+     * reason — the line cannot be bought as it stands.
+     */
+    const usable = found !== undefined && found.price.currency === currency;
+    const product = usable ? found : undefined;
+
     const unitPrice = product?.price ?? line.unitPrice;
     const changed = product !== undefined && !product.price.equals(line.unitPrice);
     const lineTotal = unitPrice.multiply(line.quantity);
 
+    // Unbuyable, not unpriced: the line still costs what it costs, and the
+    // subtotal still includes it — the customer is being told to remove it,
+    // not shown a blank row.
+    const unavailable = product === undefined || unsellableProductIds.has(line.productId);
+
     if (changed) hasPriceChanges = true;
-    if (!product) hasUnavailable = true;
+    if (unavailable) hasUnavailable = true;
     subtotal = subtotal.add(lineTotal);
 
     return {
       productId: line.productId,
-      name: product?.name ?? line.productName,
+      // The live name is still worth showing even when the price isn't usable
+      // — it is what the customer is being asked to remove.
+      name: found?.name ?? line.productName,
       quantity: line.quantity,
       unitPrice,
       lineTotal,
       previousUnitPrice: changed ? line.unitPrice : null,
-      unavailable: product === undefined,
+      unavailable,
     };
   });
 

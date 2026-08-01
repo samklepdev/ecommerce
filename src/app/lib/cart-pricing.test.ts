@@ -106,4 +106,116 @@ describe('repriceCartForDisplay', () => {
     expect(result.hasPriceChanges).toBe(true);
     expect(result.lines[0]?.previousUnitPrice?.amountMinor).toBe(5000);
   });
+
+  describe('a product priced in another currency', () => {
+    /**
+     * A product's currency is admin-entered free text, so a cart can end up
+     * holding a line the store's currency can't add to.
+     *
+     * This used to throw `Currency mismatch` out of a server component,
+     * 500-ing `/cart` and `/checkout` for that visitor on every visit — and
+     * the page that would let them remove the offending item was the page that
+     * crashed, so the only escape was clearing the session cookie.
+     *
+     * Treated as unavailable instead: the same state a deleted product
+     * produces, which the pages already know how to render and `PlaceOrder`
+     * already refuses.
+     */
+    function foreignCatalogue(id: string, minor: number): Map<string, LiveProduct> {
+      return new Map([[id, { id, name: `Live ${id}`, price: Money.of(minor, 'EUR') }]]);
+    }
+
+    it('does not throw', () => {
+      expect(() =>
+        repriceCartForDisplay([line('a', 1000)], foreignCatalogue('a', 900), 'USD'),
+      ).not.toThrow();
+    });
+
+    it('flags the line unavailable', () => {
+      const result = repriceCartForDisplay([line('a', 1000)], foreignCatalogue('a', 900), 'USD');
+
+      expect(result.lines[0]?.unavailable).toBe(true);
+      expect(result.hasUnavailable).toBe(true);
+    });
+
+    it('keeps the snapshot price so the row still renders', () => {
+      const result = repriceCartForDisplay([line('a', 1000)], foreignCatalogue('a', 900), 'USD');
+
+      expect(result.lines[0]?.unitPrice.amountMinor).toBe(1000);
+      expect(result.lines[0]?.unitPrice.currency).toBe('USD');
+      // Not a price *change* — the customer can't act on a figure in another
+      // currency, and showing it as a "was" would be nonsense.
+      expect(result.lines[0]?.previousUnitPrice).toBeNull();
+    });
+
+    it('still totals the rest of the cart', () => {
+      const products = new Map<string, LiveProduct>([
+        ['a', { id: 'a', name: 'Live a', price: Money.of(900, 'EUR') }],
+        ['b', { id: 'b', name: 'Live b', price: Money.of(2500, 'USD') }],
+      ]);
+
+      const result = repriceCartForDisplay([line('a', 1000), line('b', 2000)], products, 'USD');
+
+      // 1000 snapshot + 2500 live.
+      expect(result.subtotal.amountMinor).toBe(3500);
+    });
+  });
+
+  describe('a product whose supplier offer has been withdrawn', () => {
+    /**
+     * `PlaceOrder` refuses a line whose supplier offer is missing or
+     * unavailable — it is the rule, not a display detail. But no storefront
+     * surface checked it for cart lines, so the item rendered normally right
+     * up until the customer had filled in the whole address form and pressed
+     * pay, and the resulting error named no item. With several items in the
+     * cart the only way forward was removing them one at a time and
+     * resubmitting, which also burns the checkout rate limit.
+     *
+     * The product itself is fine — it exists, it is priced correctly — so the
+     * catalogue lookup can't express this. The page passes it in.
+     */
+    it('flags the line unavailable', () => {
+      const result = repriceCartForDisplay(
+        [line('a', 1000)],
+        catalogue(['a', 1000]),
+        'USD',
+        new Set(['a']),
+      );
+
+      expect(result.lines[0]?.unavailable).toBe(true);
+      expect(result.hasUnavailable).toBe(true);
+    });
+
+    it('still prices it, so the row reads normally apart from the warning', () => {
+      const result = repriceCartForDisplay(
+        [line('a', 1000)],
+        catalogue(['a', 1200]),
+        'USD',
+        new Set(['a']),
+      );
+
+      // The live price, as everywhere else — the item is unbuyable, not unpriced.
+      expect(result.lines[0]?.unitPrice.amountMinor).toBe(1200);
+      expect(result.subtotal.amountMinor).toBe(1200);
+    });
+
+    it('leaves other lines alone', () => {
+      const result = repriceCartForDisplay(
+        [line('a', 1000), line('b', 2000)],
+        catalogue(['a', 1000], ['b', 2000]),
+        'USD',
+        new Set(['a']),
+      );
+
+      expect(result.lines[0]?.unavailable).toBe(true);
+      expect(result.lines[1]?.unavailable).toBe(false);
+    });
+
+    it('defaults to everything being sellable when the page does not say', () => {
+      // The parameter is optional so existing callers keep their behaviour.
+      const result = repriceCartForDisplay([line('a', 1000)], catalogue(['a', 1000]), 'USD');
+
+      expect(result.hasUnavailable).toBe(false);
+    });
+  });
 });

@@ -18,7 +18,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function CartPage() {
   const owner = await resolveCartOwner();
-  const { getCart, getShippingRate, getProduct } = getContainer();
+  const { getCart, getShippingRate, getProduct, getSourceableOfferForProduct } =
+    getContainer();
   const cart = await getCart.execute({ owner });
 
   if (!cart || cart.isEmpty) {
@@ -54,7 +55,30 @@ export default async function CartPage() {
   const liveProducts = new Map(
     [...productsById].flatMap(([id, product]) => (product ? [[id, product] as const] : [])),
   );
-  const priced = repriceCartForDisplay(cart.lines, liveProducts, 'USD');
+  /**
+   * Which lines can actually be bought.
+   *
+   * `PlaceOrder` refuses a line whose supplier offer is missing or
+   * unavailable, but nothing on the storefront checked it for cart lines — so
+   * an item withdrawn after it was added looked entirely normal here, and the
+   * customer only found out after filling in the address form, with nothing
+   * naming which item it was.
+   *
+   * Per line rather than one batch query, matching how the product listing
+   * already resolves the same rule. A cart is a handful of lines.
+   */
+  const unsellableProductIds = new Set(
+    (
+      await Promise.all(
+        cart.lines.map(async (line) => {
+          const offer = await getSourceableOfferForProduct.execute({ productId: line.productId });
+          return offer?.isAvailable ? null : line.productId;
+        }),
+      )
+    ).filter((id): id is string => id !== null),
+  );
+
+  const priced = repriceCartForDisplay(cart.lines, liveProducts, 'USD', unsellableProductIds);
   const subtotal = priced.subtotal;
   const total = subtotal.add(shipping);
 
@@ -66,6 +90,17 @@ export default async function CartPage() {
         {priced.hasPriceChanges && (
           <Alert tone="warning">
             Some prices changed since you added these items. The amounts shown are current.
+          </Alert>
+        )}
+
+        {/* The cart computed this and never showed it, so an item that had
+            left the catalogue looked perfectly normal here and the customer
+            only discovered it one page later — after filling in an address
+            form — with nothing naming which item. `PlaceOrder` refuses the
+            whole order for it, so the sooner it is visible the better. */}
+        {priced.hasUnavailable && (
+          <Alert tone="danger">
+            An item below is no longer available. Remove it to continue to checkout.
           </Alert>
         )}
 
@@ -85,7 +120,12 @@ export default async function CartPage() {
                     <div className={styles.lineImagePlaceholder} aria-hidden />
                   )}
                   <div>
-                    <p className={styles.name}>{line.name}</p>
+                    <p className={styles.name}>
+                      {line.name}
+                      {line.unavailable && (
+                        <span className={styles.unavailableNote}> — no longer available</span>
+                      )}
+                    </p>
                     <p className={styles.price}>
                       {line.lineTotal.toDisplayString()}
                       {line.previousUnitPrice && (

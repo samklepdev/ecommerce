@@ -68,3 +68,9 @@
   color: var(--muted);
   text-decoration: line-through;
 }
+
+/* Mirrors the checkout summary's marker. Not struck through — this is a live
+   warning, not a superseded value. */
+.unavailableNote {
+  color: var(--color-danger, #b42318);
+}
