@@ -108,6 +108,27 @@ export interface BtcRateProvider {
   satsPerFiatUnit(currency: string): Promise<number>;
 }
 
+/**
+ * The last BTC price we were willing to quote from, per currency.
+ *
+ * Exists so a rate can be sanity-checked against something: the absolute band
+ * catches a decimal shift, but only a comparison against the recent past
+ * catches a feed that starts returning plausible-but-wrong numbers.
+ *
+ * Persisted rather than held in memory because the check must survive a
+ * restart — a process that boots into a corrupt feed has no history to
+ * compare against, which is precisely when it would accept anything.
+ *
+ * Implementations are expected to expire entries: a reference from weeks ago
+ * would reject genuine market movement. Losing it is safe — the absolute band
+ * still applies and the shop keeps trading.
+ */
+export interface LastKnownRateStore {
+  /** The last accepted price of one BTC in `currency`, or null. */
+  get(currency: string): Promise<number | null>;
+  set(currency: string, price: number): Promise<void>;
+}
+
 export interface AddressChainStatus {
   address: string;
   confirmedSats: number;

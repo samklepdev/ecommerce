@@ -74,6 +74,8 @@ import { RedisAddressIndexAllocator } from '@/modules/payments/infrastructure/bi
 import { DrizzleBitcoinPaymentStore } from '@/modules/payments/infrastructure/bitcoin/drizzle-bitcoin-payment-store';
 import { GetOnChainActivityReport } from '@/modules/payments/application/use-cases/get-on-chain-activity-report';
 import { MempoolRateProvider } from '@/modules/payments/infrastructure/bitcoin/mempool-rate-provider';
+import { SanityCheckedRateProvider } from '@/modules/payments/infrastructure/bitcoin/sanity-checked-rate-provider';
+import { RedisLastKnownRateStore } from '@/modules/payments/infrastructure/bitcoin/redis-last-known-rate-store';
 import type { BtcRateProvider } from '@/modules/payments/application/ports/bitcoin-ports';
 
 import { DrizzleOrderRepository } from '@/modules/orders/infrastructure/drizzle-order-repository';
@@ -430,7 +432,23 @@ function build(): Container {
   // --- bitcoin infrastructure ---
   const deriver = new HdAddressDeriver(env.BTC_ACCOUNT_XPUB, network);
   const indexAllocator = new RedisAddressIndexAllocator(redis);
-  const rates = new MempoolRateProvider(env.BTC_RATE_URL);
+  /**
+   * The feed, wrapped in the thing that decides whether to believe it.
+   *
+   * `parseBtcPrice` only validates the response's shape, so a well-formed but
+   * wrong number reached every quote. Fails closed: an unquotable rate throws,
+   * which surfaces as "could not start checkout — try again", because briefly
+   * not taking orders is cheaper than mispricing them irreversibly.
+   */
+  const rates: BtcRateProvider = new SanityCheckedRateProvider(
+    new MempoolRateProvider(env.BTC_RATE_URL),
+    new RedisLastKnownRateStore(redis),
+    {
+      minPrice: env.BTC_RATE_MIN_PRICE,
+      maxPrice: env.BTC_RATE_MAX_PRICE,
+      maxDeviationRatio: env.BTC_RATE_MAX_DEVIATION,
+    },
+  );
   const paymentStore = new DrizzleBitcoinPaymentStore(db);
   const getOnChainActivityReport = new GetOnChainActivityReport(paymentStore);
   const chain = new EsploraChainDataProvider(env.BTC_ESPLORA_URL, network);
