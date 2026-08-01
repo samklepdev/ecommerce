@@ -18,9 +18,10 @@ feature" checklist).
   inline "Add to cart" button (no need to open the product page first).
   Unavailable when the product's preferred supplier offer says so.
 - **Product detail** (`/products/[slug]`) — image gallery, price,
-  availability, and add to cart. "Out of stock" means the
-  supplier marked it unavailable, not a quantity count — this store holds
-  no inventory (dropship/arbitrage model). A breadcrumb links back to the
+  availability, and add to cart. "Out of stock" means either the supplier
+  marked it unavailable or the product left the catalogue — never a quantity
+  count, since this store holds no inventory (dropship/arbitrage model). Both
+  are refused at checkout too, not just hidden on the page. A breadcrumb links back to the
   product's category filter when it has one. The description supports
   markdown (bold, lists, links), not just plain text. Below the buy box,
   a "You might also like" row shows other products from the same category
@@ -35,8 +36,8 @@ feature" checklist).
 - **Cart** (`/cart`) — line items showing the product's image, name, and
   price, a quantity stepper (persists immediately, no separate save step,
   capped at 99 per line) grouped with a trash-icon remove button, running
-  subtotal, link to checkout. Guest carts live in a cookie and merge into
-  the account cart on login/signup.
+  subtotal, link to checkout. Guest carts live in Redis, keyed by a session id
+  the cookie carries, and merge into the account cart on login/signup.
 - **Checkout** (`/checkout`) — email (pre-filled for a logged-in customer)
   + shipping address + an optional promo code, server-side repricing
   (never trusts the cart's stored price), creates a unique BTC receive
@@ -158,7 +159,7 @@ feature" checklist).
 
 - **Session security** — admin sessions go idle after an hour of inactivity
   (customers get 14 days, under a 30-day ceiling for both), and the
-  destructive actions — cancelling a paid order, promote, and every delete — ask for the
+  destructive actions — cancelling a paid order, marking one failed, promote, and every delete — ask for the
   password again if it has been more than 15 minutes since you typed it.
   Confirming doesn't carry the action out; you're returned to it to click
   again, deliberately.

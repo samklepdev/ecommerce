@@ -194,7 +194,17 @@ export function buildMoneyPath(
     paymentStore,
     orders,
     supplierOrders,
-    placeOrder: new PlaceOrder(carts, products, orders, shippingRates, coupons, storeAlwaysOpen),
+    placeOrder: new PlaceOrder(
+      carts,
+      products,
+      orders,
+      shippingRates,
+      coupons,
+      storeAlwaysOpen,
+      // The real repository: the money path must exercise the availability
+      // check the same way production does.
+      supplierOffers,
+    ),
     startCheckout: new StartCheckout(
       orders,
       new PaymentGatewayRegistry([gateway]),

@@ -10,11 +10,97 @@ const US_STATE_CODES = new Set(US_STATES.map((s) => s.code));
  * `<select>` built from the same list, so anything else arrived by editing
  * the request. */
 export const countrySchema = z
-  .string()
+  .string({
+    required_error: 'Choose a country we ship to.',
+    invalid_type_error: 'Choose a country we ship to.',
+  })
   .transform((v) => v.trim().toUpperCase())
   .refine((v) => COUNTRY_CODES.has(v), { message: 'Choose a country we ship to.' });
 
-export const postalCodeSchema = z.string().transform(normalizePostalCode);
+export const postalCodeSchema = z
+  .string({
+    required_error: 'Enter a postal code.',
+    invalid_type_error: 'Enter a postal code.',
+  })
+  .transform(normalizePostalCode);
+
+/**
+ * Field ceilings. Not business rules — every address column is `text` (and
+ * the order's snapshot is `jsonb`), so nothing below this line says no, and a
+ * 100 kB name is a shipping label that can't be printed. Generous enough that
+ * no real address is near them.
+ */
+export const ADDRESS_MAX_LENGTH = {
+  name: 120,
+  line1: 200,
+  line2: 200,
+  city: 100,
+  region: 100,
+} as const;
+
+/**
+ * Trimmed first, then required — `min(1)` on its own accepts `"   "`, which
+ * used to pass the schema and throw inside `ShippingAddress.create`, turning
+ * a field error into a 500.
+ */
+function requiredText(max: number, missing: string, subject: string) {
+  return z
+    .string({ required_error: missing, invalid_type_error: missing })
+    .trim()
+    .min(1, missing)
+    .max(max, `${subject} can't be longer than ${max} characters.`);
+}
+
+function optionalText(max: number, subject: string) {
+  return z
+    .string()
+    .trim()
+    .max(max, `${subject} can't be longer than ${max} characters.`)
+    .optional();
+}
+
+/**
+ * The address fields, shared by every form that writes one.
+ *
+ * Spread into an object schema and follow it with `refineAddress` — the
+ * per-field rules can't see each other, and postal format and US region both
+ * depend on the country.
+ */
+export const addressFieldSchemas = {
+  name: requiredText(ADDRESS_MAX_LENGTH.name, 'Enter a name.', 'A name'),
+  line1: requiredText(ADDRESS_MAX_LENGTH.line1, 'Enter the first line of the address.', 'An address line'),
+  line2: optionalText(ADDRESS_MAX_LENGTH.line2, 'An address line'),
+  city: requiredText(ADDRESS_MAX_LENGTH.city, 'Enter a city.', 'A city'),
+  region: optionalText(ADDRESS_MAX_LENGTH.region, 'A region'),
+  postalCode: postalCodeSchema,
+  country: countrySchema,
+};
+
+/**
+ * Stored the way the form's own `<option>` carries it.
+ *
+ * A US region is a 2-letter code, and the check upper-cases only to compare —
+ * so `"tx"` validated and was stored raw. Autofilling from it then set
+ * `<select value="tx">`, which matches no option, so the browser rendered the
+ * placeholder and the field submitted *empty*: the saved address was silently
+ * unusable and checkout failed with a generic error. Elsewhere `region` is a
+ * free-text province and upper-casing it would be wrong, so only the US case
+ * is folded.
+ */
+export function normalizeRegion(region: string, country: string): string {
+  const trimmed = region.trim().replace(/\s+/g, ' ');
+  return country.trim().toUpperCase() === 'US' ? trimmed.toUpperCase() : trimmed;
+}
+
+/** One complete address, validated and normalised: what `AddSavedAddress`,
+ * `UpdateSavedAddress` and the admin's order-contact editor all write. */
+export const addressSchema = z
+  .object(addressFieldSchemas)
+  .superRefine((data, ctx) => refineAddress(data, ctx))
+  .transform((data) => ({
+    ...data,
+    region: data.region === undefined ? undefined : normalizeRegion(data.region, data.country),
+  }));
 
 /**
  * Address fields that have to agree with each other, checked together.

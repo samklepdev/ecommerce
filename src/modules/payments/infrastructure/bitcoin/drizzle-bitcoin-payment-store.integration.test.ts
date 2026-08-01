@@ -75,10 +75,17 @@ describe('DrizzleBitcoinPaymentStore late payments (integration)', () => {
     expect(found.map((i) => i.orderId).sort()).toEqual([cancelled, expired, failed].sort());
   });
 
-  it('excludes an intent that was already flagged', async () => {
-    await seedIntent(db as DB, { status: 'expired', latePaymentSeenAt: new Date() });
+  it('still returns an intent that was already flagged', async () => {
+    // Inverted deliberately. This used to exclude flagged intents, which meant
+    // an address was checked once and never again — so a customer who sent a
+    // balance after the order closed was never noticed. `recordLatePayment`
+    // reports whether anything changed, so re-sweeping is silent instead.
+    const orderId = await seedIntent(db as DB, {
+      status: 'expired',
+      latePaymentSeenAt: new Date(),
+    });
 
-    expect(await store().listSweepable(longAgo)).toEqual([]);
+    expect((await store().listSweepable(longAgo)).map((i) => i.orderId)).toEqual([orderId]);
   });
 
   it('honours the age bound, so the sweep never becomes a full wallet rescan', async () => {
@@ -97,11 +104,12 @@ describe('DrizzleBitcoinPaymentStore late payments (integration)', () => {
     await store().recordLatePayment(orderId, 95_000);
 
     expect(await store().countLatePayments()).toBe(1);
-    // And it drops out of the sweep, so the next pass doesn't re-report it.
-    expect(await store().listSweepable(longAgo)).toEqual([]);
+    // It stays in the sweep — see above — but a repeat of the same amount
+    // reports no change, which is what keeps the hourly pass quiet.
+    expect(await store().recordLatePayment(orderId, 95_000)).toBe(false);
   });
 
-  it('is write-once — a second sweep must not restate the discovery', async () => {
+  it('does not restate the discovery when the amount is unchanged', async () => {
     const orderId = await seedIntent(db as DB, { status: 'expired' });
     await store().recordLatePayment(orderId, 95_000);
 
@@ -171,6 +179,69 @@ describe('DrizzleBitcoinPaymentStore late payments (integration)', () => {
     await seedIntent(db as DB, { status: 'confirmed', orderStatus: 'paid' });
 
     expect(await store().listSweepable(longAgo)).toEqual([]);
+  });
+
+  it('keeps sweeping an already-flagged address, so a later top-up is seen', async () => {
+    // The address stays reachable after an order fails — it is the one the
+    // underpayment email told the customer to send the balance to. Flagging it
+    // once and never looking again meant a later payment went unnoticed and
+    // `late_payment_sats` permanently understated what was held.
+    const orderId = await seedIntent(db as DB, { status: 'awaiting', orderStatus: 'failed' });
+    expect(await store().recordLatePayment(orderId, 60_000)).toBe(true);
+
+    const found = await store().listSweepable(longAgo);
+
+    expect(found.map((i) => i.orderId)).toEqual([orderId]);
+  });
+
+  it('raises the recorded amount when more arrives', async () => {
+    const orderId = await seedIntent(db as DB, { status: 'awaiting', orderStatus: 'failed' });
+    await store().recordLatePayment(orderId, 60_000);
+
+    expect(await store().recordLatePayment(orderId, 100_000)).toBe(true);
+
+    const [row] = await db
+      .select({ sats: bitcoinPaymentIntents.latePaymentSats })
+      .from(bitcoinPaymentIntents);
+    expect(row?.sats).toBe(100_000);
+  });
+
+  it('reports no change when the same amount is seen again', async () => {
+    // What stops an hourly sweep logging the same known problem forever.
+    const orderId = await seedIntent(db as DB, { status: 'awaiting', orderStatus: 'failed' });
+    await store().recordLatePayment(orderId, 60_000);
+
+    expect(await store().recordLatePayment(orderId, 60_000)).toBe(false);
+  });
+
+  it('never lowers the recorded amount', async () => {
+    // A provider briefly reporting less must not rewrite history downwards.
+    const orderId = await seedIntent(db as DB, { status: 'awaiting', orderStatus: 'failed' });
+    await store().recordLatePayment(orderId, 100_000);
+
+    expect(await store().recordLatePayment(orderId, 60_000)).toBe(false);
+
+    const [row] = await db
+      .select({ sats: bitcoinPaymentIntents.latePaymentSats })
+      .from(bitcoinPaymentIntents);
+    expect(row?.sats).toBe(100_000);
+  });
+
+  it('keeps the first-seen timestamp when the amount grows', async () => {
+    // `latePaymentSeenAt` answers "when did we find out", so a top-up must not
+    // make a week-old discovery look like it happened just now.
+    const orderId = await seedIntent(db as DB, { status: 'awaiting', orderStatus: 'failed' });
+    await store().recordLatePayment(orderId, 60_000);
+    const [first] = await db
+      .select({ seenAt: bitcoinPaymentIntents.latePaymentSeenAt })
+      .from(bitcoinPaymentIntents);
+
+    await store().recordLatePayment(orderId, 100_000);
+
+    const [second] = await db
+      .select({ seenAt: bitcoinPaymentIntents.latePaymentSeenAt })
+      .from(bitcoinPaymentIntents);
+    expect(second?.seenAt?.getTime()).toBe(first?.seenAt?.getTime());
   });
 
   it('counts zero when nothing has been flagged', async () => {

@@ -26,8 +26,16 @@ export type UpdateOrderContactError =
  * house — both are worth fixing late.
  *
  * The address goes through the same `ShippingAddress` value object the
- * checkout uses, so an admin can't write an order an address that checkout
- * would have rejected.
+ * checkout uses, which gets the required fields and the trimming — but not
+ * the country list, the per-country postal format or the US state check.
+ * Those live in `refineAddress` (`app/lib/address-schema.ts`), an app-layer
+ * schema this layer can't import without pointing the dependency outward, so
+ * **the caller is what makes an admin edit as strict as checkout**:
+ * `updateOrderContactAction` parses with the same `addressSchema` the
+ * saved-address forms use. A caller that skips it can still write
+ * `country: "Narnia"`; today there is only the one. Moving that rule down
+ * into `shared/domain` would let this use case enforce it itself, and is the
+ * reason this paragraph exists rather than a claim that it already does.
  */
 export class UpdateOrderContact
   implements UseCase<UpdateOrderContactInput, Result<void, UpdateOrderContactError>>

@@ -72,7 +72,9 @@ function makeFakePaymentStore(intent: BitcoinPaymentIntent) {
     async listSweepable() {
       return [];
     },
-    async recordLatePayment() {},
+    async recordLatePayment() {
+      return true;
+    },
     async countLatePayments() {
       return 0;
     },

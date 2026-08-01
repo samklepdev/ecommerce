@@ -85,6 +85,37 @@ describe('UpdateOrderContact', () => {
     expect(changes).toHaveLength(0);
   });
 
+  // The schema above this one trims, but a caller that skips it must still
+  // get a `Result` back — the value object throws, and an escaped throw here
+  // is a 500 on the form an admin uses to correct a wrong address.
+  it.each(['name', 'line1', 'city', 'postalCode', 'country'] as const)(
+    'reports a whitespace-only %s as invalid_address rather than throwing',
+    async (field) => {
+      const { repo, changes } = makeFakeOrders(makeOrder());
+
+      const result = await new UpdateOrderContact(repo).execute({
+        orderId: 'order-1',
+        shippingAddress: { ...VALID_ADDRESS, [field]: '   ' },
+      });
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.code).toBe('invalid_address');
+      expect(changes).toHaveLength(0);
+    },
+  );
+
+  it('writes the address trimmed', async () => {
+    const { repo, changes } = makeFakeOrders(makeOrder());
+
+    const result = await new UpdateOrderContact(repo).execute({
+      orderId: 'order-1',
+      shippingAddress: { ...VALID_ADDRESS, name: '  Jamie Rivera  ', city: ' Austin ' },
+    });
+
+    expect(isOk(result)).toBe(true);
+    expect(changes[0]?.shippingAddress).toMatchObject({ name: 'Jamie Rivera', city: 'Austin' });
+  });
+
   it('stops once the parcel is moving', async () => {
     const { repo, changes } = makeFakeOrders(makeOrder({ fulfillmentStatus: 'shipped' }));
 

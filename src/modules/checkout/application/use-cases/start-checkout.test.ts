@@ -4,7 +4,7 @@ import type { AssertStoreOpenForCheckout } from '@/shared/application/use-cases/
 import { StartCheckout } from './start-checkout';
 import { PaymentGatewayRegistry } from '@/modules/payments/application/payment-gateway-registry';
 import { Money } from '@/shared/domain/money';
-import { ok, err } from '@/shared/domain/result';
+import { ok, err, isErr } from '@/shared/domain/result';
 import type { CheckoutOrderRepository } from '@/modules/checkout/application/ports/checkout-order-repository';
 import type {
   CreatePaymentOutput,
@@ -45,6 +45,82 @@ function storeOpen(isOpen = true): AssertStoreOpenForCheckout {
 }
 
 describe('StartCheckout', () => {
+  /**
+   * A zero total is reachable without any admin action: a fixed-amount coupon
+   * at or above the subtotal is clamped to the subtotal, and shipping is zero
+   * when no rate row exists. The order is then quoted at 0 satoshis — which the
+   * watcher can never see, because it treats `confirmedSats > 0` as "seen". The
+   * order would sit until it expired, having burned an address index against
+   * the wallet's BIP32 gap limit for an invoice nobody could pay.
+   *
+   * Refused before the gateway is called, so no address is allocated at all.
+   */
+  it('refuses a zero total before allocating an address', async () => {
+    const orders = makeFakeOrders(Money.zero('USD'));
+    const created: string[] = [];
+    const gateway: PaymentGateway = {
+      method: 'crypto',
+      async repricePayment() {
+        return ok({ expiresAt: null, expectedSats: null });
+      },
+      async createPayment() {
+        created.push('createPayment');
+        throw new Error('gateway must not be reached');
+      },
+    };
+
+    const result = await new StartCheckout(
+      orders.repo,
+      new PaymentGatewayRegistry([gateway]),
+      900,
+      24,
+      storeOpen(),
+    ).execute({
+      orderId: 'order-1',
+      customerEmail: 'a@b.com',
+      paymentMethod: 'crypto',
+      idempotencyKey: 'order-1',
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) expect(result.error.code).toBe('total_not_payable');
+    // The important part: no address was derived, so no index was burned.
+    expect(created).toEqual([]);
+    expect(orders.markedAwaiting).toEqual([]);
+  });
+
+  it('refuses a negative total', async () => {
+    const orders = makeFakeOrders(Money.of(-500, 'USD'));
+    const created: string[] = [];
+    const gateway: PaymentGateway = {
+      method: 'crypto',
+      async repricePayment() {
+        return ok({ expiresAt: null, expectedSats: null });
+      },
+      async createPayment() {
+        created.push('createPayment');
+        throw new Error('gateway must not be reached');
+      },
+    };
+
+    const result = await new StartCheckout(
+      orders.repo,
+      new PaymentGatewayRegistry([gateway]),
+      900,
+      24,
+      storeOpen(),
+    ).execute({
+      orderId: 'order-1',
+      customerEmail: 'a@b.com',
+      paymentMethod: 'crypto',
+      idempotencyKey: 'order-1',
+    });
+
+    expect(isErr(result)).toBe(true);
+    expect(created).toEqual([]);
+  });
+
+
   it('reprices, creates a payment, and marks the order awaiting payment', async () => {
     const { repo: orders, markedAwaiting } = makeFakeOrders();
     const output: CreatePaymentOutput = {

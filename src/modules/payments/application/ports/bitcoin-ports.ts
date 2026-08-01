@@ -71,10 +71,16 @@ export interface BitcoinPaymentStore {
    * this grows into a full wallet rescan on every sweep.
    */
   listSweepable(createdSince: Date): Promise<BitcoinPaymentIntent[]>;
-  /** Flags an intent as having received money after it closed. Write-once —
-   * re-flagging would reset `latePaymentSeenAt` and make the discovery look
-   * newer than it is. */
-  recordLatePayment(orderId: string, sats: number): Promise<void>;
+  /**
+   * Flags an intent as holding money after its order closed, and reports
+   * whether that changed anything.
+   *
+   * Grow-only: the figure can rise, because a customer told to send a balance
+   * may send it after the order closed, but it never falls. Returns false when
+   * the amount is unchanged, which is what lets an hourly sweep re-check a
+   * known problem without logging it again.
+   */
+  recordLatePayment(orderId: string, sats: number): Promise<boolean>;
   /** How many closed intents have unexplained money against them. Drives the
    * admin dashboard tile; expected to be 0. */
   countLatePayments(): Promise<number>;

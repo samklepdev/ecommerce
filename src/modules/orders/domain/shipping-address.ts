@@ -23,7 +23,20 @@ export class ShippingAddress extends ValueObject<ShippingAddressProps> {
       throw new Error('ShippingAddress requires a non-empty postalCode');
     }
     if (!props.country.trim()) throw new Error('ShippingAddress requires a non-empty country');
-    return new ShippingAddress(props);
+
+    // Stored trimmed. The schemas above this trim too, but this is what the
+    // order's address snapshot is built from and any caller can reach it —
+    // padding that survives to here is padding on a shipping label.
+    const line2 = props.line2?.trim();
+    return new ShippingAddress({
+      name: props.name.trim(),
+      line1: props.line1.trim(),
+      line2: line2 ? line2 : undefined,
+      city: props.city.trim(),
+      region: props.region.trim(),
+      postalCode: props.postalCode.trim(),
+      country: props.country.trim(),
+    });
   }
 
   get name(): string {

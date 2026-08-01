@@ -77,7 +77,9 @@ function makeFakeStoreThatLosesTheRace(winningIntent: BitcoinPaymentIntent): Bit
     async listSweepable() {
       return [];
     },
-    async recordLatePayment() {},
+    async recordLatePayment() {
+      return true;
+    },
     async countLatePayments() {
       return 0;
     },
@@ -107,7 +109,9 @@ function makeFakeStoreEmpty(): { store: BitcoinPaymentStore; saved: BitcoinPayme
     async listSweepable() {
       return [];
     },
-    async recordLatePayment() {},
+    async recordLatePayment() {
+      return true;
+    },
     async countLatePayments() {
       return 0;
     },

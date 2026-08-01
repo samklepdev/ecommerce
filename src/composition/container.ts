@@ -637,6 +637,7 @@ function build(): Container {
     shippingRates,
     coupons,
     assertStoreOpenForCheckout,
+    supplierOffers,
   );
   const reorderItems = new ReorderItems(orders, carts, products);
   const startCheckout = new StartCheckout(

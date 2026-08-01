@@ -50,7 +50,14 @@ export class SweepLatePayments implements UseCase<void, void> {
         const status = await this.chain.getStatus(intent.address);
         if (status.confirmedSats <= 0) continue;
 
-        await this.payments.recordLatePayment(intent.orderId, status.confirmedSats);
+        const changed = await this.payments.recordLatePayment(
+          intent.orderId,
+          status.confirmedSats,
+        );
+        // Already-known and unchanged: stay quiet. This pass re-checks flagged
+        // addresses every hour so a later top-up is noticed, and logging each
+        // time would bury the new discoveries among the old ones.
+        if (!changed) continue;
 
         // `error`, not `warn`: a customer is out of pocket with nothing to show
         // for it until somebody acts, which is the most serious state this

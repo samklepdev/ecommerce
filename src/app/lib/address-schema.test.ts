@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-import { refineAddress } from './address-schema';
+import { ADDRESS_MAX_LENGTH, addressSchema, refineAddress } from './address-schema';
 import { US_STATES } from '@/shared/domain/address-options';
 
 /** A minimal schema shaped like the real forms', so `refineAddress` is
@@ -64,5 +64,118 @@ describe('US territories and military addresses', () => {
 
   it('lists 50 states + DC + 8 territories + 3 military codes', () => {
     expect(US_STATES).toHaveLength(62);
+  });
+});
+
+describe('addressSchema', () => {
+  function validAddress() {
+    return {
+      name: 'Jamie Rivera',
+      line1: '14 Bridge Street',
+      city: 'Austin',
+      region: 'TX',
+      postalCode: '78701',
+      country: 'US',
+    };
+  }
+
+  it('accepts a complete address', () => {
+    const parsed = addressSchema.safeParse(validAddress());
+    expect(parsed.success).toBe(true);
+  });
+
+  /**
+   * `min(1)` accepts `"   "`. The address then reached
+   * `ShippingAddress.create`, which threw *inside* the use case — a 500 in
+   * place of a field error, on the one form standing between a customer and
+   * an irreversible payment.
+   */
+  it.each(['name', 'line1', 'city'] as const)('rejects a whitespace-only %s', (field) => {
+    const parsed = addressSchema.safeParse({ ...validAddress(), [field]: '   ' });
+    expect(parsed.success).toBe(false);
+  });
+
+  it.each(['name', 'line1', 'city'] as const)('trims a padded %s rather than storing it', (field) => {
+    const parsed = addressSchema.safeParse({ ...validAddress(), [field]: '  Padded  ' });
+    expect(parsed.success && parsed.data[field]).toBe('Padded');
+  });
+
+  it('rejects a whitespace-only postal code', () => {
+    expect(addressSchema.safeParse({ ...validAddress(), postalCode: '   ' }).success).toBe(false);
+  });
+
+  /**
+   * Every field is `text`/`jsonb`, so nothing in the database says no. An
+   * unbounded name reaches a shipping label.
+   */
+  it.each([
+    ['name', ADDRESS_MAX_LENGTH.name],
+    ['line1', ADDRESS_MAX_LENGTH.line1],
+    ['line2', ADDRESS_MAX_LENGTH.line2],
+    ['city', ADDRESS_MAX_LENGTH.city],
+  ] as const)('rejects a %s longer than %i characters', (field, max) => {
+    expect(addressSchema.safeParse({ ...validAddress(), [field]: 'a'.repeat(max + 1) }).success).toBe(
+      false,
+    );
+    expect(addressSchema.safeParse({ ...validAddress(), [field]: 'a'.repeat(max) }).success).toBe(true);
+  });
+
+  it('bounds a non-US region', () => {
+    const base = { ...validAddress(), country: 'DE', postalCode: '10115' };
+    const max = ADDRESS_MAX_LENGTH.region;
+    expect(addressSchema.safeParse({ ...base, region: 'a'.repeat(max + 1) }).success).toBe(false);
+    expect(addressSchema.safeParse({ ...base, region: 'a'.repeat(max) }).success).toBe(true);
+  });
+
+  /**
+   * A saved `"tx"` was accepted (the US check upper-cases only to compare)
+   * and stored raw. Autofill then set `<select value="tx">`, which matches no
+   * option, so the field submitted empty and checkout failed with a generic
+   * error — the saved address was silently unusable.
+   */
+  it('normalises a US region to the code the form option carries', () => {
+    const parsed = addressSchema.safeParse({ ...validAddress(), region: 'tx' });
+    expect(parsed.success && parsed.data.region).toBe('TX');
+  });
+
+  it('trims a region', () => {
+    const parsed = addressSchema.safeParse({ ...validAddress(), region: ' tx ' });
+    expect(parsed.success && parsed.data.region).toBe('TX');
+  });
+
+  it('leaves a non-US region as written apart from trimming', () => {
+    const parsed = addressSchema.safeParse({
+      name: 'Jamie Rivera',
+      line1: '14 Bridge Street',
+      city: 'Munich',
+      region: '  Bayern ',
+      postalCode: '80331',
+      country: 'DE',
+    });
+    expect(parsed.success && parsed.data.region).toBe('Bayern');
+  });
+
+  it('normalises the postal code and the country', () => {
+    const parsed = addressSchema.safeParse({
+      ...validAddress(),
+      city: 'Toronto',
+      region: 'Ontario',
+      postalCode: ' k1a  0b1 ',
+      country: ' ca ',
+    });
+    expect(parsed.success && parsed.data.postalCode).toBe('K1A 0B1');
+    expect(parsed.success && parsed.data.country).toBe('CA');
+  });
+
+  it('rejects a country this shop does not ship to', () => {
+    expect(addressSchema.safeParse({ ...validAddress(), country: 'Narnia' }).success).toBe(false);
+  });
+
+  it('rejects a region that is not a US state code', () => {
+    expect(addressSchema.safeParse({ ...validAddress(), region: 'ZZ' }).success).toBe(false);
+  });
+
+  it('rejects a postal code the country pattern refuses', () => {
+    expect(addressSchema.safeParse({ ...validAddress(), postalCode: '-' }).success).toBe(false);
   });
 });

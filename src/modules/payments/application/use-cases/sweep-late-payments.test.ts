@@ -25,14 +25,21 @@ function intent(overrides: Partial<BitcoinPaymentIntent> = {}): BitcoinPaymentIn
 
 function makeFakeStore(intents: BitcoinPaymentIntent[]) {
   const flagged: { orderId: string; sats: number }[] = [];
+  const highest = new Map<string, number>();
   const sweptSince: Date[] = [];
   const store: Partial<BitcoinPaymentStore> = {
     async listSweepable(createdSince) {
       sweptSince.push(createdSince);
       return intents;
     },
+    // Mirrors the real grow-only rule so the "stay quiet when unchanged"
+    // behaviour is actually under test rather than assumed.
     async recordLatePayment(orderId, sats) {
+      const seen = highest.get(orderId);
+      if (seen !== undefined && seen >= sats) return false;
+      highest.set(orderId, sats);
       flagged.push({ orderId, sats });
+      return true;
     },
   };
   return { store: store as BitcoinPaymentStore, flagged, sweptSince };
@@ -65,6 +72,34 @@ describe('SweepLatePayments', () => {
       expect.stringContaining('late payment'),
       expect.objectContaining({ orderId: 'order-1', confirmedSats: 95_000 }),
     );
+    errorSpy.mockRestore();
+  });
+
+  it('stays quiet on a re-check, but speaks up when more arrives', async () => {
+    // The sweep now revisits flagged addresses hourly so a later top-up is
+    // noticed. That only works if an unchanged amount is silent — otherwise the
+    // same known problem is logged every hour and buries the new ones.
+    const { store, flagged } = makeFakeStore([intent()]);
+    const balances: Record<string, number> = { bc1qexpired: 95_000 };
+    const chain: ChainDataProvider = {
+      async getStatus(address) {
+        return { address, confirmedSats: balances[address] ?? 0, confirmations: 3 };
+      },
+    };
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+    const sweep = new SweepLatePayments(store, chain);
+
+    await sweep.execute();
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+
+    await sweep.execute(); // nothing new
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+
+    balances.bc1qexpired = 140_000; // the customer sent more
+    await sweep.execute();
+    expect(errorSpy).toHaveBeenCalledTimes(2);
+    expect(flagged.map((f) => f.sats)).toEqual([95_000, 140_000]);
+
     errorSpy.mockRestore();
   });
 

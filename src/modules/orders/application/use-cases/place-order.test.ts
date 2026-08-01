@@ -9,6 +9,7 @@ import { Product } from '@/modules/catalog/domain/product';
 import { Slug } from '@/modules/catalog/domain/slug';
 import { Money } from '@/shared/domain/money';
 import type { CartRepository } from '@/modules/cart/application/ports/cart-repository';
+import type { SupplierOfferRepository } from '@/modules/sourcing/application/ports/supplier-offer-repository';
 import type { ProductRepository } from '@/modules/catalog/application/ports/product-repository';
 import type { OrderRepository } from '@/modules/orders/application/ports/order-repository';
 import type { Order } from '@/modules/orders/domain/order';
@@ -29,13 +30,19 @@ function makeProduct(id: string, unitAmountMinor: number, name = `Widget ${id.sl
 
 function makeFakeCarts(cart: Cart | null) {
   const deletedOwners: unknown[] = [];
+  let present = cart !== null;
   const repo: CartRepository = {
     async get() {
       return cart;
     },
     async save() {},
+    // Mirrors Redis DEL: reports whether this call is the one that removed it,
+    // so exactly one of two concurrent callers can win.
     async delete(owner) {
       deletedOwners.push(owner);
+      if (!present) return false;
+      present = false;
+      return true;
     },
   };
   return { repo, deletedOwners };
@@ -90,6 +97,33 @@ function validShippingAddress() {
   };
 }
 
+/**
+ * Supplier offers, keyed by product id to `isAvailable`. A product absent from
+ * the map has no offer at all. Defaults to "available" so the tests that predate
+ * this check keep describing what they were written to describe.
+ */
+/** Everything obtainable — for the tests that predate this check and are about
+ * something else entirely. */
+function makeFakeOffersAllAvailable(): SupplierOfferRepository {
+  const repo: Partial<SupplierOfferRepository> = {
+    async findSourceableByProductId() {
+      return { supplierId: 'sup-1', isAvailable: true, cost: Money.of(500, 'USD') } as never;
+    },
+  };
+  return repo as SupplierOfferRepository;
+}
+
+function makeFakeOffers(availability: Record<string, boolean> = {}): SupplierOfferRepository {
+  const repo: Partial<SupplierOfferRepository> = {
+    async findSourceableByProductId(productId) {
+      const isAvailable = availability[productId];
+      if (isAvailable === undefined) return null;
+      return { supplierId: 'sup-1', isAvailable, cost: Money.of(500, 'USD') } as never;
+    },
+  };
+  return repo as SupplierOfferRepository;
+}
+
 /** The kill switch, open — every test here predates it and none is about
  * it. The closed case has its own test at the bottom. */
 function storeOpen(isOpen = true): AssertStoreOpenForCheckout {
@@ -97,6 +131,169 @@ function storeOpen(isOpen = true): AssertStoreOpenForCheckout {
 }
 
 describe('PlaceOrder', () => {
+  /**
+   * The same authority-vs-display split that let checkout show a stale price.
+   * The storefront disables Add to Cart when the supplier offer says
+   * unavailable — but `PlaceOrder` only refused a *missing* product, so an item
+   * already in a cart when the supplier marked it unavailable checked out
+   * happily, as did a direct POST to the action.
+   *
+   * The customer then pays irreversibly for something that cannot be sourced,
+   * and the order lands in the unfulfillable queue with their money already
+   * spent.
+   */
+  it('refuses a line whose supplier offer is unavailable', async () => {
+    const productId = randomUUID();
+    const product = makeProduct(productId, 1999);
+    const cart = Cart.create({
+      id: randomUUID(),
+      owner: { type: 'guest', sessionId: 's1' },
+      lines: [CartLine.create({ productId, productName: 'Widget', quantity: 1, unitPrice: Money.of(1999, 'USD') })],
+    });
+    const { repo: carts, deletedOwners } = makeFakeCarts(cart);
+    const { repo: orders, created } = makeFakeOrders();
+
+    const result = await new PlaceOrder(
+      carts,
+      makeFakeProducts(new Map([[productId, product]])),
+      orders,
+      makeFakeShippingRates(Money.zero('USD')),
+      makeFakeCoupons(),
+      storeOpen(),
+      makeFakeOffers({ [productId]: false }),
+    ).execute({
+      owner: { type: 'guest', sessionId: 's1' },
+      customerEmail: 'test@example.com',
+      currency: 'USD',
+      shippingAddress: validShippingAddress(),
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe('product_unavailable');
+    expect(created).toEqual([]);
+    // And the cart is kept — they can remove the item and try again.
+    expect(deletedOwners).toEqual([]);
+  });
+
+  it('refuses a line with no supplier offer at all', async () => {
+    const productId = randomUUID();
+    const cart = Cart.create({
+      id: randomUUID(),
+      owner: { type: 'guest', sessionId: 's1' },
+      lines: [CartLine.create({ productId, productName: 'Widget', quantity: 1, unitPrice: Money.of(1999, 'USD') })],
+    });
+    const { repo: carts } = makeFakeCarts(cart);
+    const { repo: orders, created } = makeFakeOrders();
+
+    const result = await new PlaceOrder(
+      carts,
+      makeFakeProducts(new Map([[productId, makeProduct(productId, 1999)]])),
+      orders,
+      makeFakeShippingRates(Money.zero('USD')),
+      makeFakeCoupons(),
+      storeOpen(),
+      makeFakeOffers({}),
+    ).execute({
+      owner: { type: 'guest', sessionId: 's1' },
+      customerEmail: 'test@example.com',
+      currency: 'USD',
+      shippingAddress: validShippingAddress(),
+    });
+
+    expect(result.ok).toBe(false);
+    expect(created).toEqual([]);
+  });
+
+  /**
+   * A double-submitted checkout used to mint two orders from one cart — and
+   * `StartCheckout` then derives a BTC address per order, so the customer gets
+   * two invoices, two addresses are burned against the wallet's BIP32 gap
+   * limit, and whichever one they pay leaves the other outstanding.
+   *
+   * The cart is the mutex. Redis `DEL` reports whether it removed anything, so
+   * of two concurrent callers exactly one gets `true` and proceeds.
+   */
+  it('creates one order when the same cart is submitted twice', async () => {
+    const productId = randomUUID();
+    const product = makeProduct(productId, 1999);
+    const cart = Cart.create({
+      id: randomUUID(),
+      owner: { type: 'guest', sessionId: 's1' },
+      lines: [CartLine.create({ productId, productName: 'Widget', quantity: 1, unitPrice: Money.of(1999, 'USD') })],
+    });
+    const { repo: carts } = makeFakeCarts(cart);
+    const products = makeFakeProducts(new Map([[productId, product]]));
+    const { repo: orders, created } = makeFakeOrders();
+    const placeOrder = new PlaceOrder(
+      carts,
+      products,
+      orders,
+      makeFakeShippingRates(Money.zero('USD')),
+      makeFakeCoupons(),
+      storeOpen(),
+      makeFakeOffersAllAvailable(),
+    );
+    const input = {
+      owner: { type: 'guest', sessionId: 's1' } as const,
+      customerEmail: 'test@example.com',
+      currency: 'USD',
+      shippingAddress: validShippingAddress(),
+    };
+
+    const [first, second] = await Promise.all([placeOrder.execute(input), placeOrder.execute(input)]);
+
+    expect(created).toHaveLength(1);
+    const outcomes = [first, second];
+    expect(outcomes.filter((r) => r.ok)).toHaveLength(1);
+    const failed = outcomes.find((r) => !r.ok);
+    expect(failed && !failed.ok && failed.error.code).toBe('cart_already_submitted');
+  });
+
+  it('claims the cart before writing the order', async () => {
+    // Ordering is the whole guarantee: claim, then create. Reversed, both
+    // callers reach `orders.create` and the race is back.
+    const productId = randomUUID();
+    const product = makeProduct(productId, 1999);
+    const cart = Cart.create({
+      id: randomUUID(),
+      owner: { type: 'guest', sessionId: 's1' },
+      lines: [CartLine.create({ productId, productName: 'Widget', quantity: 1, unitPrice: Money.of(1999, 'USD') })],
+    });
+    const { repo: carts, deletedOwners } = makeFakeCarts(cart);
+    const products = makeFakeProducts(new Map([[productId, product]]));
+    const order: string[] = [];
+    const orders: OrderRepository = {
+      async create() {
+        order.push('create');
+      },
+    };
+    const trackingCarts: CartRepository = {
+      ...carts,
+      async delete(owner) {
+        order.push('claim');
+        return carts.delete(owner);
+      },
+    };
+
+    await new PlaceOrder(
+      trackingCarts,
+      products,
+      orders,
+      makeFakeShippingRates(Money.zero('USD')),
+      makeFakeCoupons(),
+      storeOpen(),
+      makeFakeOffersAllAvailable(),
+    ).execute({
+      owner: { type: 'guest', sessionId: 's1' },
+      customerEmail: 'test@example.com',
+      currency: 'USD',
+      shippingAddress: validShippingAddress(),
+    });
+
+    expect(order).toEqual(['claim', 'create']);
+    expect(deletedOwners).toHaveLength(1);
+  });
+
   it('turns a priced cart into a durable pending order, repricing from the catalog', async () => {
     const productId = randomUUID();
     const product = makeProduct(productId, 1999); // catalog price
@@ -114,7 +311,7 @@ describe('PlaceOrder', () => {
 
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
     const coupons = makeFakeCoupons();
-    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen()).execute({
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen(), makeFakeOffersAllAvailable()).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -142,7 +339,7 @@ describe('PlaceOrder', () => {
 
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
     const coupons = makeFakeCoupons();
-    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen()).execute({
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen(), makeFakeOffersAllAvailable()).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -162,7 +359,7 @@ describe('PlaceOrder', () => {
 
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
     const coupons = makeFakeCoupons();
-    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen()).execute({
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen(), makeFakeOffersAllAvailable()).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -186,7 +383,7 @@ describe('PlaceOrder', () => {
 
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
     const coupons = makeFakeCoupons();
-    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen()).execute({
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen(), makeFakeOffersAllAvailable()).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -215,7 +412,7 @@ describe('PlaceOrder', () => {
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
     const coupons = makeFakeCoupons();
 
-    await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen()).execute({
+    await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen(), makeFakeOffersAllAvailable()).execute({
       owner: { type: 'user', userId: 'user-1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -239,7 +436,7 @@ describe('PlaceOrder', () => {
     const shippingRates = makeFakeShippingRates(Money.of(599, 'USD'));
     const coupons = makeFakeCoupons();
 
-    await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen()).execute({
+    await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen(), makeFakeOffersAllAvailable()).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -270,7 +467,7 @@ describe('PlaceOrder', () => {
     });
     const coupons = makeFakeCoupons(coupon);
 
-    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen()).execute({
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen(), makeFakeOffersAllAvailable()).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -298,7 +495,7 @@ describe('PlaceOrder', () => {
     const shippingRates = makeFakeShippingRates(Money.zero('USD'));
     const coupons = makeFakeCoupons(null);
 
-    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen()).execute({
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen(), makeFakeOffersAllAvailable()).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -332,7 +529,7 @@ describe('PlaceOrder', () => {
     });
     const coupons = makeFakeCoupons(inactiveCoupon);
 
-    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen()).execute({
+    const result = await new PlaceOrder(carts, products, orders, shippingRates, coupons, storeOpen(), makeFakeOffersAllAvailable()).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
       currency: 'USD',
@@ -369,6 +566,7 @@ describe('PlaceOrder', () => {
       makeFakeShippingRates(Money.zero('USD')),
       makeFakeCoupons(),
       storeOpen(false),
+      makeFakeOffersAllAvailable(),
     ).execute({
       owner: { type: 'guest', sessionId: 's1' },
       customerEmail: 'test@example.com',
