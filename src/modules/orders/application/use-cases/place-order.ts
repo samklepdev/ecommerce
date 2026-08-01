@@ -27,7 +27,9 @@ export type PlaceOrderError =
   | { code: 'empty_cart' }
   | { code: 'product_unavailable'; productId: string }
   | { code: 'invalid_coupon' }
-  | { code: 'store_closed' };
+  | { code: 'store_closed' }
+  /** Another request placed this cart first — a double-submit. */
+  | { code: 'cart_already_submitted' };
 
 /** Real production path: turns a priced cart into a durable, pending order. */
 export class PlaceOrder implements UseCase<PlaceOrderInput, Result<Order, PlaceOrderError>> {
@@ -95,8 +97,25 @@ export class PlaceOrder implements UseCase<PlaceOrderInput, Result<Order, PlaceO
       couponCode: appliedCouponCode,
     });
 
+    /**
+     * Claim the cart **before** writing the order, and only proceed if this
+     * call is the one that removed it.
+     *
+     * Reversed — create then delete — two concurrent submits both pass every
+     * check above and both write an order. `StartCheckout` then derives an
+     * address per order, so a double-click produces two invoices, burns two
+     * addresses against the wallet's gap limit, and leaves whichever one the
+     * customer doesn't pay outstanding.
+     *
+     * The cost of this ordering is that a failure in `orders.create` below
+     * loses the cart without producing an order. That is a deliberate trade:
+     * re-adding a cart is an annoyance, whereas two live invoices for one
+     * purchase is money, and with no refund mechanism it is unrecoverable.
+     */
+    const claimed = await this.carts.delete(input.owner);
+    if (!claimed) return err({ code: 'cart_already_submitted' });
+
     await this.orders.create(order);
-    await this.carts.delete(input.owner);
     return ok(order);
   }
 }

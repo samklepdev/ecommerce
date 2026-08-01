@@ -27,7 +27,9 @@ function makeFakeCarts(cart: Cart | null) {
       return cart;
     },
     async save() {},
-    async delete() {},
+    async delete() {
+      return true;
+    },
   };
   return repo;
 }

@@ -17,7 +17,9 @@ export type PaymentSession = CreatePaymentOutput;
 
 export type StartCheckoutError =
   | { code: 'gateway_error'; message: string }
-  | { code: 'store_closed' };
+  | { code: 'store_closed' }
+  /** The repriced total is zero or less — nothing a customer could pay. */
+  | { code: 'total_not_payable'; totalMinor: number };
 
 /**
  * reprice (server-side) -> gateway.createPayment. No inventory reservation —
@@ -43,6 +45,22 @@ export class StartCheckout
     if (!(await this.storeIsOpen.execute())) return err({ code: 'store_closed' });
 
     const total = await this.orders.repriceAndGetTotal(input.orderId);
+
+    /**
+     * Nothing payable, so nothing to allocate. Checked **before** the gateway,
+     * because `createPayment` burns an address index — a one-way counter that
+     * eats into the watching wallet's BIP32 gap limit — and an invoice for zero
+     * satoshis could never be settled anyway: the watcher treats
+     * `confirmedSats > 0` as "seen", so it would never look at it again.
+     *
+     * Reachable without an admin doing anything: a fixed-amount coupon at or
+     * above the subtotal is clamped to the subtotal, and shipping is zero when
+     * no rate row exists. `EditOrderLines` guards its own path; this is the
+     * other one.
+     */
+    if (total.amountMinor <= 0) {
+      return err({ code: 'total_not_payable', totalMinor: total.amountMinor });
+    }
 
     const gateway = this.gateways.resolve(input.paymentMethod);
     const result = await gateway.createPayment({

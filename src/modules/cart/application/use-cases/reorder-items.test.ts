@@ -70,7 +70,9 @@ function makeFakeCarts(existing: Cart | null) {
     async save(cart) {
       saved.push(cart);
     },
-    async delete() {},
+    async delete() {
+      return true;
+    },
   };
   return { repo, saved };
 }

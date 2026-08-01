@@ -1,4 +1,4 @@
-import { and, count, eq, gt, gte, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, count, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from 'drizzle-orm';
 
 import type { DB } from '@/shared/infrastructure/db/client';
 import { bitcoinPaymentIntents, orders } from '@/shared/infrastructure/db/schema';
@@ -178,24 +178,48 @@ export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore, OnChainA
         and(
           inArray(orders.paymentStatus, ['expired', 'failed', 'cancelled']),
           gte(bitcoinPaymentIntents.createdAt, createdSince),
-          isNull(bitcoinPaymentIntents.latePaymentSeenAt),
+          // Deliberately **not** filtered on `latePaymentSeenAt IS NULL`. The
+          // address stays spendable after an order closes — it is the one the
+          // underpayment email told the customer to send the balance to — so
+          // checking once and never again meant a later payment went unseen
+          // and the recorded figure permanently understated what was held.
+          // `recordLatePayment` reports whether anything actually changed, so
+          // re-sweeping a known problem is silent.
         ),
       );
     return rows.map((r) => toIntent(r.intent));
   }
 
-  async recordLatePayment(orderId: string, sats: number): Promise<void> {
-    // Guarded on `latePaymentSeenAt IS NULL` so this is write-once: a second
-    // sweep must not move the timestamp and make the discovery look fresh.
-    await this.db
+  async recordLatePayment(orderId: string, sats: number): Promise<boolean> {
+    /**
+     * Grow-only, and reports whether it actually changed anything.
+     *
+     * The amount can rise — a customer who was told to send a balance may send
+     * it after the order closed — so this is not write-once. It must never
+     * fall, though: a provider briefly reporting less should not rewrite the
+     * record downwards, which the `<` guard prevents.
+     *
+     * `latePaymentSeenAt` is coalesced rather than overwritten, because it
+     * answers "when did we find out". A top-up must not make a week-old
+     * discovery look like it happened this hour.
+     */
+    const updated = await this.db
       .update(bitcoinPaymentIntents)
-      .set({ latePaymentSats: sats, latePaymentSeenAt: new Date() })
+      .set({
+        latePaymentSats: sats,
+        latePaymentSeenAt: sql`coalesce(${bitcoinPaymentIntents.latePaymentSeenAt}, now())`,
+      })
       .where(
         and(
           eq(bitcoinPaymentIntents.orderId, orderId),
-          isNull(bitcoinPaymentIntents.latePaymentSeenAt),
+          or(
+            isNull(bitcoinPaymentIntents.latePaymentSats),
+            lt(bitcoinPaymentIntents.latePaymentSats, sats),
+          ),
         ),
-      );
+      )
+      .returning({ orderId: bitcoinPaymentIntents.orderId });
+    return updated.length > 0;
   }
 
   async countLatePayments(): Promise<number> {

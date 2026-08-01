@@ -101,7 +101,10 @@ export class RedisCartRepository implements CartRepository {
     }
   }
 
-  async delete(owner: CartOwner): Promise<void> {
-    await this.redis.del(keyFor(owner));
+  async delete(owner: CartOwner): Promise<boolean> {
+    // `DEL` returns how many keys it removed, and Redis runs it atomically —
+    // so of two concurrent deletes exactly one sees 1. That is the whole
+    // concurrency guarantee `PlaceOrder` leans on; no lock or Lua needed.
+    return (await this.redis.del(keyFor(owner))) > 0;
   }
 }

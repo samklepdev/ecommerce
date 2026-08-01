@@ -29,13 +29,19 @@ function makeProduct(id: string, unitAmountMinor: number, name = `Widget ${id.sl
 
 function makeFakeCarts(cart: Cart | null) {
   const deletedOwners: unknown[] = [];
+  let present = cart !== null;
   const repo: CartRepository = {
     async get() {
       return cart;
     },
     async save() {},
+    // Mirrors Redis DEL: reports whether this call is the one that removed it,
+    // so exactly one of two concurrent callers can win.
     async delete(owner) {
       deletedOwners.push(owner);
+      if (!present) return false;
+      present = false;
+      return true;
     },
   };
   return { repo, deletedOwners };
@@ -97,6 +103,94 @@ function storeOpen(isOpen = true): AssertStoreOpenForCheckout {
 }
 
 describe('PlaceOrder', () => {
+  /**
+   * A double-submitted checkout used to mint two orders from one cart — and
+   * `StartCheckout` then derives a BTC address per order, so the customer gets
+   * two invoices, two addresses are burned against the wallet's BIP32 gap
+   * limit, and whichever one they pay leaves the other outstanding.
+   *
+   * The cart is the mutex. Redis `DEL` reports whether it removed anything, so
+   * of two concurrent callers exactly one gets `true` and proceeds.
+   */
+  it('creates one order when the same cart is submitted twice', async () => {
+    const productId = randomUUID();
+    const product = makeProduct(productId, 1999);
+    const cart = Cart.create({
+      id: randomUUID(),
+      owner: { type: 'guest', sessionId: 's1' },
+      lines: [CartLine.create({ productId, productName: 'Widget', quantity: 1, unitPrice: Money.of(1999, 'USD') })],
+    });
+    const { repo: carts } = makeFakeCarts(cart);
+    const products = makeFakeProducts(new Map([[productId, product]]));
+    const { repo: orders, created } = makeFakeOrders();
+    const placeOrder = new PlaceOrder(
+      carts,
+      products,
+      orders,
+      makeFakeShippingRates(Money.zero('USD')),
+      makeFakeCoupons(),
+      storeOpen(),
+    );
+    const input = {
+      owner: { type: 'guest', sessionId: 's1' } as const,
+      customerEmail: 'test@example.com',
+      currency: 'USD',
+      shippingAddress: validShippingAddress(),
+    };
+
+    const [first, second] = await Promise.all([placeOrder.execute(input), placeOrder.execute(input)]);
+
+    expect(created).toHaveLength(1);
+    const outcomes = [first, second];
+    expect(outcomes.filter((r) => r.ok)).toHaveLength(1);
+    const failed = outcomes.find((r) => !r.ok);
+    expect(failed && !failed.ok && failed.error.code).toBe('cart_already_submitted');
+  });
+
+  it('claims the cart before writing the order', async () => {
+    // Ordering is the whole guarantee: claim, then create. Reversed, both
+    // callers reach `orders.create` and the race is back.
+    const productId = randomUUID();
+    const product = makeProduct(productId, 1999);
+    const cart = Cart.create({
+      id: randomUUID(),
+      owner: { type: 'guest', sessionId: 's1' },
+      lines: [CartLine.create({ productId, productName: 'Widget', quantity: 1, unitPrice: Money.of(1999, 'USD') })],
+    });
+    const { repo: carts, deletedOwners } = makeFakeCarts(cart);
+    const products = makeFakeProducts(new Map([[productId, product]]));
+    const order: string[] = [];
+    const orders: OrderRepository = {
+      async create() {
+        order.push('create');
+      },
+    };
+    const trackingCarts: CartRepository = {
+      ...carts,
+      async delete(owner) {
+        order.push('claim');
+        return carts.delete(owner);
+      },
+    };
+
+    await new PlaceOrder(
+      trackingCarts,
+      products,
+      orders,
+      makeFakeShippingRates(Money.zero('USD')),
+      makeFakeCoupons(),
+      storeOpen(),
+    ).execute({
+      owner: { type: 'guest', sessionId: 's1' },
+      customerEmail: 'test@example.com',
+      currency: 'USD',
+      shippingAddress: validShippingAddress(),
+    });
+
+    expect(order).toEqual(['claim', 'create']);
+    expect(deletedOwners).toHaveLength(1);
+  });
+
   it('turns a priced cart into a durable pending order, repricing from the catalog', async () => {
     const productId = randomUUID();
     const product = makeProduct(productId, 1999); // catalog price

@@ -86,19 +86,20 @@ export async function startCheckoutAction(
     couponCode: parsed.data.couponCode,
   });
   if (isErr(placed)) {
-    return {
-      error:
-        placed.error.code === 'empty_cart'
-          ? 'Your cart is empty.'
-          : placed.error.code === 'invalid_coupon'
-            ? "That coupon code isn't valid."
-            : placed.error.code === 'store_closed'
-              ? // Named explicitly: the fallback below would otherwise tell a
-                // customer an item was unavailable, which is both wrong and
-                // the kind of message that makes someone re-add their cart.
-                'Ordering is paused right now — nothing was charged, and your cart is saved.'
-              : 'An item in your cart is no longer available.',
+    // A lookup rather than a nested ternary: every code needs its own wording,
+    // and the fallback here used to claim an item was unavailable for causes
+    // that had nothing to do with availability.
+    const messages: Record<typeof placed.error.code, string> = {
+      empty_cart: 'Your cart is empty.',
+      invalid_coupon: "That coupon code isn't valid.",
+      store_closed:
+        'Ordering is paused right now — nothing was charged, and your cart is saved.',
+      // A double-click. The first submit won and is already redirecting, so
+      // this must not read as a failure — nothing went wrong.
+      cart_already_submitted: 'This order was already submitted — check your orders for it.',
+      product_unavailable: 'An item in your cart is no longer available.',
     };
+    return { error: messages[placed.error.code] };
   }
 
   // Only logged-in visitors have an account to attach a saved address to —
@@ -132,12 +133,16 @@ export async function startCheckoutAction(
     idempotencyKey: placed.value.id,
   });
   if (isErr(result)) {
-    return {
-      error:
-        result.error.code === 'store_closed'
-          ? 'Ordering is paused right now — nothing was charged.'
-          : 'Could not start checkout — try again.',
+    const messages: Record<typeof result.error.code, string> = {
+      store_closed: 'Ordering is paused right now — nothing was charged.',
+      // The order exists but has nothing to pay, so no address was allocated.
+      // Naming the cause matters: "try again" would send them round a loop
+      // that cannot succeed.
+      total_not_payable:
+        "This order's total came to nothing to pay. Get in touch with your order id and we'll sort it out.",
+      gateway_error: 'Could not start checkout — try again.',
     };
+    return { error: messages[result.error.code] };
   }
 
   // Placing the order empties the cart — the Header's cart-count badge

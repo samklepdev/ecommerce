@@ -22,6 +22,7 @@ function makeFakeCarts(cartsByKey: Map<string, Cart>) {
     },
     async delete(owner) {
       deleted.push(keyFor(owner));
+      return cartsByKey.delete(keyFor(owner));
     },
   };
   return { repo, deleted, saved };
