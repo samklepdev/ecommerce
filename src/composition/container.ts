@@ -19,7 +19,6 @@ import { StartCheckout } from '@/modules/checkout/application/use-cases/start-ch
 import { ExpireStaleCheckouts } from '@/modules/checkout/application/use-cases/expire-stale-checkouts';
 import { RefreshPaymentQuote } from '@/modules/checkout/application/use-cases/refresh-payment-quote';
 import { ConfirmPayment } from '@/modules/orders/application/use-cases/confirm-payment';
-import { MarkOrderRefunded } from '@/modules/orders/application/use-cases/mark-order-refunded';
 import { MarkOrderDelivered } from '@/modules/orders/application/use-cases/mark-order-delivered';
 import { CancelOrder } from '@/modules/orders/application/use-cases/cancel-order';
 import { MarkAwaitingConfirmation } from '@/modules/orders/application/use-cases/mark-awaiting-confirmation';
@@ -355,7 +354,6 @@ export interface Container {
   expireStaleCheckouts: ExpireStaleCheckouts;
   refreshPaymentQuote: RefreshPaymentQuote;
   confirmPayment: ConfirmPayment;
-  markOrderRefunded: MarkOrderRefunded;
   markOrderDelivered: MarkOrderDelivered;
   cancelOrderFulfillment: CancelOrderFulfillment;
   cancelOrder: CancelOrder;
@@ -703,7 +701,6 @@ function build(): Container {
   const getPaymentSessionForOrder = new GetPaymentSessionForOrder(paymentStore);
 
   const confirmPayment = new ConfirmPayment(orders, processed, fulfillment, paymentConfirmationNotifier);
-  const markOrderRefunded = new MarkOrderRefunded(orders);
   const markOrderDelivered = new MarkOrderDelivered(orders);
   const cancelOrderFulfillment = new CancelOrderFulfillment(orders);
   const cancelOrder = new CancelOrder(orders, paymentStore);
@@ -714,7 +711,10 @@ function build(): Container {
   const editOrderLines = new EditOrderLines(orders, products, btcGateway);
   const updateOrderContact = new UpdateOrderContact(orders);
   const listOrderEvents = new ListOrderEvents(orders);
-  const failStuckAwaitingConfirmationOrders = new FailStuckAwaitingConfirmationOrders(orders);
+  const failStuckAwaitingConfirmationOrders = new FailStuckAwaitingConfirmationOrders(
+    orders,
+    env.AWAITING_CONFIRMATION_WINDOW_HOURS,
+  );
   const failOrder = new FailOrder(orders);
   // One unified number for both the actual gate and the customer-facing
   // "X of Y confirmations" display — BTC_REQUIRED_CONFIRMATIONS stays the
@@ -873,7 +873,6 @@ function build(): Container {
     expireStaleCheckouts,
     refreshPaymentQuote,
     confirmPayment,
-    markOrderRefunded,
     markOrderDelivered,
     cancelOrderFulfillment,
     cancelOrder,

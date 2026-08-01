@@ -18,7 +18,6 @@ const PAYMENT_STATUSES: PaymentStatus[] = [
   'failed',
   'expired',
   'cancelled',
-  'refunded',
 ];
 
 const LEGAL_PAYMENT_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]> = {
@@ -27,7 +26,7 @@ const LEGAL_PAYMENT_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]> = {
   // No `cancelled` here — once the chain has seen something, a customer can
   // no longer cancel.
   awaiting_confirmation: ['paid', 'failed', 'expired'],
-  paid: ['refunded'],
+  paid: [],
   failed: [],
   // Narrow recovery path: a chain-watcher pass can discover a genuinely
   // confirmed payment for an order that was already (mistakenly) expired —
@@ -36,7 +35,6 @@ const LEGAL_PAYMENT_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]> = {
   // Same rationale as `expired` — a customer-cancelled order's BTC address
   // was already handed out, so a late payment must still be recordable.
   cancelled: ['paid'],
-  refunded: [],
 };
 
 describe('assertPaymentTransition', () => {
@@ -118,7 +116,6 @@ describe('isOrderCancellable', () => {
     expect(isOrderCancellable('failed')).toBe(false);
     expect(isOrderCancellable('expired')).toBe(false);
     expect(isOrderCancellable('cancelled')).toBe(false);
-    expect(isOrderCancellable('refunded')).toBe(false);
   });
 });
 
@@ -136,7 +133,6 @@ describe('areOrderLinesEditable', () => {
     expect(areOrderLinesEditable('failed')).toBe(false);
     expect(areOrderLinesEditable('expired')).toBe(false);
     expect(areOrderLinesEditable('cancelled')).toBe(false);
-    expect(areOrderLinesEditable('refunded')).toBe(false);
   });
 
   it('matches the cancellation window exactly', () => {
@@ -148,8 +144,7 @@ describe('areOrderLinesEditable', () => {
       'failed',
       'expired',
       'cancelled',
-      'refunded',
-    ];
+        ];
     for (const status of statuses) {
       expect(areOrderLinesEditable(status)).toBe(isOrderCancellable(status));
     }
@@ -174,7 +169,12 @@ describe('isOrderContactEditable', () => {
     expect(isOrderContactEditable('paid', 'cancelled')).toBe(false);
   });
 
-  it('stops on a refunded order — that record is closed', () => {
-    expect(isOrderContactEditable('refunded', 'unfulfilled')).toBe(false);
+  it('ignores payment status entirely — an address is worth fixing either way', () => {
+    // This used to be blocked for `refunded` orders. That status is gone, and
+    // no other payment status has any bearing on whether a typo'd address is
+    // worth correcting.
+    for (const paymentStatus of ['pending', 'awaiting_payment', 'paid', 'failed'] as const) {
+      expect(isOrderContactEditable(paymentStatus, 'unfulfilled')).toBe(true);
+    }
   });
 });

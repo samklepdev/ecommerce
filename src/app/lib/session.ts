@@ -86,7 +86,7 @@ export { REAUTH_REQUIRED } from '@/app/lib/session-constants';
  * `requireAdmin` proves who holds the session; this proves someone who knows
  * the password is at the keyboard right now. The difference matters for the
  * handful of actions that move money or destroy data — an unlocked laptop
- * should be able to read the console without being able to refund an order
+ * should be able to read the console without being able to cancel a paid order
  * or delete the catalogue.
  *
  * Returns a discriminated result rather than throwing, because "type your

@@ -82,7 +82,7 @@ describe('RefreshPaymentQuote', () => {
 
   // Past awaiting_payment the chain has seen money; re-quoting would move
   // the goalposts under a payment already in flight.
-  it.each(['awaiting_confirmation', 'paid', 'expired', 'cancelled', 'refunded', 'failed'])(
+  it.each(['awaiting_confirmation', 'paid', 'expired', 'cancelled', 'failed'])(
     'refuses to re-quote a %s order',
     async (paymentStatus) => {
       const { repo } = makeFakeOrders({

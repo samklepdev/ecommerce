@@ -53,7 +53,7 @@ export function OrderLinesEditor({
         <p className={styles.editorNote}>
           Fixed — this order is <strong>{paymentStatus}</strong>, so the chain has already seen a
           payment against its total. Changing the items now would leave the amount paid and the
-          amount owed disagreeing; refund or cancel instead.
+          amount owed disagreeing; cancel the order instead.
         </p>
       </div>
     );

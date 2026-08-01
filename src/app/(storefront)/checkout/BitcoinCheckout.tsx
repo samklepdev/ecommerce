@@ -46,7 +46,6 @@ const STATUS_LABEL: Record<WidgetStatus, string> = {
   failed: 'Failed',
   expired: 'Expired',
   cancelled: 'Cancelled',
-  refunded: 'Refunded',
 };
 
 const STATUS_TONE: Record<WidgetStatus, 'accent' | 'success' | 'danger'> = {
@@ -56,7 +55,6 @@ const STATUS_TONE: Record<WidgetStatus, 'accent' | 'success' | 'danger'> = {
   failed: 'danger',
   expired: 'danger',
   cancelled: 'danger',
-  refunded: 'danger',
 };
 
 function useCountdown(expiresAt: string | null): string | null {
@@ -159,15 +157,11 @@ export function BitcoinCheckout({
           <p className={styles.message}>Payment confirmed. Thank you for your order!</p>
           {progress.overpaid && (
             <p className={styles.message}>
-              We received more than the expected amount — contact support with your order id
-              about a refund of the difference.
+              We received more than the expected amount. Get in touch with your order id
+              and we&apos;ll sort it out with you.
             </p>
           )}
         </div>
-      )}
-
-      {status === 'refunded' && (
-        <p className={styles.message}>This order has been refunded.</p>
       )}
 
       {status === 'failed' && (
@@ -223,8 +217,8 @@ export function BitcoinCheckout({
 
           {status === 'confirming' && progress.overpaid && (
             <p className={styles.message}>
-              We received more than the expected amount — contact support with your order id
-              about a refund of the difference.
+              We received more than the expected amount. Get in touch with your order id
+              and we&apos;ll sort it out with you.
             </p>
           )}
 

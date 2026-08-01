@@ -254,7 +254,6 @@ describe('EditOrderLines', () => {
     const locked: PaymentStatus[] = [
       'awaiting_confirmation',
       'paid',
-      'refunded',
       'failed',
       'expired',
       'cancelled',

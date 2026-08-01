@@ -63,7 +63,7 @@ export class CreateSupplierOrdersForPaidOrder
   async execute(input: CreateSupplierOrdersForPaidOrderInput): Promise<void> {
     // Checked up front now that this is reachable from an admin retry and
     // not just from ConfirmPayment: never spend money with a supplier for an
-    // order that isn't paid (refunded, failed, or expired since).
+    // order that isn't paid (failed or expired since).
     const paymentStatus = await this.orderFulfillment.getPaymentStatus(input.orderId);
     if (paymentStatus !== 'paid') {
       logger.warn('supplier orders skipped: order is not paid', {

@@ -14,50 +14,6 @@ import { requireAdmin, requireRecentAdminAuth } from '@/app/lib/session';
  * able to write a quantity a customer couldn't have ordered. */
 const MAX_ORDER_LINE_QUANTITY = MAX_CART_LINE_QUANTITY;
 
-const MarkOrderRefundedSchema = z.object({
-  orderId: z.string().min(1),
-});
-
-export interface MarkOrderRefundedActionResult {
-  message?: string;
-  error?: string;
-}
-
-export async function markOrderRefundedAction(
-  _prevState: MarkOrderRefundedActionResult | undefined,
-  formData: FormData,
-): Promise<MarkOrderRefundedActionResult> {
-  // Destructive: refuses unless the password was typed recently.
-  const sudo = await requireRecentAdminAuth();
-  if (!sudo.ok) return { error: sudo.reason };
-  const admin = sudo.admin;
-  const parsed = MarkOrderRefundedSchema.safeParse({ orderId: formData.get('orderId') });
-  if (!parsed.success) return { error: 'Missing order.' };
-
-  const { markOrderRefunded, recordAuditLogEntry } = getContainer();
-  const result = await markOrderRefunded.execute({ orderId: parsed.data.orderId });
-  if (isErr(result)) {
-    return {
-      error:
-        result.error.code === 'not_found'
-          ? 'Order not found.'
-          : 'This order cannot be marked refunded from its current status.',
-    };
-  }
-
-  await recordAuditLogEntry.execute({
-    actorUserId: admin.id,
-    actorEmail: admin.email,
-    action: 'order.refunded',
-    targetType: 'order',
-    targetId: parsed.data.orderId,
-  });
-
-  revalidatePath(`/admin/orders/${parsed.data.orderId}`);
-  revalidatePath('/admin/orders');
-  return { message: 'Order marked refunded.' };
-}
-
 const FailOrderSchema = z.object({
   orderId: z.string().min(1),
 });
@@ -67,8 +23,18 @@ export interface FailOrderActionResult {
   error?: string;
 }
 
-/** Manual override for an order stuck in awaiting_confirmation — otherwise
- * FailStuckAwaitingConfirmationOrders resolves it automatically after 48h. */
+/**
+ * Closes out an order that isn't going to be paid.
+ *
+ * The automatic timers do this on their own — 24h for an order nothing arrived
+ * for, `AWAITING_CONFIRMATION_WINDOW_HOURS` for a part-payment that never
+ * completes. This is for when you already know: a customer who emails to give
+ * up, or an order you want off the board now.
+ *
+ * `failed`, not `cancelled`: non-payment is a failure, and `cancelled` means
+ * somebody decided not to proceed. Keeping them distinct is what makes the
+ * audit log and the analytics readable.
+ */
 export async function failOrderAction(
   _prevState: FailOrderActionResult | undefined,
   formData: FormData,
@@ -116,7 +82,8 @@ export interface CancelOrderFulfillmentActionResult {
  * Closes out an order the shop is not going to fulfil — goods that can't be
  * obtained, or a parcel lost in transit.
  *
- * Sudo-gated like a refund, and for the same reason: on a paid order this is
+ * Sudo-gated like the other destructive admin actions, and for a sharper reason
+ * than most: on a paid order this is
  * terminal and the customer has already parted with money. A reason is required
  * because "why" is the only part of this a human will need later, and it goes to
  * the audit log — **not** to the customer, who is never told anything about how

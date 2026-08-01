@@ -6,12 +6,12 @@ export type WidgetStatus =
   | 'paid'
   | 'failed'
   | 'expired'
-  | 'cancelled'
-  | 'refunded';
+  | 'cancelled';
+
 
 /** Domain payment status -> the states `BitcoinCheckout` renders. `failed`
- * and `refunded` each keep their own state — collapsing them into `expired`
- * would tell a refunded customer their payment window merely expired.
+ * each keep their own state — collapsing them into `expired` would tell a
+ * customer whose order failed that their payment window merely expired.
  *
  * Shared by the status route (what the widget polls) and the order pages
  * (what the widget first paints), so a confirmed order never renders as
@@ -24,7 +24,6 @@ const WIDGET_STATUS: Record<PaymentStatus, WidgetStatus> = {
   failed: 'failed',
   expired: 'expired',
   cancelled: 'cancelled',
-  refunded: 'refunded',
 };
 
 export function toWidgetStatus(status: PaymentStatus): WidgetStatus {
