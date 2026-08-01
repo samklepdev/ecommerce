@@ -73,7 +73,10 @@ export class WatchBitcoinPayments {
           // the customer, whereas a short one is stuck until they send the
           // rest. `NotifyUnderpaidOnce` owns the once-per-order guard, because
           // this pass runs every 45 seconds for as long as the order is short.
-          await this.notifyUnderpaid.execute({ orderId: intent.orderId });
+          await this.notifyUnderpaid.execute({
+            orderId: intent.orderId,
+            confirmedSats: status.confirmedSats,
+          });
           continue;
         }
 
