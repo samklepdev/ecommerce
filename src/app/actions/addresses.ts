@@ -5,19 +5,41 @@ import { z } from 'zod';
 
 import { getContainer } from '@/composition/container';
 import { requireUser } from '@/app/lib/session';
-import { countrySchema, postalCodeSchema, refineAddress } from '@/app/lib/address-schema';
+import { addressSchema } from '@/app/lib/address-schema';
 
-const AddSavedAddressSchema = z
-  .object({
-    name: z.string().min(1),
-    line1: z.string().min(1),
-    line2: z.string().optional(),
-    city: z.string().min(1),
-    region: z.string().optional(),
-    postalCode: postalCodeSchema,
-    country: countrySchema,
-  })
-  .superRefine(refineAddress);
+/**
+ * `addressSchema` rather than a local copy: it trims and bounds every field,
+ * and it normalises `region` on the way in. A US region stored as the raw
+ * `"tx"` validated fine and then autofilled into `<select value="tx">`, which
+ * matches no option — so the field submitted empty and checkout failed with a
+ * generic error. The saved address looked right and could not be used.
+ */
+const AddSavedAddressSchema = addressSchema;
+
+/** The address fields as the form posts them. Blank optionals are dropped so
+ * an untouched `line2` is absent rather than an empty string. */
+function addressFormValues(formData: FormData) {
+  const value = (key: string) => {
+    const raw = formData.get(key);
+    return typeof raw === 'string' && raw.trim() !== '' ? raw : undefined;
+  };
+  return {
+    name: value('name'),
+    line1: value('line1'),
+    line2: value('line2'),
+    city: value('city'),
+    region: value('region'),
+    postalCode: value('postalCode'),
+    country: value('country'),
+  };
+}
+
+/** The first problem worth showing. A bad `id` isn't something the customer
+ * typed, so its message would be noise where a field error belongs. */
+function addressErrorMessage(error: z.ZodError): string {
+  const issue = error.issues.find((i) => i.path[0] !== 'id');
+  return issue?.message ?? 'Fill in all required address fields.';
+}
 
 export interface AddSavedAddressActionResult {
   message?: string;
@@ -29,16 +51,10 @@ export async function addSavedAddressAction(
   formData: FormData,
 ): Promise<AddSavedAddressActionResult> {
   const user = await requireUser();
-  const parsed = AddSavedAddressSchema.safeParse({
-    name: formData.get('name'),
-    line1: formData.get('line1'),
-    line2: formData.get('line2') || undefined,
-    city: formData.get('city'),
-    region: formData.get('region') || undefined,
-    postalCode: formData.get('postalCode'),
-    country: formData.get('country'),
-  });
-  if (!parsed.success) return { error: 'Fill in all required address fields.' };
+  const parsed = AddSavedAddressSchema.safeParse(addressFormValues(formData));
+  if (!parsed.success) {
+    return { error: addressErrorMessage(parsed.error) };
+  }
 
   const { addSavedAddress } = getContainer();
   await addSavedAddress.execute({ userId: user.id, ...parsed.data, region: parsed.data.region ?? '' });
@@ -48,17 +64,8 @@ export async function addSavedAddressAction(
 }
 
 const EditSavedAddressSchema = z
-  .object({
-    id: z.string().min(1),
-    name: z.string().min(1),
-    line1: z.string().min(1),
-    line2: z.string().optional(),
-    city: z.string().min(1),
-    region: z.string().optional(),
-    postalCode: postalCodeSchema,
-    country: countrySchema,
-  })
-  .superRefine(refineAddress);
+  .object({ id: z.string().min(1), address: addressSchema })
+  .transform(({ id, address }) => ({ id, ...address }));
 
 export interface EditSavedAddressActionResult {
   message?: string;
@@ -72,15 +79,11 @@ export async function editSavedAddressAction(
   const user = await requireUser();
   const parsed = EditSavedAddressSchema.safeParse({
     id: formData.get('id'),
-    name: formData.get('name'),
-    line1: formData.get('line1'),
-    line2: formData.get('line2') || undefined,
-    city: formData.get('city'),
-    region: formData.get('region') || undefined,
-    postalCode: formData.get('postalCode'),
-    country: formData.get('country'),
+    address: addressFormValues(formData),
   });
-  if (!parsed.success) return { error: 'Fill in all required address fields.' };
+  if (!parsed.success) {
+    return { error: addressErrorMessage(parsed.error) };
+  }
 
   const { updateSavedAddress } = getContainer();
   const { id, ...details } = parsed.data;

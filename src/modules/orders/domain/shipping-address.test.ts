@@ -43,6 +43,39 @@ describe('ShippingAddress.create', () => {
   it('does not require region to be non-empty', () => {
     expect(() => ShippingAddress.create({ ...validProps(), region: '' })).not.toThrow();
   });
+
+  /**
+   * The schemas above this trim, but the value object is what the snapshot is
+   * built from and it is reachable from any caller. Padding that survives to
+   * here is padding on a shipping label.
+   */
+  it('trims every field it keeps', () => {
+    const address = ShippingAddress.create({
+      name: '  Ada Lovelace  ',
+      line1: ' 1 Test St ',
+      line2: '  Apt 4 ',
+      city: ' Testville ',
+      region: ' TS ',
+      postalCode: ' 00000 ',
+      country: ' US ',
+    });
+
+    expect(address.toJSON()).toEqual({
+      name: 'Ada Lovelace',
+      line1: '1 Test St',
+      line2: 'Apt 4',
+      city: 'Testville',
+      region: 'TS',
+      postalCode: '00000',
+      country: 'US',
+    });
+  });
+
+  it('keeps an absent line2 absent rather than making it an empty string', () => {
+    expect(ShippingAddress.create(validProps()).line2).toBeUndefined();
+    // A line2 of nothing but spaces is nothing.
+    expect(ShippingAddress.create({ ...validProps(), line2: '   ' }).line2).toBeUndefined();
+  });
 });
 
 describe('ShippingAddress#toJSON', () => {

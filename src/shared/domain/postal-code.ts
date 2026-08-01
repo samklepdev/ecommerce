@@ -10,13 +10,31 @@
 
 const MAX_POSTAL_CODE_LENGTH = 12;
 
+/**
+ * Every letter Canada Post uses. D, F, I, O, Q and U are excluded from every
+ * position: the sorting equipment reads them as 0, E, 1, 0, O and V, so they
+ * were never assigned. A code containing one is not a deliverable address,
+ * and here that means a parcel with nowhere to go against a payment that
+ * can't be reversed.
+ */
+const CA_LETTER = '[A-CEGHJ-NPR-TV-Z]';
+
 const PATTERNS: Record<string, { pattern: RegExp; label: string }> = {
   // 12345 or 12345-6789
   US: { pattern: /^\d{5}(-\d{4})?$/, label: 'a 5-digit ZIP code, optionally +4' },
   // A1A 1A1, space optional
-  CA: { pattern: /^[A-Z]\d[A-Z] ?\d[A-Z]\d$/, label: 'a postal code like K1A 0B1' },
-  // The full UK format, loosely: outward code, space, inward code
-  GB: { pattern: /^[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}$/, label: 'a postcode like SW1A 1AA' },
+  CA: {
+    pattern: new RegExp(`^${CA_LETTER}\\d${CA_LETTER} ?\\d${CA_LETTER}\\d$`),
+    label: 'a postal code like K1A 0B1',
+  },
+  // The full UK format, loosely: outward code, space, inward code. `GIR 0AA`
+  // is a genuine postcode that fits no part of that shape — a special case
+  // issued to the National Girobank and still in use — so it is listed
+  // rather than paid for by loosening the general pattern.
+  GB: {
+    pattern: /^(GIR ?0AA|[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2})$/,
+    label: 'a postcode like SW1A 1AA',
+  },
   AU: { pattern: /^\d{4}$/, label: 'a 4-digit postcode' },
   DE: { pattern: /^\d{5}$/, label: 'a 5-digit postal code' },
   FR: { pattern: /^\d{5}$/, label: 'a 5-digit postal code' },

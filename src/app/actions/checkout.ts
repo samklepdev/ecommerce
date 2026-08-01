@@ -10,16 +10,20 @@ import { isErr } from '@/shared/domain/result';
 import { logger } from '@/shared/infrastructure/logger';
 import { getSessionUser, resolveCartOwner } from '@/app/lib/session';
 import { checkRateLimit, getClientIp, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
-import { countrySchema, postalCodeSchema, refineAddress } from '@/app/lib/address-schema';
+import { addressFieldSchemas, countrySchema, postalCodeSchema, refineAddress } from '@/app/lib/address-schema';
 
 const StartCheckoutSchema = z
   .object({
     customerEmail: z.string().email(),
-    shippingName: z.string().min(1),
-    shippingLine1: z.string().min(1),
-    shippingLine2: z.string().optional(),
-    shippingCity: z.string().min(1),
-    shippingRegion: z.string().min(1),
+    // The shared field schemas, not bare `min(1)`: those accepted a single
+    // space, which then threw inside `ShippingAddress.create` and surfaced as a
+    // 500 rather than a field error — on the busiest form in the app. They also
+    // bound the lengths, so a 100 kB name can't reach a shipping label.
+    shippingName: addressFieldSchemas.name,
+    shippingLine1: addressFieldSchemas.line1,
+    shippingLine2: addressFieldSchemas.line2,
+    shippingCity: addressFieldSchemas.city,
+    shippingRegion: z.string().trim().min(1),
     shippingPostalCode: postalCodeSchema,
     shippingCountry: countrySchema,
     saveAddress: z.string().optional(),

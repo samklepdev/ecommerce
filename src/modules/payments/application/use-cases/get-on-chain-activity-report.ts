@@ -62,13 +62,19 @@ export class GetOnChainActivityReport
   async execute(input: GetOnChainActivityReportInput): Promise<GetOnChainActivityReportResult> {
     const orders = await this.report.listConfirmedWithOrderInfo(input.since, input.until);
 
-    const totalSats = orders.reduce((sum, o) => sum + (o.confirmedSats || o.expectedSats), 0);
+    // One definition of "received", used by both figures below. When the total
+    // moved to `confirmedSats` the daily breakdown was left on `expectedSats`,
+    // so the chart and the headline disagreed for exactly the underpaid and
+    // overpaid orders worth looking at.
+    const received = (o: OnChainOrderActivity) => o.confirmedSats || o.expectedSats;
+
+    const totalSats = orders.reduce((sum, o) => sum + received(o), 0);
     const addressCount = new Set(orders.map((o) => o.address)).size;
 
     const byDay = new Map<string, number>();
     for (const o of orders) {
       const day = o.paidAt.toISOString().slice(0, 10);
-      byDay.set(day, (byDay.get(day) ?? 0) + o.expectedSats);
+      byDay.set(day, (byDay.get(day) ?? 0) + received(o));
     }
     const satsPerDay = [...byDay.entries()]
       .map(([day, sats]) => ({ day, sats }))

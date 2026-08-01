@@ -14,6 +14,7 @@ import type { ProductRepository } from '@/modules/catalog/application/ports/prod
 import type { OrderRepository } from '@/modules/orders/application/ports/order-repository';
 import type { ShippingRateRepository } from '@/modules/shipping/application/ports/shipping-rate-repository';
 import type { CouponRepository } from '@/modules/coupons/application/ports/coupon-repository';
+import type { SupplierOfferRepository } from '@/modules/sourcing/application/ports/supplier-offer-repository';
 
 export interface PlaceOrderInput {
   owner: CartOwner;
@@ -40,6 +41,13 @@ export class PlaceOrder implements UseCase<PlaceOrderInput, Result<Order, PlaceO
     private readonly shippingRates: ShippingRateRepository,
     private readonly coupons: CouponRepository,
     private readonly storeIsOpen: AssertStoreOpenForCheckout,
+    /**
+     * Consulted for the same reason the storefront consults it: an item whose
+     * supplier can't supply it must not be sellable. The storefront was the only
+     * thing checking, which made it a display rule rather than a real one — the
+     * same authority-vs-display split that let a stale price reach checkout.
+     */
+    private readonly supplierOffers: SupplierOfferRepository,
   ) {}
 
   async execute(input: PlaceOrderInput): Promise<Result<Order, PlaceOrderError>> {
@@ -56,6 +64,21 @@ export class PlaceOrder implements UseCase<PlaceOrderInput, Result<Order, PlaceO
       // Re-fetch from the catalog — never trust the cart's stored price.
       const product = await this.products.findById(line.productId);
       if (!product) return err({ code: 'product_unavailable', productId: line.productId });
+
+      /**
+       * And it must actually be obtainable. `PublishProducts` refuses to publish
+       * a product with no offer, but an offer can be withdrawn or marked
+       * unavailable afterwards — and a cart already holding the item, or a
+       * direct POST to the action, bypassed the storefront's own check entirely.
+       *
+       * Refused here rather than flagged later: past this point the customer
+       * pays irreversible bitcoin, and discovering it can't be sourced after the
+       * money has settled leaves them out of pocket with no refund path.
+       */
+      const offer = await this.supplierOffers.findSourceableByProductId(line.productId);
+      if (!offer || !offer.isAvailable) {
+        return err({ code: 'product_unavailable', productId: line.productId });
+      }
 
       lines.push(
         OrderLine.create({

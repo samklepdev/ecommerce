@@ -9,6 +9,7 @@ import { Money } from '@/shared/domain/money';
 import { satsToBtcString } from '@/modules/payments/domain/bip21';
 import { MAX_CART_LINE_QUANTITY } from '@/modules/cart/domain/cart-line';
 import { requireAdmin, requireRecentAdminAuth } from '@/app/lib/session';
+import { addressSchema } from '@/app/lib/address-schema';
 
 /** Same ceiling the cart enforces — an admin editing an order shouldn't be
  * able to write a quantity a customer couldn't have ordered. */
@@ -332,17 +333,27 @@ function repriceMessage(result: { totalMinor: number; currency: string; repriced
   return `Order updated. New total ${total}, and the payment now asks for ${satsToBtcString(result.repricedSats)} BTC at the same address.`;
 }
 
+/**
+ * The address half is the *same* `addressSchema` the storefront's
+ * saved-address forms use, not a looser copy.
+ *
+ * It used to be seven bare `z.string().min(1)`s: `country: "Narnia"`,
+ * `region: "ZZ"` and `postalCode: "-"` all reached the order's address
+ * snapshot, and `"United Kingdom"` typed where the rest of the system stores
+ * `"GB"` diverged silently. An admin correcting an address is the last edit
+ * before a parcel ships against a payment that can't be reversed, so it gets
+ * checkout's rules, not weaker ones.
+ *
+ * All-or-nothing, and deliberately: a half-filled address is now an error
+ * rather than — as before — a silent no-op reported as success.
+ */
 const UpdateOrderContactSchema = z.object({
   orderId: z.string().min(1),
-  customerEmail: z.string().email().optional(),
-  name: z.string().min(1).optional(),
-  line1: z.string().min(1).optional(),
-  line2: z.string().optional(),
-  city: z.string().min(1).optional(),
-  region: z.string().min(1).optional(),
-  postalCode: z.string().min(1).optional(),
-  country: z.string().min(1).optional(),
+  customerEmail: z.string().trim().email('Enter a valid email address.').max(254).optional(),
+  address: addressSchema.optional(),
 });
+
+const ADDRESS_FIELDS = ['name', 'line1', 'line2', 'city', 'region', 'postalCode', 'country'] as const;
 
 export interface UpdateOrderContactActionResult {
   message?: string;
@@ -354,33 +365,34 @@ export async function updateOrderContactAction(
   formData: FormData,
 ): Promise<UpdateOrderContactActionResult> {
   const admin = await requireAdmin();
-  const raw = Object.fromEntries(
-    ['orderId', 'customerEmail', 'name', 'line1', 'line2', 'city', 'region', 'postalCode', 'country'].map(
-      (key) => [key, (formData.get(key) as string | null) || undefined],
-    ),
-  );
-  const parsed = UpdateOrderContactSchema.safeParse(raw);
+  const field = (key: string): string | undefined => {
+    const value = formData.get(key);
+    return typeof value === 'string' && value.trim() !== '' ? value : undefined;
+  };
+
+  const address = Object.fromEntries(ADDRESS_FIELDS.map((key) => [key, field(key)]));
+  // An address is only submitted at all if something was typed into it —
+  // otherwise this is an email-only correction and the address is left alone.
+  const touchedAddress = ADDRESS_FIELDS.some((key) => address[key] !== undefined);
+
+  const parsed = UpdateOrderContactSchema.safeParse({
+    orderId: field('orderId'),
+    customerEmail: field('customerEmail'),
+    address: touchedAddress ? address : undefined,
+  });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Check the details and try again.' };
   }
 
-  const { name, line1, city, region, postalCode, country } = parsed.data;
-  const hasAddress = Boolean(name && line1 && city && region && postalCode && country);
+  const shippingAddress = parsed.data.address;
+  const hasAddress = shippingAddress !== undefined;
 
   const { updateOrderContact, recordAuditLogEntry } = getContainer();
   const result = await updateOrderContact.execute({
     orderId: parsed.data.orderId,
     customerEmail: parsed.data.customerEmail,
-    shippingAddress: hasAddress
-      ? {
-          name: name!,
-          line1: line1!,
-          line2: parsed.data.line2,
-          city: city!,
-          region: region!,
-          postalCode: postalCode!,
-          country: country!,
-        }
+    shippingAddress: shippingAddress
+      ? { ...shippingAddress, region: shippingAddress.region ?? '' }
       : undefined,
   });
 
