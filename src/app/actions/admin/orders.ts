@@ -469,7 +469,12 @@ export async function creditLatePaymentAction(
       no_payment_to_credit:
         'Nothing has been seen at this order’s address since it closed, so there is nothing to credit.',
       not_creditable:
-        'Only an expired or cancelled order can be credited this way — anything still open settles on its own.',
+        'Only an expired, cancelled or failed order can be credited this way — anything still open settles on its own.',
+      // Not a failure to act on: the order is paid, it just wasn't this click
+      // that did it. Said plainly so nobody presses again looking for an
+      // audit entry.
+      not_credited:
+        'This order was settled by the payment watcher while you were looking at it — no credit was applied here. Reload to see its current state.',
     };
     return { error: messages[result.error.code] };
   }

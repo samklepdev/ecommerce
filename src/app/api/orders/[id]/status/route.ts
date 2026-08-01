@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { getContainer } from '@/composition/container';
-import { checkRateLimit, getClientIp } from '@/app/lib/rate-limit';
+import { checkRateLimit } from '@/app/lib/rate-limit';
 import { toWidgetStatus } from '@/app/(storefront)/checkout/bitcoin-checkout-status';
 
 export const runtime = 'nodejs';
@@ -21,8 +21,21 @@ export async function GET(
 ): Promise<NextResponse> {
   const { id } = await params;
 
-  const ip = await getClientIp();
-  const limit = await checkRateLimit(`order-status:${ip}`, POLL_LIMIT, POLL_WINDOW_SECONDS);
+  /**
+   * Keyed on the order, not the caller.
+   *
+   * The IP is read from a header, so keying on it meant every visitor whose
+   * address couldn't be established shared one bucket — and one widget polls
+   * twelve times a minute, so a handful of concurrent shoppers exhausted it
+   * for everybody. A frozen widget is not a harmless failure here: it stops
+   * updating, and an underpaid customer is left looking at whatever it last
+   * rendered.
+   *
+   * The order id is the capability the caller already holds, so this bounds
+   * exactly what needs bounding — hammering one order — without letting one
+   * customer's traffic silence another's payment page.
+   */
+  const limit = await checkRateLimit(`order-status:${id}`, POLL_LIMIT, POLL_WINDOW_SECONDS);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: 'too many requests' },

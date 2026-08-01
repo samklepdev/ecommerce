@@ -102,6 +102,22 @@ const envSchema = z.object({
   // to act on without being so early it's forgotten.
   AWAITING_CONFIRMATION_WARN_HOURS_BEFORE: z.coerce.number().int().positive().default(12),
 
+  /**
+   * How many proxies sit in front of the app and append to `x-forwarded-for`.
+   *
+   * The header is a list the **client** controls the left-hand end of — a
+   * proxy appends the address it saw, so a forged value arrives as
+   * `<forged>, <real client>`. The client is therefore counted from the right,
+   * and this says how far.
+   *
+   * 1 suits the usual single-proxy setup (Vercel, Fly, one nginx). Raise it if
+   * requests traverse a load balancer *and* a reverse proxy. Set it to **0**
+   * when nothing trustworthy sits in front: the header is then ignored
+   * entirely, because half-trusting it gives spoofable limits that look
+   * protected.
+   */
+  TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).default(1),
+
   // Base URL used to build absolute links in outgoing email (e.g. the
   // welcome-email tracking pixel) — never derived from a request header.
   APP_URL: z.string().url().default('http://localhost:3000'),

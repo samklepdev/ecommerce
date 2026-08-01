@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { logger } from '@/shared/infrastructure/logger';
 import { getContainer } from '@/composition/container';
-import { checkRateLimit, getClientIp } from '@/app/lib/rate-limit';
+import { checkRateLimit, getClientIp, ipKeySegment } from '@/app/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -34,7 +34,7 @@ export async function GET(
   // inbox is a worse outcome than an unrecorded open, and the write below is
   // simply skipped.
   const ip = await getClientIp();
-  const limit = await checkRateLimit(`email-track:${ip}`, 60, 60);
+  const limit = await checkRateLimit(`email-track:${ipKeySegment(ip)}`, 60, 60);
 
   try {
     if (!limit.allowed) throw new Error('rate limited');

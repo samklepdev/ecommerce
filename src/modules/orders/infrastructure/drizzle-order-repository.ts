@@ -606,13 +606,32 @@ export class DrizzleOrderRepository
     return row ? (row.fulfillmentStatus as FulfillmentStatus) : null;
   }
 
-  async setFulfillmentStatus(orderId: string, status: FulfillmentStatus): Promise<void> {
-    await this.db.transaction(async (tx) => {
-      await tx
+  /**
+   * Compare-and-set, like every payment-status write in this file.
+   *
+   * This was the one that wasn't: an unguarded `UPDATE ... WHERE id = ?`
+   * returning `void`, with all five callers reading the status, awaiting
+   * something, then writing. The interleaving that matters is an admin
+   * cancelling a lost parcel (`shipped -> cancelled`) while the shipment path
+   * marks the same order delivered — both read `shipped`, both pass
+   * `assertFulfillmentTransition`, and the later write wins, recording a lost
+   * parcel as delivered. That is precisely the lie the `shipped -> cancelled`
+   * edge exists to prevent.
+   */
+  async setFulfillmentStatus(
+    orderId: string,
+    status: FulfillmentStatus,
+    expectedFrom: FulfillmentStatus,
+  ): Promise<boolean> {
+    return this.db.transaction(async (tx) => {
+      const result = await tx
         .update(orders)
         .set({ fulfillmentStatus: status, updatedAt: new Date() })
-        .where(eq(orders.id, orderId));
+        .where(and(eq(orders.id, orderId), eq(orders.fulfillmentStatus, expectedFrom)))
+        .returning({ id: orders.id });
+      if (result.length === 0) return false;
       await this.recordOrderEvent(tx, orderId, 'fulfillment_status_changed', status);
+      return true;
     });
   }
 

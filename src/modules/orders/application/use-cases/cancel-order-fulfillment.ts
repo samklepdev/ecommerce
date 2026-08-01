@@ -12,7 +12,13 @@ export interface CancelOrderFulfillmentInput {
   orderId: string;
 }
 
-export type CancelOrderFulfillmentError = { code: 'not_found' } | { code: 'illegal_transition' };
+export type CancelOrderFulfillmentError = { code: 'not_found' } | { code: 'illegal_transition' }
+  /**
+   * The order's fulfillment status changed between reading it and writing —
+   * another admin, or the shipment path. Nothing was written; reload and
+   * decide again against what the order actually says now.
+   */
+  | { code: 'changed_underneath' };
 
 /**
  * The admin's last resort: close out an order that can't be completed.
@@ -72,7 +78,15 @@ export class CancelOrderFulfillment
       throw e;
     }
 
-    await this.orders.setFulfillmentStatus(input.orderId, 'cancelled');
+    // Guarded on the status read above: if the order moved on while we were
+    // asserting, this cancellation is describing a state that no longer
+    // exists and must not overwrite whatever replaced it.
+    const applied = await this.orders.setFulfillmentStatus(
+      input.orderId,
+      'cancelled',
+      fulfillmentStatus,
+    );
+    if (!applied) return err({ code: 'changed_underneath' });
 
     /**
      * After the order, not before: the order row is the decision, and a

@@ -13,7 +13,7 @@ import { isStoreOpen, STORE_CLOSED_MESSAGE } from '@/app/lib/store-open';
 import { newPasswordSchema } from '@/app/lib/password-schema';
 import { PASSWORD_RULE_TEXT } from '@/shared/domain/password-policy';
 import { GUEST_SESSION_COOKIE, SESSION_COOKIE } from '@/app/lib/session';
-import { checkRateLimit, getClientIp, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
+import { checkRateLimit, getClientIp, ipKeySegment, tooManyAttemptsMessage } from '@/app/lib/rate-limit';
 import { isHoneypotTripped } from '@/app/lib/honeypot';
 
 /** Sign-in, not sign-up: the password policy is deliberately NOT applied
@@ -129,7 +129,7 @@ export async function signUpAction(
   if (!(await isStoreOpen())) return { error: STORE_CLOSED_MESSAGE };
 
   const ip = await getClientIp();
-  const signupLimit = await checkRateLimit(`signup:${ip}`, 3, 60 * 60);
+  const signupLimit = await checkRateLimit(`signup:${ipKeySegment(ip)}`, 3, 60 * 60);
   if (!signupLimit.allowed) return { error: tooManyAttemptsMessage(signupLimit.retryAfterSeconds) };
 
   const { signUp, jobQueue } = getContainer();
@@ -171,15 +171,39 @@ export async function logInAction(
 
   const ip = await getClientIp();
 
-  // Two independent layers: one caps hammering a single victim account from
-  // one IP (keyed on IP+email), the other catches one IP sweeping many
-  // different emails (keyed on IP alone) — neither replaces the other.
-  const perIpLimit = await checkRateLimit(`login-ip:${ip}`, 20, 15 * 60);
-  if (!perIpLimit.allowed) return { error: tooManyAttemptsMessage(perIpLimit.retryAfterSeconds) };
-
-  const perAccountLimit = await checkRateLimit(`login:${ip}:${parsed.data.email}`, 5, 15 * 60);
+  /**
+   * Three layers, and the account-only one is what actually bounds guessing.
+   *
+   * The other two are keyed on the client IP, which is read from a header. Any
+   * attacker who can vary that — and before `clientIpFromForwardedFor` counted
+   * from the right, *every* attacker could — simply rotates it and gets an
+   * unlimited number of attempts against one account. That matters more here
+   * than anywhere else in the app, because admin sudo mode is bought by typing
+   * this password.
+   *
+   * So the account limit carries no IP at all. It is deliberately more
+   * generous than the per-IP-per-account one: it has to survive a shared
+   * office NAT without locking a real person out of their own account, while
+   * still turning "unlimited" into "a few dozen an hour".
+   */
+  const perAccountLimit = await checkRateLimit(`login-account:${parsed.data.email}`, 25, 15 * 60);
   if (!perAccountLimit.allowed) {
     return { error: tooManyAttemptsMessage(perAccountLimit.retryAfterSeconds) };
+  }
+
+  // Then the two IP-scoped layers: one caps hammering a single victim account
+  // from one IP, the other catches one IP sweeping many different emails.
+  // Neither replaces the other, and neither replaces the account limit above.
+  const perIpLimit = await checkRateLimit(`login-ip:${ipKeySegment(ip)}`, 20, 15 * 60);
+  if (!perIpLimit.allowed) return { error: tooManyAttemptsMessage(perIpLimit.retryAfterSeconds) };
+
+  const perIpAccountLimit = await checkRateLimit(
+    `login:${ipKeySegment(ip)}:${parsed.data.email}`,
+    5,
+    15 * 60,
+  );
+  if (!perIpAccountLimit.allowed) {
+    return { error: tooManyAttemptsMessage(perIpAccountLimit.retryAfterSeconds) };
   }
 
   // While the store is closed, only admins may sign in — the console has to
@@ -231,7 +255,7 @@ export async function requestPasswordResetAction(
   if (!parsed.success) return { error: 'Enter a valid email address.' };
 
   const ip = await getClientIp();
-  const limit = await checkRateLimit(`password-reset:${ip}:${parsed.data.email}`, 3, 60 * 60);
+  const limit = await checkRateLimit(`password-reset:${ipKeySegment(ip)}:${parsed.data.email}`, 3, 60 * 60);
   if (!limit.allowed) return { error: tooManyAttemptsMessage(limit.retryAfterSeconds) };
 
   const { requestPasswordReset } = getContainer();

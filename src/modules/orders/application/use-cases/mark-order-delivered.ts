@@ -7,7 +7,13 @@ export interface MarkOrderDeliveredInput {
   orderId: string;
 }
 
-export type MarkOrderDeliveredError = { code: 'not_found' } | { code: 'illegal_transition' };
+export type MarkOrderDeliveredError = { code: 'not_found' } | { code: 'illegal_transition' }
+  /**
+   * The order's fulfillment status changed between reading it and writing —
+   * another admin, or the shipment path. Nothing was written; reload and
+   * decide again against what the order actually says now.
+   */
+  | { code: 'changed_underneath' };
 
 /** Manual admin action — there's no carrier webhook or other automatic
  * delivery signal, so an admin (or, in future, a customer) records it once
@@ -31,7 +37,12 @@ export class MarkOrderDelivered
       throw e;
     }
 
-    await this.orders.setFulfillmentStatus(input.orderId, 'delivered');
+    const applied = await this.orders.setFulfillmentStatus(
+      input.orderId,
+      'delivered',
+      fulfillmentStatus,
+    );
+    if (!applied) return err({ code: 'changed_underneath' });
     return ok(undefined);
   }
 }

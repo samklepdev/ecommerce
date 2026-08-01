@@ -13,8 +13,12 @@ function makeFakeOrders(paymentStatus: PaymentStatus | null, fulfillmentStatus: 
     async getFulfillmentStatus() {
       return status;
     },
-    async setFulfillmentStatus(_orderId, next) {
+    async setFulfillmentStatus(_orderId, next, expectedFrom) {
+      // Mirrors the repository's compare-and-set, so a test cannot pass
+      // against a fake more permissive than the database.
+      if (status !== expectedFrom) return false;
       status = next;
+      return true;
     },
   };
   return { repo, getStatus: () => status };

@@ -48,7 +48,10 @@ export class CancelSupplierOrder
     }
 
     assertFulfillmentTransition(paymentStatus, fulfillmentStatus, 'cancelled');
-    await this.orders.setFulfillmentStatus(input.orderId, 'cancelled');
+    // Guarded on the status read above. If the order moved on meanwhile, the
+    // supplier order is still cancelled — that part committed — and the
+    // order-level rollup simply doesn't apply to whatever it is now.
+    await this.orders.setFulfillmentStatus(input.orderId, 'cancelled', fulfillmentStatus);
     return { cancelled: true };
   }
 }

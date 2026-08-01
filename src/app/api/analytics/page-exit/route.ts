@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { getContainer } from '@/composition/container';
 import { getSessionUser, GUEST_SESSION_COOKIE } from '@/app/lib/session';
-import { checkRateLimit, getClientIp } from '@/app/lib/rate-limit';
+import { checkRateLimit, getClientIp, ipKeySegment } from '@/app/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -38,7 +38,7 @@ const RATE_WINDOW_SECONDS = 60;
 export async function POST(request: Request): Promise<NextResponse> {
   try {
     const ip = await getClientIp();
-    const limit = await checkRateLimit(`page-exit:${ip}`, RATE_LIMIT, RATE_WINDOW_SECONDS);
+    const limit = await checkRateLimit(`page-exit:${ipKeySegment(ip)}`, RATE_LIMIT, RATE_WINDOW_SECONDS);
     if (!limit.allowed) return new NextResponse(null, { status: 204 });
 
     const parsed = bodySchema.safeParse(await request.json());

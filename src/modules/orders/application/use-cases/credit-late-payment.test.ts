@@ -206,4 +206,53 @@ describe('CreditLatePayment', () => {
     expect(enqueued).toEqual(['order-1']);
     expect(confirmed).toEqual(['order-1']);
   });
+
+  describe('when the credit does not actually apply', () => {
+    /**
+     * `ConfirmPayment` returns `void` and has three silent early exits: the
+     * event id already seen, the order gone, and a lost compare-and-set. This
+     * reported `ok` regardless — so pressing the button twice wrote a second
+     * `order.late_payment_credited` audit entry and told the admin "Credited
+     * 0.001 BTC" for a credit that had already happened.
+     *
+     * The audit log is the record of who authorised moving money. Two
+     * authorisations for one credit is exactly the thing it exists to rule out.
+     */
+    it('reports that nothing changed when the order was already credited', async () => {
+      const { repo, getStatus } = makeFakeOrders('expired');
+      const { store } = makeFakePayments(100_000);
+      const { confirmPayment } = makeConfirmPayment(repo);
+      const subject = new CreditLatePayment(store, repo, confirmPayment);
+
+      expect(isOk(await subject.execute({ orderId: 'order-1' }))).toBe(true);
+      expect(getStatus()).toBe('paid');
+
+      // Second press: the first already moved it to `paid`, which is not
+      // creditable — and must not be reported as a fresh credit.
+      const second = await subject.execute({ orderId: 'order-1' });
+
+      expect(isErr(second)).toBe(true);
+      if (isErr(second)) expect(second.error.code).toBe('not_creditable');
+    });
+
+    it('does not claim success when the status write loses a race', async () => {
+      // The watcher confirmed the payment between this reading `expired` and
+      // ConfirmPayment writing. Nothing is wrong with the outcome — the order
+      // is paid — but this call did not do it, and must not be audited as
+      // though it had.
+      const { repo } = makeFakeOrders('expired');
+      const { store } = makeFakePayments(100_000);
+      const { confirmPayment } = makeConfirmPayment(repo);
+      // Simulate the row moving on underneath: the guarded write matches
+      // nothing, exactly as the real compare-and-set would.
+      repo.setPaymentStatus = async () => false;
+
+      const result = await new CreditLatePayment(store, repo, confirmPayment).execute({
+        orderId: 'order-1',
+      });
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.code).toBe('not_credited');
+    });
+  });
 });
