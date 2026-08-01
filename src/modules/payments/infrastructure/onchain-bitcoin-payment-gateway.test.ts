@@ -454,3 +454,163 @@ describe('OnChainBitcoinPaymentGateway.repricePayment', () => {
     expect(repriced).toEqual([]);
   });
 });
+
+describe('OnChainBitcoinPaymentGateway address-index consumption', () => {
+  const deriver = new HdAddressDeriver(TEST_XPUB, networks.testnet);
+
+  /**
+   * The index is a one-way counter, and a watch-only wallet stops scanning
+   * after ~20 consecutive unused addresses. `StartCheckout` is careful to
+   * refuse a closed store and a zero total *before* calling the gateway
+   * "because createPayment burns an address index" — and then the gateway
+   * allocated one before the call most likely to fail, and now the one that
+   * deliberately fails closed: the BTC rate lookup.
+   *
+   * So an hour of rate-feed trouble, with customers retrying, walks the
+   * counter past the wallet's gap limit for nothing. Worse, the burned indices
+   * are never persisted, so `ensureIndexFloor`'s `max(address_index) + 1`
+   * recovery under-counts what was handed out.
+   */
+  it('does not consume an index when the rate lookup fails', async () => {
+    const { store } = makeFakeStoreEmpty();
+    const allocated: number[] = [];
+    const allocator: AddressIndexAllocator = {
+      async next() {
+        allocated.push(allocated.length);
+        return allocated.length - 1;
+      },
+      async seedFloor() {},
+    };
+    const failingRates: BtcRateProvider = {
+      async satsPerFiatUnit() {
+        throw new Error('rate feed unavailable');
+      },
+    };
+
+    const result = await new OnChainBitcoinPaymentGateway(
+      deriver,
+      allocator,
+      failingRates,
+      store,
+      makeEmptyChain(),
+      900,
+    ).createPayment({
+      orderId: 'order-1',
+      amount: Money.of(5000, 'USD'),
+      idempotencyKey: 'order-1',
+    });
+
+    expect(result.ok).toBe(false);
+    expect(allocated).toEqual([]);
+  });
+
+  it('still consumes exactly one index on the happy path', async () => {
+    const { store, saved } = makeFakeStoreEmpty();
+    const allocated: number[] = [];
+    const allocator: AddressIndexAllocator = {
+      async next() {
+        allocated.push(allocated.length);
+        return allocated.length - 1;
+      },
+      async seedFloor() {},
+    };
+
+    const result = await new OnChainBitcoinPaymentGateway(
+      deriver,
+      allocator,
+      makeFakeRates(1000),
+      store,
+      makeEmptyChain(),
+      900,
+    ).createPayment({
+      orderId: 'order-1',
+      amount: Money.of(5000, 'USD'),
+      idempotencyKey: 'order-1',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(allocated).toEqual([0]);
+    expect(saved[0]?.addressIndex).toBe(0);
+  });
+});
+
+describe('OnChainBitcoinPaymentGateway index-floor recovery', () => {
+  const deriver = new HdAddressDeriver(TEST_XPUB, networks.testnet);
+
+  /**
+   * The floor exists because `INCR` on a missing key starts at 1, so a wiped
+   * or evicted Redis counter silently restarts allocation at 0 and re-derives
+   * addresses previous orders already used.
+   *
+   * It was memoized with `??=` around a body that swallowed its own error, so
+   * the memoized promise always resolved — meaning a single database blip on
+   * the *first* checkout after a boot disabled the floor for the entire life
+   * of that process. Combined with a freshly wiped Redis, every subsequent
+   * checkout then fails on the address-unique constraint, one burned index at
+   * a time, with nothing reporting it.
+   */
+  it('retries the floor on the next checkout when the first attempt fails', async () => {
+    const { allocator, seeded } = makeSeedableAllocator(0);
+    const { store } = makeFakeStoreEmpty();
+    let calls = 0;
+    store.highestAddressIndex = async () => {
+      calls += 1;
+      if (calls === 1) throw new Error('database unavailable');
+      return 41;
+    };
+    store.getByOrderId = async () => null; // never short-circuit on idempotency
+
+    const gateway = new OnChainBitcoinPaymentGateway(
+      deriver,
+      allocator,
+      makeFakeRates(),
+      store,
+      makeEmptyChain(),
+      900,
+    );
+    const pay = (id: string) =>
+      gateway.createPayment({
+        orderId: id,
+        amount: Money.of(5000, 'USD'),
+        idempotencyKey: id,
+      });
+
+    // First checkout: the floor query fails, but allocation still proceeds —
+    // refusing every checkout because a high-water query failed would be worse.
+    await pay('order-1');
+    expect(seeded).toEqual([]);
+
+    // Second: the failure was not cached, so the floor is established.
+    await pay('order-2');
+    expect(seeded).toEqual([42]);
+  });
+
+  it('still seeds only once when the first attempt succeeds', async () => {
+    const { allocator, seeded } = makeSeedableAllocator(0);
+    const { store } = makeFakeStoreEmpty();
+    let calls = 0;
+    store.highestAddressIndex = async () => {
+      calls += 1;
+      return 5;
+    };
+    store.getByOrderId = async () => null;
+
+    const gateway = new OnChainBitcoinPaymentGateway(
+      deriver,
+      allocator,
+      makeFakeRates(),
+      store,
+      makeEmptyChain(),
+      900,
+    );
+    const pay = (id: string) =>
+      gateway.createPayment({ orderId: id, amount: Money.of(5000, 'USD'), idempotencyKey: id });
+
+    await pay('order-1');
+    await pay('order-2');
+    await pay('order-3');
+
+    expect(calls).toBe(1);
+    expect(seeded).toEqual([6]);
+  });
+});

@@ -25,6 +25,12 @@ const EsploraVoutSchema = z.object({
 });
 
 const EsploraTxSchema = z.object({
+  /** The pagination cursor. `/address/:addr/txs` returns only the most recent
+   * page of confirmed transactions; the next page is requested as
+   * `/address/:addr/txs/chain/:last_seen_txid`, so without this there is no way
+   * to ask for the rest — and an address with more transactions than fit in a
+   * page would silently report only part of what it holds. */
+  txid: z.string().min(1),
   vout: z.array(EsploraVoutSchema),
   status: z.object({
     confirmed: z.boolean(),
