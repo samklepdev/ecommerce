@@ -101,7 +101,12 @@ export async function startCheckoutAction(
       // A double-click. The first submit won and is already redirecting, so
       // this must not read as a failure — nothing went wrong.
       cart_already_submitted: 'This order was already submitted — check your orders for it.',
-      product_unavailable: 'An item in your cart is no longer available.',
+      // Points at the cart, which now flags the offending line by name. The
+      // bare version of this message named no item, so a customer with several
+      // in the cart could only find it by removing them one at a time and
+      // resubmitting — which also burns the checkout rate limit.
+      product_unavailable:
+        'An item in your cart is no longer available — go back to your cart and remove the one marked unavailable.',
     };
     return { error: messages[placed.error.code] };
   }

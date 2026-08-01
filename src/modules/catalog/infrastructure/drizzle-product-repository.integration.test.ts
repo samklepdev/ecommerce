@@ -100,4 +100,35 @@ describe('DrizzleProductRepository (integration)', () => {
       expect((await repo().findById(product.id))?.id).toBe(product.id);
     });
   });
+
+  describe('findByIds', () => {
+    /**
+     * The checkout summary passes every cart line through this. A ceiling
+     * anywhere on that path means the page silently knows less about the cart
+     * than `PlaceOrder` does — stale prices, a subtotal that disagrees with
+     * `/cart`, and a false "no longer available" on items that are fine.
+     *
+     * Against real SQL because the failure would be a query-shape one
+     * (`inArray` with a long list), which a fake array lookup can't show.
+     */
+    it('returns every active product asked for, past any single-page size', async () => {
+      const created = [];
+      for (let i = 0; i < 25; i += 1) created.push(await makeProduct(db, { status: 'active' }));
+
+      const found = await repo().findByIds(created.map((p) => p.id));
+
+      expect(found).toHaveLength(25);
+      expect(new Set(found.map((p) => p.id))).toEqual(new Set(created.map((p) => p.id)));
+    });
+
+    it('still excludes anything not active', async () => {
+      const active = await makeProduct(db, { status: 'active' });
+      const draft = await makeProduct(db, { status: 'draft' });
+      const archived = await makeProduct(db, { status: 'archived' });
+
+      const found = await repo().findByIds([active.id, draft.id, archived.id]);
+
+      expect(found.map((p) => p.id)).toEqual([active.id]);
+    });
+  });
 });

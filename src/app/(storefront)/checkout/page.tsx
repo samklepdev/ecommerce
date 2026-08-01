@@ -16,7 +16,13 @@ export const runtime = 'nodejs';
 
 export default async function CheckoutPage() {
   const owner = await resolveCartOwner();
-  const { getCart, getShippingRate, listSavedAddresses, getProductsByIds } = getContainer();
+  const {
+    getCart,
+    getShippingRate,
+    listSavedAddresses,
+    getProductsByIds,
+    getSourceableOfferForProduct,
+  } = getContainer();
   const cart = await getCart.execute({ owner });
   if (!cart || cart.isEmpty) redirect('/cart');
 
@@ -40,7 +46,23 @@ export default async function CheckoutPage() {
    * amount and have satoshis quoted for another — irreversibly, with no refund
    * mechanism. This page now reads from the same source the charge comes from.
    */
-  const priced = repriceCartForDisplay(cart.lines, productById, 'USD');
+  /**
+   * Which lines can actually be bought — the same rule `PlaceOrder` enforces.
+   * Without it the summary showed a withdrawn item as perfectly normal and the
+   * refusal came only after the address form, naming no item.
+   */
+  const unsellableProductIds = new Set(
+    (
+      await Promise.all(
+        cart.lines.map(async (line) => {
+          const offer = await getSourceableOfferForProduct.execute({ productId: line.productId });
+          return offer?.isAvailable ? null : line.productId;
+        }),
+      )
+    ).filter((id): id is string => id !== null),
+  );
+
+  const priced = repriceCartForDisplay(cart.lines, productById, 'USD', unsellableProductIds);
   const subtotal = priced.subtotal;
   const total = subtotal.add(shipping);
 

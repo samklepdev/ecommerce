@@ -86,6 +86,24 @@ export class PlaceOrder implements UseCase<PlaceOrderInput, Result<Order, PlaceO
         return err({ code: 'product_unavailable', productId: line.productId });
       }
 
+      /**
+       * And it must be priced in the currency this order is being placed in.
+       *
+       * A product's currency is admin-entered free text, so a mismatch is one
+       * typo — or one edit after the item was added to a cart — away.
+       * `EditOrderLines` has guarded this since it was written; the
+       * customer-facing path did not.
+       *
+       * Without it nothing notices until `Order.create`'s total reduces from
+       * `Money.zero(currency)` and throws `Currency mismatch`, which happens
+       * *after* `carts.delete` below has claimed the cart: the customer loses
+       * everything in it to a 500 page, no order is written, and there is no
+       * order id to recover from. Refused here, while the cart is still theirs.
+       */
+      if (product.price.currency !== input.currency) {
+        return err({ code: 'product_unavailable', productId: line.productId });
+      }
+
       lines.push(
         OrderLine.create({
           id: randomUUID(),
