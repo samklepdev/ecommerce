@@ -3,9 +3,17 @@ export interface AddressOption {
   name: string;
 }
 
-/** The 50 states plus DC, ordered alphabetically by name. Values are the
- * standard 2-letter postal abbreviations — what's actually stored/displayed
- * as an order's `region` (e.g. "Houston, TX"). */
+/**
+ * The 50 states, DC, the US territories and the military "states", ordered
+ * alphabetically by name. Values are the standard 2-letter postal
+ * abbreviations — what's actually stored and displayed as an order's `region`
+ * (e.g. "Houston, TX").
+ *
+ * The territories and AA/AE/AP matter: this list is the *only* thing the US
+ * address check consults, so a code missing from it isn't merely absent from a
+ * dropdown — that customer is refused at checkout with "Choose a US state" and
+ * has no way through. USPS delivers to all of these at domestic rates.
+ */
 export const US_STATES: AddressOption[] = [
   { code: 'AL', name: 'Alabama' },
   { code: 'AK', name: 'Alaska' },
@@ -58,6 +66,21 @@ export const US_STATES: AddressOption[] = [
   { code: 'WV', name: 'West Virginia' },
   { code: 'WI', name: 'Wisconsin' },
   { code: 'WY', name: 'Wyoming' },
+  // Territories and freely-associated states. USPS treats these as domestic.
+  { code: 'AS', name: 'American Samoa' },
+  { code: 'FM', name: 'Federated States of Micronesia' },
+  { code: 'GU', name: 'Guam' },
+  { code: 'MH', name: 'Marshall Islands' },
+  { code: 'MP', name: 'Northern Mariana Islands' },
+  { code: 'PW', name: 'Palau' },
+  { code: 'PR', name: 'Puerto Rico' },
+  { code: 'VI', name: 'U.S. Virgin Islands' },
+  // Military addresses. The "state" encodes the theatre, not a place: AA is
+  // the Americas, AE Europe/Africa/Middle East, AP the Pacific. A service
+  // member typing APO/FPO with one of these is a normal domestic shipment.
+  { code: 'AA', name: 'Armed Forces Americas (AA)' },
+  { code: 'AE', name: 'Armed Forces Europe (AE)' },
+  { code: 'AP', name: 'Armed Forces Pacific (AP)' },
 ];
 
 /** Not exhaustive — the countries this storefront's customers most

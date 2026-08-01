@@ -82,6 +82,11 @@ export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore, OnChainA
       .where(
         and(
           eq(bitcoinPaymentIntents.status, 'awaiting'),
+          // The order must still be able to reach `paid`. Without this a
+          // terminal order inside its payment window stayed watchable, and a
+          // payment arriving against it threw `assertPaymentTransition` on
+          // every pass — an error loop every 45 seconds, drowning out real ones.
+          inArray(orders.paymentStatus, ['pending', 'awaiting_payment', 'awaiting_confirmation']),
           or(
             gt(orders.paymentDeadlineAt, cutoff),
             // Past the deadline but part-paid: keep watching so a top-up can
@@ -151,21 +156,32 @@ export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore, OnChainA
   }
 
   async listSweepable(createdSince: Date): Promise<BitcoinPaymentIntent[]> {
-    // `inArray` on the two closed states rather than `ne('awaiting')`: an
-    // intent that is `confirmed` was paid through the normal path and has
-    // nothing to explain, and lumping it in would re-query every settled
-    // order's address forever.
+    // Keyed on the **order's** terminal status, not the intent's.
+    //
+    // The intent's own status looks like the obvious choice and is wrong:
+    // nothing marks the intent when an order *fails*. `FailOrder` and the
+    // stuck-order pass both set only the order, so a failed order's intent
+    // stays `awaiting` for good — and it had fallen out of `listWatchable` too,
+    // leaving its address watched by nothing and swept by nothing. That is the
+    // address the underpayment email tells the customer to send the balance to,
+    // and `failed` is exactly where an underpaid order ends up.
+    //
+    // Reading the order instead covers expired, failed and cancelled uniformly,
+    // and stays correct if a future terminal state forgets to touch the intent.
+    // `confirmed` intents are excluded by the order being `paid`: settled
+    // through the normal path, nothing to explain.
     const rows = await this.db
-      .select()
+      .select({ intent: bitcoinPaymentIntents })
       .from(bitcoinPaymentIntents)
+      .innerJoin(orders, eq(orders.id, bitcoinPaymentIntents.orderId))
       .where(
         and(
-          inArray(bitcoinPaymentIntents.status, ['expired', 'cancelled']),
+          inArray(orders.paymentStatus, ['expired', 'failed', 'cancelled']),
           gte(bitcoinPaymentIntents.createdAt, createdSince),
           isNull(bitcoinPaymentIntents.latePaymentSeenAt),
         ),
       );
-    return rows.map(toIntent);
+    return rows.map((r) => toIntent(r.intent));
   }
 
   async recordLatePayment(orderId: string, sats: number): Promise<void> {

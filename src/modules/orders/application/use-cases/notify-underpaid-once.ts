@@ -4,6 +4,11 @@ import type { UnderpaymentNotifier } from '@/modules/orders/application/ports/un
 
 export interface NotifyUnderpaidOnceInput {
   orderId: string;
+  /**
+   * What has arrived so far. Part of the de-dupe key, so a customer who pays
+   * *some* of the balance is told the new figure — see below.
+   */
+  confirmedSats: number;
 }
 
 /**
@@ -33,7 +38,7 @@ export class NotifyUnderpaidOnce implements UseCase<NotifyUnderpaidOnceInput, vo
   async execute(input: NotifyUnderpaidOnceInput): Promise<void> {
     // Not a BullMQ job id, so a colon is fine here — this is a Redis key of
     // our own making, and it matches the `evt:seen:` convention it lands in.
-    const eventId = `underpaid-notified:${input.orderId}`;
+    const eventId = `underpaid-notified:${input.orderId}:${input.confirmedSats}`;
     if (await this.processedEvents.seen(eventId)) return;
 
     await this.notifier.notifyUnderpaid(input.orderId);

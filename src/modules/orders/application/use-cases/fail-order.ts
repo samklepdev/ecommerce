@@ -7,7 +7,12 @@ export interface FailOrderInput {
   orderId: string;
 }
 
-export type FailOrderError = { code: 'not_found' } | { code: 'illegal_transition' };
+export type FailOrderError =
+  | { code: 'not_found' }
+  | { code: 'illegal_transition' }
+  /** The order changed between this action reading it and writing — most
+   * importantly, a payment may have confirmed. Never force the write. */
+  | { code: 'changed_underneath' };
 
 /** Manual admin override for an order stuck in awaiting_confirmation (seen
  * on-chain, underpaid or too shallow, never resolving) — an admin can move
@@ -27,7 +32,12 @@ export class FailOrder implements UseCase<FailOrderInput, Result<void, FailOrder
       throw e;
     }
 
-    await this.orders.setPaymentStatus(input.orderId, 'failed');
+    // Compare-and-set against the status the transition was checked against.
+    // If a watcher pass confirmed a payment while an admin sat on this screen,
+    // the write must not land: `failed` is terminal and there is no refund, so
+    // overwriting `paid` would destroy a customer's money.
+    const applied = await this.orders.setPaymentStatus(input.orderId, 'failed', status);
+    if (!applied) return err({ code: 'changed_underneath' });
     return ok(undefined);
   }
 }

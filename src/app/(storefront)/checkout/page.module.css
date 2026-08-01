@@ -109,3 +109,14 @@
   font-weight: 600;
   font-size: 1.0625rem;
 }
+
+
+.wasPrice {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+/* Not struck through — this is a live warning, not a superseded value. */
+.unavailableNote {
+  color: var(--color-danger, #b42318);
+}

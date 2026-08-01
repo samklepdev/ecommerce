@@ -21,12 +21,26 @@ export type BadgeTone =
   | 'slate'
   | 'sats';
 
+/**
+ * `sm` is the default and is deliberately tight — most badges here sit in dense
+ * admin tables where compactness is the point. `md` is for the few places a
+ * badge is the primary thing on the screen rather than a cell in a grid, such
+ * as an order's status on the customer's own order page, where the label is a
+ * short sentence and needs room to read as one.
+ */
+export type BadgeSize = 'sm' | 'md';
+
 interface BadgeProps {
   children: ReactNode;
   tone?: BadgeTone;
+  size?: BadgeSize;
   className?: string;
 }
 
-export function Badge({ children, tone = 'neutral', className }: BadgeProps) {
-  return <span className={cx(styles.badge, styles[tone], className)}>{children}</span>;
+export function Badge({ children, tone = 'neutral', size = 'sm', className }: BadgeProps) {
+  return (
+    <span className={cx(styles.badge, styles[tone], size === 'md' && styles.md, className)}>
+      {children}
+    </span>
+  );
 }

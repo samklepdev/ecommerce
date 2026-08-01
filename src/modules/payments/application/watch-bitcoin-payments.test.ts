@@ -26,8 +26,10 @@ function makeFakeOrders(initialStatus: PaymentStatus) {
     async getPaymentStatus() {
       return status;
     },
-    async setPaymentStatus(_orderId, next) {
+    async setPaymentStatus(_orderId, next, expectedFrom) {
+      if (status !== expectedFrom) return false;
       status = next;
+      return true;
     },
     async recordPaymentRecovery() {},
     async markAwaitingConfirmation() {

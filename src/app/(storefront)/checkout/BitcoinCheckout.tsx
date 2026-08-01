@@ -7,6 +7,7 @@ import { QRCodeSVG } from 'qrcode.react';
 
 import { satsToBtcString } from '@/modules/payments/domain/bip21';
 import { Badge } from '@/components/ui/Badge';
+import { cx } from '@/components/ui/cx';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { shouldRefreshOnStatusChange, type WidgetStatus } from './bitcoin-checkout-status';
@@ -105,6 +106,29 @@ export function BitcoinCheckout({
   // new price, not a new checkout. Reads "0:00" rather than a missing
   // countdown, so this only fires once the clock has genuinely elapsed.
   const quoteLapsed = status === 'awaiting' && countdown === '0:00';
+  /**
+   * Whether the shop is still waiting to receive money — and therefore whether
+   * showing a payment QR is honest.
+   *
+   * `confirming` on its own is not enough: it also covers "they paid in full and
+   * we're waiting for blocks", where a scannable QR invites a second payment for
+   * an order already settled. With no refund mechanism, that money is simply
+   * gone. It also excludes a shortfall smaller than the dust tolerance, where
+   * `underpaid` is false and the remainder would render as a nonsense sub-dust
+   * amount nobody should send.
+   */
+  const owesBalance = status === 'confirming' && progress.underpaid && progress.shortfallSats > 0;
+  const awaitingAnything = status === 'awaiting';
+  const showPaymentQr = !quoteLapsed && (awaitingAnything || owesBalance);
+  /**
+   * The address and its Copy button are payment affordances too, just slower
+   * ones than the QR. Once nothing is owed, offering them invites a second
+   * payment for an order already settled — and with no refund mechanism that
+   * money is gone. Shown whenever money is still expected, including while the
+   * quote is stale (the address doesn't change on a re-quote, so it's still the
+   * right one to copy).
+   */
+  const owesAnything = awaitingAnything || owesBalance;
   const router = useRouter();
   const lastStatusRef = useRef<WidgetStatus | null>(null);
 
@@ -189,72 +213,91 @@ export function BitcoinCheckout({
       )}
 
       {(status === 'awaiting' || status === 'confirming') && (
-        <div className={styles.stack}>
-          {status === 'confirming' && progress.underpaid ? (
-            /* A part-payment isn't a dead end and mustn't read like one. The
-               order stays open, the address doesn't change, and the customer
-               can finish paying — so the useful thing to show is the balance,
-               not an instruction to email us. */
-            <div className={styles.stack}>
-              <p className={styles.message}>
-                We&apos;ve received {satsToBtcString(progress.confirmedSats)} BTC of{' '}
-                {amountBtc} BTC. Send the remaining{' '}
-                <strong>{satsToBtcString(progress.shortfallSats)} BTC</strong> to the same
-                address below to complete your order.
-              </p>
-              <p className={styles.message}>
-                The amount owed is fixed at the rate you were originally quoted — it
-                won&apos;t move while you finish paying.
-              </p>
+        <div className={styles.payPanel}>
+          <div className={cx(styles.payPanelSplit, !showPaymentQr && styles.payPanelSingle)}>
+            {/* QR first in the source so it leads on a stacked layout — the
+                scannable thing is what a customer on a phone is here for. Shown
+                only when money is genuinely owed: a QR encodes an amount, so a
+                stale one sends the wrong number of sats and one shown after full
+                payment invites paying twice. When a balance is owed it encodes
+                the *remainder*; scanning the original would send the whole
+                amount again. */}
+            {showPaymentQr && (
+              <div className={styles.qrWrapper}>
+                <QRCodeSVG
+                  value={owesBalance && progress.topUpUri ? progress.topUpUri : bip21Uri}
+                  size={220}
+                />
+              </div>
+            )}
+
+            <div className={styles.payDetails}>
+              {status === 'confirming' && progress.underpaid ? (
+                /* A part-payment isn't a dead end and mustn't read like one. The
+                   order stays open, the address doesn't change, and the customer
+                   can finish paying — so the useful thing to show is the balance,
+                   not an instruction to email us. */
+                <>
+                  <p className={styles.message}>
+                    We&apos;ve received {satsToBtcString(progress.confirmedSats)} BTC of{' '}
+                    {amountBtc} BTC. Send the remaining{' '}
+                    <strong>{satsToBtcString(progress.shortfallSats)} BTC</strong> to the same
+                    address below to complete your order.
+                  </p>
+                  <p className={styles.message}>
+                    The amount owed is fixed at the rate you were originally quoted — it
+                    won&apos;t move while you finish paying.
+                  </p>
+                </>
+              ) : (
+                <p className={styles.message}>
+                  {status === 'confirming'
+                    ? `Payment seen, waiting for confirmations… (${progress.confirmations} of ${progress.requiredConfirmations}). No further payment is needed.`
+                    : 'Send exactly this amount to the address below.'}
+                </p>
+              )}
+
+              {status === 'confirming' && progress.overpaid && (
+                <p className={styles.message}>
+                  We received more than the expected amount. Get in touch with your order id
+                  and we&apos;ll sort it out with you.
+                </p>
+              )}
+
+              {status === 'awaiting' && !quoteLapsed && (
+                <p className={styles.amount}>
+                  {amountBtc} BTC <span className={styles.amountFiat}>({amountFiat})</span>
+                </p>
+              )}
+
+              {quoteLapsed && (
+                <>
+                  <p className={styles.message}>
+                    This price was held for a short window and has now lapsed —
+                    bitcoin&apos;s rate moves, so we can&apos;t honour an old one. Your order
+                    is still open: get today&apos;s price and pay to the same address below.
+                  </p>
+                  <RefreshQuoteButton orderId={orderId} />
+                </>
+              )}
+
             </div>
-          ) : (
-            <p className={styles.message}>
-              {status === 'confirming'
-                ? `Payment seen, waiting for confirmations… (${progress.confirmations} of ${progress.requiredConfirmations})`
-                : 'Send exactly this amount to the address below.'}
-            </p>
-          )}
-
-          {status === 'confirming' && progress.overpaid && (
-            <p className={styles.message}>
-              We received more than the expected amount. Get in touch with your order id
-              and we&apos;ll sort it out with you.
-            </p>
-          )}
-
-          {status === 'awaiting' && !quoteLapsed && (
-            <p className={styles.amount}>
-              {amountBtc} BTC <span className={styles.amountFiat}>({amountFiat})</span>
-            </p>
-          )}
-
-          {quoteLapsed && (
-            <div className={styles.stack}>
-              <p className={styles.message}>
-                This price was held for a short window and has now lapsed — bitcoin&apos;s rate
-                moves, so we can&apos;t honour an old one. Your order is still open: get today&apos;s
-                price and pay to the same address below.
-              </p>
-              <RefreshQuoteButton orderId={orderId} />
-            </div>
-          )}
-
-          {/* Hidden while the price is stale: a QR encodes the amount, and
-              scanning a lapsed one would send the wrong number of sats. Once
-              part-paid, it encodes the *remainder* — scanning the original
-              would send the full amount a second time. */}
-          {!quoteLapsed && (
-            <div className={styles.qrWrapper}>
-              <QRCodeSVG value={progress.topUpUri ?? bip21Uri} size={220} />
-            </div>
-          )}
-
-          <div className={styles.addressRow}>
-            <code className={styles.address}>{address}</code>
-            <Button variant="secondary" type="button" onClick={copyAddress}>
-              {copied ? 'Copied!' : 'Copy'}
-            </Button>
           </div>
+
+          {/* Full width, below the split: an address is a long unbroken string
+              and cramming it into the text column wrapped it mid-hash. It is
+              also its own step — scan, or copy this — so it reads better as a
+              band under the instructions than as another paragraph inside them.
+              The Copy button is a payment affordance like the QR, so it goes
+              when nothing is owed. */}
+          {owesAnything && (
+            <div className={styles.addressRow}>
+              <code className={styles.address}>{address}</code>
+              <Button variant="secondary" type="button" onClick={copyAddress}>
+                {copied ? 'Copied!' : 'Copy'}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </Card>

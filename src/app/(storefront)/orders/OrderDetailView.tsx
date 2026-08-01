@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { paymentStatusTone, fulfillmentStatusTone } from '@/app/lib/status-tone';
+import { paymentStatusLabel, fulfillmentStatusLabel } from '@/app/lib/status-label';
 import { Money } from '@/shared/domain/money';
 import { satsToBtcString } from '@/modules/payments/domain/bip21';
 import { buildCarrierTrackingUrl, carrierLabel } from '@/shared/domain/carrier-tracking';
@@ -74,9 +75,13 @@ export function OrderDetailView({
           <div className={styles.statusHeaderRow}>
             <div>
               <div className={styles.statusCell}>
-                <Badge tone={paymentStatusTone(order.paymentStatus)}>{order.paymentStatus}</Badge>
-                <Badge tone={fulfillmentStatusTone(order.fulfillmentStatus)}>
-                  {order.fulfillmentStatus}
+                {/* Customer-facing wording, not the state machine's own — see
+                    `status-label.ts`. */}
+                <Badge size="md" tone={paymentStatusTone(order.paymentStatus)}>
+                  {paymentStatusLabel(order.paymentStatus)}
+                </Badge>
+                <Badge size="md" tone={fulfillmentStatusTone(order.fulfillmentStatus)}>
+                  {fulfillmentStatusLabel(order.fulfillmentStatus)}
                 </Badge>
               </div>
               <p className={styles.empty}>Placed {order.createdAt.toLocaleString()}</p>

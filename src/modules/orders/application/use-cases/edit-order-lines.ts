@@ -29,6 +29,9 @@ export type EditOrderLinesError =
   | { code: 'line_not_found' }
   | { code: 'product_unavailable' }
   | { code: 'last_line' }
+  /** The edit would leave a total of zero or less — see the guard in
+   * `execute`. Refused rather than silently adjusted. */
+  | { code: 'total_not_payable'; totalMinor: number }
   | { code: 'reprice_failed' };
 
 /**
@@ -77,6 +80,29 @@ export class EditOrderLines
     if (nextLines.value.length === 0) return err({ code: 'last_line' });
 
     const total = orderTotal(order, nextLines.value);
+
+    /**
+     * Refuse anything that isn't payable, **before** writing.
+     *
+     * A coupon is clamped to the subtotal when the order is placed and then
+     * snapshotted, so shrinking the order later can leave a discount bigger
+     * than what remains to discount. That produced a negative `amount_minor`
+     * and a negative-satoshi re-quote — a `bitcoin:…?amount=-0.0003` URI no
+     * wallet can pay, on an order that could then never settle.
+     *
+     * Zero is refused for the same practical reason: the watcher treats
+     * `confirmedSats > 0` as "seen", so a 0-sat invoice is never observed and
+     * the order sits until it expires, having burned an address index against
+     * the wallet's gap limit.
+     *
+     * Refused outright rather than re-clamping the discount: the admin asked
+     * for something incoherent, and quietly rewriting a discount they can see
+     * on screen would be a second surprise on top of the first.
+     */
+    if (total.amountMinor <= 0) {
+      return err({ code: 'total_not_payable', totalMinor: total.amountMinor });
+    }
+
     await this.orders.replaceLines(order.id, nextLines.value, total.amountMinor);
 
     const repriced = await this.payments.repricePayment({ orderId: order.id, amount: total });

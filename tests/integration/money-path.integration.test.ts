@@ -199,6 +199,64 @@ describe('the money path (integration)', () => {
     expect(await path.supplierOrders.listByOrderId(placed.value.id)).toHaveLength(0);
   });
 
+  /**
+   * The top-up path, end to end. This is the whole reason underpayment stopped
+   * being a dead end, and none of the pieces are obvious from unit tests: the
+   * chain reports the *cumulative* total at an address, so the second payment
+   * has to be what lifts the order over the line, and the order has to still be
+   * in `listWatchable` for anyone to notice.
+   */
+  it('completes an underpaid order when the customer tops it up', async () => {
+    const { supplier } = await arrangeCartWithOneProduct();
+    const path = money(db, redis, { requiredConfirmations: 2 });
+
+    const placed = await path.placeOrder.execute({
+      owner,
+      customerEmail: 'topup@example.com',
+      currency: 'USD',
+      shippingAddress: SHIPPING_ADDRESS,
+    });
+    if (isErr(placed)) throw new Error('order not placed');
+    const session = await path.startCheckout.execute({
+      orderId: placed.value.id,
+      customerEmail: 'topup@example.com',
+      paymentMethod: 'crypto',
+      idempotencyKey: placed.value.id,
+    });
+    if (isErr(session)) throw new Error('checkout not started');
+
+    // Pays most of it, deep enough that only the amount is wrong.
+    const shortfall = 5_000;
+    path.chain.pay(session.value.reference, session.value.expectedSats - shortfall, 5);
+    await path.watcher.runOnce();
+    await path.drainJobs();
+
+    expect((await path.orders.findById(placed.value.id))?.paymentStatus).toBe(
+      'awaiting_confirmation',
+    );
+    // And the customer was told once, with the balance.
+    expect(path.underpaidNotices).toEqual([placed.value.id]);
+
+    // The top-up. The chain reports the total held at the address, not the
+    // individual payment, which is exactly why the same address can be reused.
+    path.chain.pay(session.value.reference, session.value.expectedSats, 5);
+    await path.watcher.runOnce();
+    await path.drainJobs();
+
+    const order = await path.orders.findById(placed.value.id);
+    expect(order?.paymentStatus).toBe('paid');
+
+    // And it goes on to source normally — a topped-up order is not a special
+    // case downstream, it's just a paid one.
+    const supplierOrders = await path.supplierOrders.listByOrderId(placed.value.id);
+    expect(supplierOrders).toHaveLength(1);
+    expect(supplierOrders[0]?.supplierId).toBe(supplier.id);
+
+    // Still told exactly once: the second pass must not mail them again now
+    // that nothing is owed.
+    expect(path.underpaidNotices).toEqual([placed.value.id]);
+  });
+
   it('is idempotent across repeated watcher passes', async () => {
     const { supplier } = await arrangeCartWithOneProduct();
     const path = money(db, redis, { requiredConfirmations: 1 });

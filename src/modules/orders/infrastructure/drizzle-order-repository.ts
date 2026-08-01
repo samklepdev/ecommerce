@@ -460,13 +460,24 @@ export class DrizzleOrderRepository
     return row ? (row.paymentStatus as PaymentStatus) : null;
   }
 
-  async setPaymentStatus(orderId: string, status: PaymentStatus): Promise<void> {
-    await this.db.transaction(async (tx) => {
-      await tx
+  async setPaymentStatus(
+    orderId: string,
+    status: PaymentStatus,
+    expectedFrom: PaymentStatus,
+  ): Promise<boolean> {
+    return this.db.transaction(async (tx) => {
+      // Guarded on the status the caller read, the same shape
+      // `tryFailStuckAwaitingConfirmation` already used. Without it, two actors
+      // that both read a stale status both write, and the later write wins
+      // regardless of whether its transition still makes sense.
+      const result = await tx
         .update(orders)
         .set({ paymentStatus: status, updatedAt: new Date() })
-        .where(eq(orders.id, orderId));
+        .where(and(eq(orders.id, orderId), eq(orders.paymentStatus, expectedFrom)))
+        .returning({ id: orders.id });
+      if (result.length === 0) return false;
       await this.recordOrderEvent(tx, orderId, 'payment_status_changed', status);
+      return true;
     });
   }
 

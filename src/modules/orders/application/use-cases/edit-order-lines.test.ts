@@ -90,6 +90,89 @@ function makeFakeGateway(outcome: 'ok' | 'not_repriceable' = 'ok') {
 }
 
 describe('EditOrderLines', () => {
+  /**
+   * The audit's negative-total case. A coupon is clamped to the subtotal at
+   * PlaceOrder time and then snapshotted; shrinking the order afterwards leaves
+   * a discount larger than what's left to discount.
+   *
+   * Decided: refuse the edit outright rather than silently re-clamping. The
+   * admin asked for something that doesn't make sense, and quietly changing the
+   * discount they can see on screen would be its own surprise.
+   */
+  it('refuses an edit that would drive the total below zero', async () => {
+    // 2 x 2500 = 5000 subtotal, $50 coupon clamped to 5000, 500 shipping.
+    const order = makeOrder({
+      shippingAmountMinor: 500,
+      discountAmountMinor: 5000,
+      lines: [
+        { id: 'line-1', productId: 'prod-1', productName: 'Widget One', quantity: 2, unitAmountMinor: 2500 },
+      ],
+    });
+    const { repo: orders, writes } = makeFakeOrders(order);
+    const products = makeFakeProducts([makeProduct('prod-1', 2500)]);
+    const { gateway: payments } = makeFakeGateway();
+
+    // Drop to one: 2500 + 500 - 5000 = -2000.
+    const result = await new EditOrderLines(orders, products, payments).execute({
+      orderId: 'order-1',
+      op: 'set_quantity',
+      orderLineId: 'line-1',
+      quantity: 1,
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) expect(result.error.code).toBe('total_not_payable');
+    // Nothing written: no negative amount_minor, and no negative-sats re-quote.
+    expect(writes).toEqual([]);
+  });
+
+  it('refuses an edit that would make the total exactly zero', async () => {
+    // A 0-sat invoice is unpayable — the watcher's `confirmedSats > 0` never
+    // fires — so the order would sit until it expired, having burned an address.
+    const order = makeOrder({
+      shippingAmountMinor: 0,
+      discountAmountMinor: 2500,
+      lines: [
+        { id: 'line-1', productId: 'prod-1', productName: 'Widget One', quantity: 2, unitAmountMinor: 2500 },
+      ],
+    });
+    const { repo: orders, writes } = makeFakeOrders(order);
+    const products = makeFakeProducts([makeProduct('prod-1', 2500)]);
+
+    const result = await new EditOrderLines(orders, products, makeFakeGateway().gateway).execute({
+      orderId: 'order-1',
+      op: 'set_quantity',
+      orderLineId: 'line-1',
+      quantity: 1,
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) expect(result.error.code).toBe('total_not_payable');
+    expect(writes).toEqual([]);
+  });
+
+  it('still allows an edit that leaves a payable total', async () => {
+    const order = makeOrder({
+      shippingAmountMinor: 500,
+      discountAmountMinor: 1000,
+      lines: [
+        { id: 'line-1', productId: 'prod-1', productName: 'Widget One', quantity: 2, unitAmountMinor: 2500 },
+      ],
+    });
+    const { repo: orders, writes } = makeFakeOrders(order);
+    const products = makeFakeProducts([makeProduct('prod-1', 2500)]);
+
+    const result = await new EditOrderLines(orders, products, makeFakeGateway().gateway).execute({
+      orderId: 'order-1',
+      op: 'set_quantity',
+      orderLineId: 'line-1',
+      quantity: 1,
+    });
+
+    expect(isErr(result)).toBe(false);
+    expect(writes[0]?.amountMinor).toBe(2000); // 2500 + 500 - 1000
+  });
+
   describe('while the order is still unpaid', () => {
     it('changes a line quantity and rewrites the total with it', async () => {
       const { repo, writes } = makeFakeOrders(makeOrder());

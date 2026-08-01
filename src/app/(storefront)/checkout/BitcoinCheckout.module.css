@@ -1,13 +1,19 @@
+/* Full width, like the status and detail cards above and below it. This used
+   to be capped at 420px and centred, which made the one panel where money
+   actually moves the narrowest thing on the page — and forced its copy into a
+   column too tight to read. The width is now used deliberately (see `.payPanel`)
+   rather than stretched. */
 .card {
-  max-width: 420px;
-  margin: 0 auto;
+  padding: var(--space-5);
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-4);
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-5);
 }
 
 .countdown {
@@ -16,16 +22,62 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Terminal states (paid, failed, expired, cancelled) — a short sentence and
+   maybe one button. Left-aligned like everything else on the page; centring a
+   lone sentence in a wide card leaves it floating. */
 .stack {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-4);
-  text-align: center;
+}
+
+/**
+ * The active payment state. Two columns once there's room: the QR is a fixed
+ * object, so it takes its natural width and the instructions take the rest.
+ * Below 40rem it stacks, QR first.
+ *
+ * Only applied when a QR is actually shown — with nothing to scan (payment in,
+ * waiting on depth) a two-column grid would leave a conspicuous empty half.
+ */
+.payPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.payPanelSplit {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 40rem) {
+  .payPanelSplit {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
+/* With no QR there is only one column, so the grid must not reserve space for
+   a second. */
+.payPanelSingle {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The instruction column. `max-width` keeps the measure readable on a wide
+   screen — long lines are the other half of what made this feel cramped. */
+.payDetails {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+  max-width: 46ch;
 }
 
 .message {
   color: var(--foreground);
+  line-height: 1.6;
+  margin: 0;
 }
 
 .amount {
@@ -44,6 +96,8 @@
   padding: var(--space-4);
   background: #ffffff;
   border-radius: var(--radius-md);
+  /* Stops the QR stretching when it's the only thing in a stacked column. */
+  width: fit-content;
 }
 
 .addressRow {
@@ -55,7 +109,10 @@
 
 .address {
   flex: 1;
-  overflow-wrap: anywhere;
+  /* `anywhere` broke the hash mid-character-run and left an orphan digit on
+     the next line. With the row now full width it fits on one line at almost
+     every size; `break-all` keeps the break clean if it ever doesn't. */
+  word-break: break-all;
   padding: var(--space-2) var(--space-3);
   background: var(--background);
   border: 1px solid var(--color-border);

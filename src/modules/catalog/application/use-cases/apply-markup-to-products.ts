@@ -38,6 +38,23 @@ export class ApplyMarkupToProducts
         }
 
         const amountMinor = Math.round(product.price.amountMinor * (1 + input.markupPercent / 100));
+
+        // Guarded on the *result*, not the input percentage: `-99` looks
+        // survivable but rounds a 20-minor-unit price to 0, and `-100` zeroes
+        // everything. A zero or negative price is not a discount — it's a free
+        // or nonsensical product that would go on to quote zero or negative
+        // satoshis, which no wallet can pay. Counted as failed and skipped, so
+        // one bad percentage can't silently empty a catalogue's pricing.
+        if (amountMinor <= 0) {
+          failed += 1;
+          logger.warn('apply markup: refused, price would not be sellable', {
+            productId,
+            markupPercent: input.markupPercent,
+            wouldBe: amountMinor,
+          });
+          continue;
+        }
+
         await this.products.updatePrice(productId, amountMinor, product.price.currency);
         updated += 1;
       } catch (e) {

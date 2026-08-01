@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { getContainer } from '@/composition/container';
 import { getSessionUser } from '@/app/lib/session';
 import { paymentStatusTone, fulfillmentStatusTone } from '@/app/lib/status-tone';
+import { paymentStatusLabel, fulfillmentStatusLabel } from '@/app/lib/status-label';
 import { isOrderCancellable } from '@/modules/orders/domain/order-status';
 import { Money } from '@/shared/domain/money';
 import { PageContainer } from '@/components/ui/PageContainer';
@@ -81,10 +82,10 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
                           className={`${styles.cellLink} ${styles.statusCell}`}
                         >
                           <Badge tone={paymentStatusTone(order.paymentStatus)}>
-                            {order.paymentStatus}
+                            {paymentStatusLabel(order.paymentStatus)}
                           </Badge>
                           <Badge tone={fulfillmentStatusTone(order.fulfillmentStatus)}>
-                            {order.fulfillmentStatus}
+                            {fulfillmentStatusLabel(order.fulfillmentStatus)}
                           </Badge>
                         </Link>
                       </td>

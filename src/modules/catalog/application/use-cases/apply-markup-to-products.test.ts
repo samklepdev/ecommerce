@@ -32,6 +32,71 @@ function makeFakeProducts(productsById: Map<string, Product>) {
 }
 
 describe('ApplyMarkupToProducts', () => {
+  /**
+   * The audit's free-products case. `markupPercent` had no lower bound, and a
+   * product carries no price invariant, so `-100` — a plausible "undo the
+   * markup" typo — wrote every selected price to zero, and `-150` wrote
+   * negatives that then flow into a negative-satoshi quote.
+   *
+   * A product that would come out unsellable is skipped and counted as failed,
+   * not written: one bad percentage must not silently zero a catalogue.
+   */
+  it('refuses to write a price of zero', async () => {
+    const productA = randomUUID();
+    const { repo, updated } = makeFakeProducts(new Map([[productA, makeProduct(productA, 1000)]]));
+
+    const result = await new ApplyMarkupToProducts(repo).execute({
+      productIds: [productA],
+      markupPercent: -100,
+    });
+
+    expect(result.updated).toBe(0);
+    expect(result.failed).toBe(1);
+    expect(updated).toEqual([]);
+  });
+
+  it('refuses to write a negative price', async () => {
+    const productA = randomUUID();
+    const { repo, updated } = makeFakeProducts(new Map([[productA, makeProduct(productA, 1999)]]));
+
+    const result = await new ApplyMarkupToProducts(repo).execute({
+      productIds: [productA],
+      markupPercent: -150,
+    });
+
+    expect(result.updated).toBe(0);
+    expect(result.failed).toBe(1);
+    expect(updated).toEqual([]);
+  });
+
+  it('refuses when rounding alone would reach zero', async () => {
+    // 20 minor units at -99% rounds to 0. The percentage looks survivable; the
+    // arithmetic isn't, which is why the guard is on the result and not the input.
+    const productA = randomUUID();
+    const { repo, updated } = makeFakeProducts(new Map([[productA, makeProduct(productA, 20)]]));
+
+    const result = await new ApplyMarkupToProducts(repo).execute({
+      productIds: [productA],
+      markupPercent: -99,
+    });
+
+    expect(result.failed).toBe(1);
+    expect(updated).toEqual([]);
+  });
+
+  it('still applies a legitimate discount', async () => {
+    const productA = randomUUID();
+    const { repo, updated } = makeFakeProducts(new Map([[productA, makeProduct(productA, 1000)]]));
+
+    const result = await new ApplyMarkupToProducts(repo).execute({
+      productIds: [productA],
+      markupPercent: -20,
+    });
+
+    expect(result.updated).toBe(1);
+    expect(updated[0]?.amountMinor).toBe(800);
+  });
+
   it('increases each product price by the given percentage on top of its current price', async () => {
     const productA = randomUUID();
     const productB = randomUUID();
