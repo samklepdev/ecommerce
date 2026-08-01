@@ -53,7 +53,7 @@ const envSchema = z.object({
   // Idle timeouts, layered under the absolute TTL above: a session dies when
   // either clock runs out. Customers get a long one because signing someone
   // out mid-shop costs a sale and protects little; admins get a short one
-  // because that session can refund money and delete a catalogue.
+  // because that session can cancel a paid order and delete a catalogue.
   SESSION_IDLE_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(1_209_600), // 14 days
   ADMIN_SESSION_IDLE_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(3_600), // 1 hour
   // How long typing your password buys you before a destructive admin
@@ -67,6 +67,14 @@ const envSchema = z.object({
   // customer-facing promise ("you have a day to pay"), decoupled from the
   // rate lock so neither number has to compromise for the other.
   ORDER_PAYMENT_WINDOW_HOURS: z.coerce.number().int().positive().default(24),
+  // The third clock, and the one with the sharpest edge: how long an order may
+  // sit in `awaiting_confirmation` — money seen on-chain but short, or not yet
+  // deep enough — before it is failed. It is therefore the window a
+  // part-paying customer has to send the balance, and when it runs out they
+  // have paid for nothing (there is no refund mechanism). Measured from when
+  // money was first seen, so it's independent of ORDER_PAYMENT_WINDOW_HOURS
+  // above: underpay at hour 1 or hour 23 and you get the same window either way.
+  AWAITING_CONFIRMATION_WINDOW_HOURS: z.coerce.number().int().positive().default(48),
 
   // Base URL used to build absolute links in outgoing email (e.g. the
   // welcome-email tracking pixel) — never derived from a request header.
