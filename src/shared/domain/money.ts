@@ -57,6 +57,23 @@ export class Money {
    * fiat currency, same assumption already made in the BTC gateway's sats
    * conversion. Locale is fixed (not the server's default) for deterministic
    * output across environments. */
+  /**
+   * The amount as a plain decimal — `20.80`, not `$20.80` and not `2080`.
+   *
+   * For exports, where the value lands in a spreadsheet column next to bank
+   * figures and has to be arithmetic rather than text. `toDisplayString`'s
+   * currency symbol and thousands separators would make it a string; the raw
+   * `amountMinor` would be wrong by two orders of magnitude, which is the kind
+   * of reconciliation error nobody notices until it matters.
+   *
+   * Assumes a 2-decimal currency, the same assumption the BTC quote makes.
+   */
+  toDecimalString(): string {
+    const sign = this.amountMinor < 0 ? '-' : '';
+    const abs = Math.abs(this.amountMinor);
+    return `${sign}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, '0')}`;
+  }
+
   toDisplayString(): string {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: this.currency }).format(
       this.amountMinor / 100,

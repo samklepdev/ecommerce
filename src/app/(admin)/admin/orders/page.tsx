@@ -4,7 +4,14 @@ import { redirect } from 'next/navigation';
 import { getContainer } from '@/composition/container';
 import { requireAdmin } from '@/app/lib/session';
 import { paymentStatusTone, fulfillmentStatusTone } from '@/app/lib/status-tone';
-import type { FulfillmentStatus, PaymentStatus } from '@/modules/orders/domain/order-status';
+import {
+  FULFILLMENT_STATUSES,
+  parseFulfillmentStatus,
+  parsePaymentStatus,
+  PAYMENT_STATUSES,
+  type FulfillmentStatus,
+  type PaymentStatus,
+} from '@/modules/orders/domain/order-status';
 import { Money } from '@/shared/domain/money';
 import { Stack } from '@/components/ui/Stack';
 import { Alert } from '@/components/ui/Alert';
@@ -30,38 +37,6 @@ interface AdminOrdersPageProps {
   }>;
 }
 
-/**
- * Validated, not cast. These reach a SQL `WHERE` clause, and an arbitrary
- * query-string value has no business getting that far — an unrecognised
- * status becomes "no filter" rather than an error page or a query that
- * matches nothing for reasons the admin can't see.
- */
-const PAYMENT_STATUSES: PaymentStatus[] = [
-  'pending',
-  'awaiting_payment',
-  'awaiting_confirmation',
-  'paid',
-  'failed',
-  'expired',
-  'cancelled',
-];
-
-const FULFILLMENT_STATUSES: FulfillmentStatus[] = [
-  'unfulfilled',
-  'processing',
-  'shipped',
-  'delivered',
-  'cancelled',
-];
-
-function parsePaymentStatus(value: string | undefined): PaymentStatus | undefined {
-  return PAYMENT_STATUSES.find((s) => s === value);
-}
-
-function parseFulfillmentStatus(value: string | undefined): FulfillmentStatus | undefined {
-  return FULFILLMENT_STATUSES.find((s) => s === value);
-}
-
 interface OrderFilters {
   email?: string;
   paymentStatus?: PaymentStatus;
@@ -70,15 +45,23 @@ interface OrderFilters {
   latePayment?: boolean;
 }
 
-/** Carries every active filter through pagination — a page 2 link that
- * dropped the filter would silently show a different set of orders. */
-function buildHref(filters: OrderFilters, page: number): string {
+/** The query string every filter contributes, shared by pagination and the
+ * CSV export — so "export what I'm looking at" is the same filter, not a
+ * second implementation that could disagree with the screen. */
+function filterParams(filters: OrderFilters): URLSearchParams {
   const params = new URLSearchParams();
   if (filters.email) params.set('email', filters.email);
   if (filters.paymentStatus) params.set('paymentStatus', filters.paymentStatus);
   if (filters.fulfillmentStatus) params.set('fulfillmentStatus', filters.fulfillmentStatus);
   if (filters.recovered) params.set('recovered', '1');
   if (filters.latePayment) params.set('latePayment', '1');
+  return params;
+}
+
+/** Carries every active filter through pagination — a page 2 link that
+ * dropped the filter would silently show a different set of orders. */
+function buildHref(filters: OrderFilters, page: number): string {
+  const params = filterParams(filters);
   if (page > 1) params.set('page', String(page));
   const qs = params.toString();
   return qs ? `/admin/orders?${qs}` : '/admin/orders';
@@ -209,6 +192,16 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
             {filters.latePayment
               ? 'Showing orders holding Bitcoin that arrived after they closed.'
               : 'Showing orders whose payment landed after they had expired or been cancelled.'}
+          </p>
+        )}
+
+        {totalItems > 0 && (
+          <p className={styles.filterNote}>
+            {/* Not a button: a plain link means the browser downloads it and
+                nothing has to hold the file in memory on the way. */}
+            <a href={`/api/admin/orders/export?${filterParams(filters).toString()}`}>
+              Export these {totalItems} order{totalItems === 1 ? '' : 's'} as CSV
+            </a>
           </p>
         )}
 

@@ -36,6 +36,14 @@ export interface CouponProps {
   maxRedemptions?: number | null;
   /** How many orders have used it so far. */
   redemptionCount?: number;
+  /**
+   * How many times one customer may use it. Null means unlimited.
+   *
+   * Like `maxRedemptions`, enforced at redemption time rather than here —
+   * counting past uses and then deciding lets two simultaneous checkouts by
+   * the same person both pass.
+   */
+  maxPerCustomer?: number | null;
   createdAt?: Date;
 }
 
@@ -50,6 +58,7 @@ export class Coupon extends AggregateRoot<string> {
   readonly isActive: boolean;
   readonly expiresAt: Date | null;
   readonly maxRedemptions: number | null;
+  readonly maxPerCustomer: number | null;
   readonly redemptionCount: number;
   readonly createdAt: Date;
 
@@ -63,6 +72,7 @@ export class Coupon extends AggregateRoot<string> {
     this.isActive = props.isActive ?? true;
     this.expiresAt = props.expiresAt ?? null;
     this.maxRedemptions = props.maxRedemptions ?? null;
+    this.maxPerCustomer = props.maxPerCustomer ?? null;
     this.redemptionCount = props.redemptionCount ?? 0;
     this.createdAt = props.createdAt ?? new Date();
   }
@@ -78,6 +88,14 @@ export class Coupon extends AggregateRoot<string> {
       // 0 would be a code that can never be used, which is what `isActive:
       // false` already says, more legibly.
       throw new Error('Coupon redemption limit must be a positive integer, or unset');
+    }
+
+    if (
+      props.maxPerCustomer !== undefined &&
+      props.maxPerCustomer !== null &&
+      (!Number.isInteger(props.maxPerCustomer) || props.maxPerCustomer < 1)
+    ) {
+      throw new Error('Coupon per-customer limit must be a positive integer, or unset');
     }
 
     if (props.discountType === 'percentage') {
@@ -153,6 +171,7 @@ export class Coupon extends AggregateRoot<string> {
 export function couponLimitsDisplay(coupon: {
   expiresAt: Date | null;
   maxRedemptions: number | null;
+  maxPerCustomer: number | null;
   redemptionCount: number;
 }): string {
   const parts: string[] = [];
@@ -165,6 +184,9 @@ export function couponLimitsDisplay(coupon: {
     parts.push(`${coupon.redemptionCount}/${coupon.maxRedemptions} used`);
   } else if (coupon.redemptionCount > 0) {
     parts.push(`${coupon.redemptionCount} used`);
+  }
+  if (coupon.maxPerCustomer !== null) {
+    parts.push(`max ${coupon.maxPerCustomer} per customer`);
   }
   return parts.length > 0 ? parts.join(' · ') : 'No limits';
 }

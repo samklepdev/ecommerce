@@ -194,7 +194,14 @@ export class PlaceOrder implements UseCase<PlaceOrderInput, Result<Order, PlaceO
      * cheaper than the alternative of letting a limited code overrun.
      */
     if (appliedCouponCode) {
-      const redeemed = await this.coupons.redeem(appliedCouponCode, new Date());
+      const redeemed = await this.coupons.redeem({
+        code: appliedCouponCode,
+        now: new Date(),
+        // The email the order is being placed under — the same identity the
+        // shop uses to find orders and send mail, and the only one a guest
+        // checkout has.
+        customerEmail: input.customerEmail,
+      });
       if (!redeemed) return err({ code: 'coupon_exhausted' });
     }
 

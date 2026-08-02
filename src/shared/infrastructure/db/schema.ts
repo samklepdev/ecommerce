@@ -384,10 +384,46 @@ export const coupons = pgTable(
      * of one.
      */
     redemptionCount: integer('redemption_count').notNull().default(0),
+    /** How many times one customer may use it. Null means unlimited — the
+     * global `maxRedemptions` is still the hard ceiling. */
+    maxPerCustomer: integer('max_per_customer'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     codeUnique: uniqueIndex('coupons_code_unique').on(t.code),
+  }),
+);
+
+/**
+ * One row per use of a coupon by a customer.
+ *
+ * A table rather than a counter column because a column cannot be made atomic:
+ * two concurrent checkouts both read "0 used" and both proceed. Each redemption
+ * claims an explicit slot — 0, then 1, then 2 — and the unique index on
+ * `(couponId, customerKey, slot)` means two orders racing for the same slot
+ * collide and exactly one wins. Postgres decides, not the application.
+ */
+export const couponRedemptions = pgTable(
+  'coupon_redemptions',
+  {
+    id: text('id').primaryKey(),
+    couponId: text('coupon_id')
+      .notNull()
+      .references(() => coupons.id, { onDelete: 'cascade' }),
+    /** Deliberately not a foreign key: the redemption is claimed before the
+     * order is written, and must survive an order that then fails to write —
+     * otherwise a failed checkout silently returns a redemption the customer
+     * has already had. */
+    orderId: text('order_id'),
+    /** The lower-cased customer email — the same identity the shop uses to
+     * find orders and send mail, and the only one a guest checkout has. */
+    customerKey: text('customer_key').notNull(),
+    slot: integer('slot').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    slotUnique: uniqueIndex('coupon_redemptions_slot_unique').on(t.couponId, t.customerKey, t.slot),
+    couponCustomerIdx: index('coupon_redemptions_coupon_customer_idx').on(t.couponId, t.customerKey),
   }),
 );
 

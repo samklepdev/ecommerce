@@ -17,6 +17,7 @@ const CreateCouponSchema = z
     /** `<input type="date">` gives `YYYY-MM-DD`; empty means no expiry. */
     expiresOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     maxRedemptions: z.coerce.number().int().positive().optional(),
+    maxPerCustomer: z.coerce.number().int().positive().optional(),
   })
   .refine(
     (data) =>
@@ -41,6 +42,7 @@ export async function createCouponAction(
     fixedAmountDisplay: formData.get('fixedAmountDisplay') || undefined,
     expiresOn: formData.get('expiresOn') || undefined,
     maxRedemptions: formData.get('maxRedemptions') || undefined,
+    maxPerCustomer: formData.get('maxPerCustomer') || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'Enter a valid coupon code and discount.' };
@@ -61,6 +63,7 @@ export async function createCouponAction(
       ? new Date(`${parsed.data.expiresOn}T23:59:59.999Z`)
       : null,
     maxRedemptions: parsed.data.maxRedemptions ?? null,
+    maxPerCustomer: parsed.data.maxPerCustomer ?? null,
     fixedAmountMinor:
       parsed.data.fixedAmountDisplay !== undefined
         ? Math.round(parsed.data.fixedAmountDisplay * 100)

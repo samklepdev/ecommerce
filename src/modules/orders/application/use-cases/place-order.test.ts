@@ -111,7 +111,7 @@ function makeFakeCoupons(coupon: Coupon | null = null, redeemable = true) {
     },
     // Mirrors the repository's conditional UPDATE: `false` means the code was
     // exhausted, expired or deactivated between the check and the claim.
-    async redeem(code) {
+    async redeem({ code }) {
       if (!redeemable) return false;
       redeemed.push(code);
       return true;

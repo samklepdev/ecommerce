@@ -13,7 +13,9 @@ describe('HttpServiceProbe', () => {
     const calls: string[] = [];
     vi.stubGlobal('fetch', async (url: string) => {
       calls.push(url);
-      const r = responses[Math.min(i, responses.length - 1)];
+      // Clamped to the last entry, so a probe called more times than the
+      // script has responses keeps returning the final one.
+      const r = responses[Math.min(i, responses.length - 1)] ?? 200;
       i += 1;
       if (r === 'throw') throw new Error('ECONNREFUSED');
       return { ok: r < 400, status: r, arrayBuffer: async () => new ArrayBuffer(0) } as Response;

@@ -246,6 +246,13 @@
       "when": 1785600000007,
       "tag": "0034_coupon_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1785600000008,
+      "tag": "0035_coupon_per_customer",
+      "breakpoints": true
     }
   ]
 }

@@ -148,6 +148,45 @@ export function isLatePaymentCreditable(status: PaymentStatus): boolean {
   return status === 'expired' || status === 'cancelled' || status === 'failed';
 }
 
+/**
+ * Every value each status can take.
+ *
+ * In the domain rather than beside the one screen that first needed them:
+ * these decide what reaches a SQL `WHERE`, and the orders page and its CSV
+ * export have to agree about that exactly, or "export what I'm looking at"
+ * quietly exports something else.
+ */
+export const PAYMENT_STATUSES: readonly PaymentStatus[] = [
+  'pending',
+  'awaiting_payment',
+  'awaiting_confirmation',
+  'paid',
+  'failed',
+  'expired',
+  'cancelled',
+];
+
+export const FULFILLMENT_STATUSES: readonly FulfillmentStatus[] = [
+  'unfulfilled',
+  'processing',
+  'shipped',
+  'delivered',
+  'cancelled',
+];
+
+/**
+ * Validated, not cast. These come off a query string and reach a `WHERE`
+ * clause, so an unrecognised value becomes "no filter" rather than an error
+ * page or a query that silently matches nothing.
+ */
+export function parsePaymentStatus(value: string | undefined): PaymentStatus | undefined {
+  return PAYMENT_STATUSES.find((s) => s === value);
+}
+
+export function parseFulfillmentStatus(value: string | undefined): FulfillmentStatus | undefined {
+  return FULFILLMENT_STATUSES.find((s) => s === value);
+}
+
 export function assertPaymentTransition(from: PaymentStatus, to: PaymentStatus): void {
   if (!PAYMENT_TRANSITIONS[from].includes(to)) {
     throw new IllegalStatusTransitionError('payment', from, to);

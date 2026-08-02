@@ -59,13 +59,25 @@ function toStored(cart: Cart): StoredCart {
 /**
  * How many times a conflicting write may send `mutate` round again.
  *
- * Each retry means another request wrote this same cart in the microseconds
- * between our read and our write. One cart belongs to one visitor, so genuine
- * contention is a double-click or a login-merge — a handful at most. A bound
- * that is generous for that and still finite means a pathological caller
- * fails loudly rather than spinning on the request thread.
+ * Each retry means another request wrote this same cart between our read and
+ * our write. One cart belongs to one visitor, so real contention is a
+ * double-click or a login-merge — a handful at most. The bound is far above
+ * that because the cost of being wrong is asymmetric: too low and a burst of
+ * clicks throws an error at a customer trying to buy something, which is worse
+ * than the extra round trips. It stays finite so a pathological caller fails
+ * loudly instead of spinning on the request thread.
  */
-const MAX_MUTATE_ATTEMPTS = 10;
+const MAX_MUTATE_ATTEMPTS = 50;
+
+/**
+ * Jitter between attempts, in milliseconds.
+ *
+ * Without it every loser of a race re-reads at the same instant and collides
+ * again — they stay in lockstep, and a burst of N writers can exhaust the
+ * attempt budget while making no progress. A few milliseconds of randomness
+ * breaks the convoy, which is what lets the retry actually converge.
+ */
+const RETRY_JITTER_MS = 8;
 
 function keyFor(owner: CartOwner): string {
   if (owner.type === 'user') return `cart:user:${owner.userId}`;
@@ -153,6 +165,10 @@ export class RedisCartRepository implements CartRepository {
 
       const applied = await this.compareAndSet(key, previous, next, owner);
       if (applied) return next;
+
+      // Lost the race. Wait a random moment before re-reading, so simultaneous
+      // writers don't march back in step and collide again.
+      await new Promise((resolve) => setTimeout(resolve, Math.random() * RETRY_JITTER_MS));
     }
 
     throw new Error(`cart mutation kept losing to concurrent writes: ${key}`);

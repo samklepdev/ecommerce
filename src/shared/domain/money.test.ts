@@ -101,3 +101,36 @@ describe('Money#toDisplayString', () => {
     expect(Money.of(1999, 'EUR').toDisplayString()).toBe('€19.99');
   });
 });
+
+describe('toDecimalString', () => {
+  /**
+   * For exports, where the value lands in a spreadsheet column next to bank
+   * figures. `toDisplayString`'s symbol and separators would make it text;
+   * the raw `amountMinor` would be wrong by two orders of magnitude — the kind
+   * of reconciliation error nobody notices until it matters.
+   */
+  it('renders minor units as a plain decimal', () => {
+    expect(Money.of(2080, 'USD').toDecimalString()).toBe('20.80');
+  });
+
+  it('pads the minor part', () => {
+    expect(Money.of(2005, 'USD').toDecimalString()).toBe('20.05');
+    expect(Money.of(2000, 'USD').toDecimalString()).toBe('20.00');
+  });
+
+  it('handles amounts under a major unit', () => {
+    expect(Money.of(80, 'USD').toDecimalString()).toBe('0.80');
+    expect(Money.of(5, 'USD').toDecimalString()).toBe('0.05');
+    expect(Money.of(0, 'USD').toDecimalString()).toBe('0.00');
+  });
+
+  it('keeps a negative amount readable rather than mangling the minor part', () => {
+    // Naive division would give `-20.-80`; the sign has to come off first.
+    expect(Money.of(-2080, 'USD').toDecimalString()).toBe('-20.80');
+    expect(Money.of(-5, 'USD').toDecimalString()).toBe('-0.05');
+  });
+
+  it('carries no currency symbol or separators, so it stays arithmetic', () => {
+    expect(Money.of(123456789, 'USD').toDecimalString()).toBe('1234567.89');
+  });
+});

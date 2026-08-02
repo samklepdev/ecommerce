@@ -18,7 +18,13 @@ export interface CouponRepository {
    * `false` means the code was exhausted, expired or deactivated between the
    * customer entering it and their order being written.
    */
-  redeem(code: string, now: Date): Promise<boolean>;
+  redeem(input: {
+    code: string;
+    now: Date;
+    /** Who is redeeming — the customer's email, used for the per-customer
+     * limit. Lower-cased by the implementation. */
+    customerEmail: string;
+  }): Promise<boolean>;
   setActive(id: string, isActive: boolean): Promise<void>;
   /** Hard delete. Safe because nothing references a coupon: an order
    * snapshots the code and discount it was given (`orders.coupon_code` is

@@ -59,6 +59,13 @@ export function CreateCouponForm() {
       <Field label="Max redemptions (optional)" htmlFor="coupon-max">
         <Input type="number" id="coupon-max" name="maxRedemptions" min={1} step={1} />
       </Field>
+      {/* Keyed on the customer's email — the only identity a guest checkout
+          has. Not a strong control (a determined person can use another
+          address); it stops casual reuse, and the global cap above is still
+          the hard ceiling. */}
+      <Field label="Max per customer (optional)" htmlFor="coupon-per-customer">
+        <Input type="number" id="coupon-per-customer" name="maxPerCustomer" min={1} step={1} />
+      </Field>
 
       <Button type="submit" disabled={isPending}>
         {isPending ? 'Creating…' : 'Create coupon'}

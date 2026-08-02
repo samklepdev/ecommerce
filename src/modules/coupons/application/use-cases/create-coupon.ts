@@ -15,6 +15,8 @@ export interface CreateCouponInput {
   expiresAt?: Date | null;
   /** How many orders may ever use it. Omitted means unlimited. */
   maxRedemptions?: number | null;
+  /** How many times one customer may use it. Omitted means unlimited. */
+  maxPerCustomer?: number | null;
 }
 
 export type CreateCouponError = { code: 'duplicate_code' };
