@@ -73,6 +73,7 @@ import { EsploraChainDataProvider } from '@/modules/payments/infrastructure/bitc
 import { RedisAddressIndexAllocator } from '@/modules/payments/infrastructure/bitcoin/redis-address-index-allocator';
 import { DrizzleBitcoinPaymentStore } from '@/modules/payments/infrastructure/bitcoin/drizzle-bitcoin-payment-store';
 import { GetOnChainActivityReport } from '@/modules/payments/application/use-cases/get-on-chain-activity-report';
+import { FindOrderByPaymentReference } from '@/modules/payments/application/use-cases/find-order-by-payment-reference';
 import { MempoolRateProvider } from '@/modules/payments/infrastructure/bitcoin/mempool-rate-provider';
 import { SanityCheckedRateProvider } from '@/modules/payments/infrastructure/bitcoin/sanity-checked-rate-provider';
 import { RedisLastKnownRateStore } from '@/modules/payments/infrastructure/bitcoin/redis-last-known-rate-store';
@@ -401,6 +402,7 @@ export interface Container {
   orders: DrizzleOrderRepository;
   paymentStore: DrizzleBitcoinPaymentStore;
   getOnChainActivityReport: GetOnChainActivityReport;
+  findOrderByPaymentReference: FindOrderByPaymentReference;
   getRevenueSummary: GetRevenueSummary;
 }
 
@@ -454,6 +456,11 @@ function build(): Container {
   const paymentStore = new DrizzleBitcoinPaymentStore(db);
   const getOnChainActivityReport = new GetOnChainActivityReport(paymentStore);
   const chain = new EsploraChainDataProvider(env.BTC_ESPLORA_URL, network);
+  /**
+   * "A customer says they sent coins to this address / this txid." One address
+   * per order is the whole correlation model and nothing could search on it.
+   */
+  const findOrderByPaymentReference = new FindOrderByPaymentReference(paymentStore, chain);
 
   const btcGateway = new OnChainBitcoinPaymentGateway(
     deriver,
@@ -982,6 +989,7 @@ function build(): Container {
     orders,
     paymentStore,
     getOnChainActivityReport,
+    findOrderByPaymentReference,
     getRevenueSummary,
   };
 }

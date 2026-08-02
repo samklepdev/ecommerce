@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
 import { getContainer } from '@/composition/container';
 import { requireAdmin } from '@/app/lib/session';
@@ -6,6 +7,7 @@ import { paymentStatusTone, fulfillmentStatusTone } from '@/app/lib/status-tone'
 import type { FulfillmentStatus, PaymentStatus } from '@/modules/orders/domain/order-status';
 import { Money } from '@/shared/domain/money';
 import { Stack } from '@/components/ui/Stack';
+import { Alert } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -23,6 +25,8 @@ interface AdminOrdersPageProps {
     fulfillmentStatus?: string;
     recovered?: string;
     latePayment?: string;
+    /** A BTC address or transaction id — see the payment-reference lookup. */
+    payment?: string;
   }>;
 }
 
@@ -99,6 +103,21 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
       filters.latePayment,
   );
 
+  /**
+   * "A customer says they sent coins to this address / this txid."
+   *
+   * One address per order is the whole correlation model, and nothing on this
+   * page could search on it — email and the two status enums were the only
+   * filters, and the on-chain report covers paid orders in a date range, which
+   * excludes exactly the orders somebody writes in about. Answering took
+   * hand-written SQL.
+   */
+  const paymentReference = params.payment?.trim();
+  const paymentMatch = paymentReference
+    ? await getContainer().findOrderByPaymentReference.execute({ reference: paymentReference })
+    : null;
+  if (paymentMatch?.orderId) redirect(`/admin/orders/${paymentMatch.orderId}`);
+
   const { listAllOrdersForAdmin } = getContainer();
   const { items: pagedOrders, page, totalPages, totalItems } = await listAllOrdersForAdmin.execute({
     ...filters,
@@ -119,6 +138,14 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
             here. */}
         <form className={styles.searchForm}>
           <Input type="text" name="email" defaultValue={email} placeholder="Search by customer email" />
+          {/* One box for both: a txid is 64 hex characters and no address is,
+              so the shape tells them apart and the admin doesn't have to. */}
+          <Input
+            type="text"
+            name="payment"
+            defaultValue={paymentReference}
+            placeholder="BTC address or transaction id"
+          />
           <select
             name="paymentStatus"
             defaultValue={filters.paymentStatus ?? ''}
@@ -158,6 +185,22 @@ export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageP
             </Link>
           )}
         </form>
+
+        {paymentMatch && !paymentMatch.orderId && (
+          <Alert tone={paymentMatch.lookupFailed ? 'warning' : 'danger'}>
+            {paymentMatch.lookupFailed
+              ? // "Could not ask" is not "not ours" — saying the latter would
+                // stop an admin looking for money that is genuinely theirs.
+                "Couldn't reach the chain to look that transaction up. Try again in a moment."
+              : paymentMatch.kind === 'txid'
+                ? `That transaction doesn't pay any address this shop issued.${
+                    paymentMatch.addresses.length > 0
+                      ? ` It paid: ${paymentMatch.addresses.join(', ')}`
+                      : ' It has no outputs we could read.'
+                  }`
+                : 'No order has ever been issued that address.'}
+          </Alert>
+        )}
 
         {/* Named in words, because a tile's count only means something if the
             list you land on is the one it counted. */}

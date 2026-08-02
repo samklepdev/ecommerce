@@ -12,6 +12,22 @@ import type {
   OnChainOrderActivity,
 } from '@/modules/payments/application/use-cases/get-on-chain-activity-report';
 
+/**
+ * The forms an address might have been pasted in.
+ *
+ * Bech32 is case-insensitive by spec and some explorers render it upper-cased,
+ * while every address this app derives is lower-case — so an admin copying
+ * `TB1Q...` out of a block explorer would otherwise find nothing. Base58
+ * (`1...`, `3...`) is emphatically **not** case-insensitive, and lowercasing
+ * one would turn a valid address into a different, invalid string, so the
+ * fallback is limited to the bech32 prefixes.
+ */
+function addressCandidates(address: string): string[] {
+  const lower = address.toLowerCase();
+  if (lower === address) return [address];
+  return /^(bc1|tb1|bcrt1)/.test(lower) ? [address, lower] : [address];
+}
+
 export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore, OnChainActivityReportRepository {
   constructor(private readonly db: DB) {}
 
@@ -76,6 +92,14 @@ export class DrizzleBitcoinPaymentStore implements BitcoinPaymentStore, OnChainA
   async getByOrderId(orderId: string): Promise<BitcoinPaymentIntent | null> {
     const row = await this.db.query.bitcoinPaymentIntents.findFirst({
       where: eq(bitcoinPaymentIntents.orderId, orderId),
+    });
+    return row ? toIntent(row) : null;
+  }
+
+  async findByAddress(address: string): Promise<BitcoinPaymentIntent | null> {
+    const trimmed = address.trim();
+    const row = await this.db.query.bitcoinPaymentIntents.findFirst({
+      where: inArray(bitcoinPaymentIntents.address, addressCandidates(trimmed)),
     });
     return row ? toIntent(row) : null;
   }

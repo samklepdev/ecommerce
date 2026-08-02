@@ -46,6 +46,15 @@ export interface BitcoinPaymentIntent {
 export interface BitcoinPaymentStore {
   save(intent: BitcoinPaymentIntent): Promise<void>;
   getByOrderId(orderId: string): Promise<BitcoinPaymentIntent | null>;
+  /**
+   * The intent that owns an address, or null.
+   *
+   * One address per order is the whole correlation model, and nothing could
+   * search on it — so a customer saying "I sent coins here and nothing
+   * happened" had no lookup path. The column is already uniquely indexed, so
+   * this is the cheap half of `FindOrderByPaymentReference`.
+   */
+  findByAddress(address: string): Promise<BitcoinPaymentIntent | null>;
   /** Awaiting intents whose quote hasn't expired — the watcher polls these. */
   listWatchable(): Promise<BitcoinPaymentIntent[]>;
   /** Highest address index ever persisted, or null if none. The DB is the

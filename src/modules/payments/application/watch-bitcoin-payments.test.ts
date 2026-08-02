@@ -58,6 +58,9 @@ function makeFakePaymentStore(intent: BitcoinPaymentIntent) {
   let confirmedCalled = false;
   const store: BitcoinPaymentStore = {
     async save() {},
+    async findByAddress() {
+      return null;
+    },
     async getByOrderId() {
       return intent;
     },

@@ -4,7 +4,7 @@ import type {
   AddressChainStatus,
   ChainDataProvider,
 } from '@/modules/payments/application/ports/bitcoin-ports';
-import { parseEsploraTxs, parseTipHeight, type EsploraTx } from './esplora-response';
+import { parseEsploraTx, parseEsploraTxs, parseTipHeight, type EsploraTx } from './esplora-response';
 import { assertValidBitcoinAddress } from './bitcoin-address';
 
 export type { EsploraTx };
@@ -207,6 +207,34 @@ export class EsploraChainDataProvider implements ChainDataProvider {
      * gets — and far better than settling an order on a partial history.
      */
     throw new Error(`esplora returned too many transaction pages for ${address}`);
+  }
+
+  /**
+   * Every address a transaction paid.
+   *
+   * Used to answer "a customer says they sent this txid" — resolved through
+   * the chain rather than from our own records because nothing stores a txid,
+   * and more usefully because this then answers for transactions we never saw:
+   * coins sent to an address we never issued, or to a stale one. Those are the
+   * cases actually worth investigating, and an index of our own txids could
+   * not contain them.
+   */
+  async addressesPaidBy(txid: string): Promise<string[]> {
+    const res = await fetch(`${this.baseUrl}/tx/${encodeURIComponent(txid.trim())}`, {
+      signal: AbortSignal.timeout(CHAIN_FETCH_TIMEOUT_MS),
+    });
+    if (res.status === 404) return [];
+    if (!res.ok) throw new Error(`esplora tx HTTP ${res.status}`);
+
+    // Parsed, not cast — same reasoning as every other response from here.
+    const tx = parseEsploraTx(await res.json());
+    return [
+      ...new Set(
+        tx.vout
+          .map((o) => o.scriptpubkey_address)
+          .filter((a): a is string => typeof a === 'string'),
+      ),
+    ];
   }
 
   private async fetchTipHeight(): Promise<number> {
