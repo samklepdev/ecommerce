@@ -372,6 +372,18 @@ export const coupons = pgTable(
     fixedAmountMinor: bigint('fixed_amount_minor', { mode: 'number' }),
     currency: text('currency'),
     isActive: boolean('is_active').notNull().default(true),
+    /** When the code stops working. Null means never — which is what every
+     * coupon used to be, and how a campaign code outlives its campaign. */
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    /** How many orders may ever use it. Null means unlimited. */
+    maxRedemptions: integer('max_redemptions'),
+    /**
+     * How many have. Incremented by the conditional UPDATE in
+     * `CouponRepository.redeem`, never by a read-then-write: two simultaneous
+     * checkouts would otherwise both read the same count and both pass a limit
+     * of one.
+     */
+    redemptionCount: integer('redemption_count').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({

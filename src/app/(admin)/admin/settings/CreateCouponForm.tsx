@@ -50,6 +50,16 @@ export function CreateCouponForm() {
         </Field>
       )}
 
+      {/* Both optional, and both blank by default so nothing about existing
+          behaviour changes by accident — a code with neither set is exactly
+          what every coupon was before these existed. */}
+      <Field label="Expires on (optional)" htmlFor="coupon-expires">
+        <Input type="date" id="coupon-expires" name="expiresOn" />
+      </Field>
+      <Field label="Max redemptions (optional)" htmlFor="coupon-max">
+        <Input type="number" id="coupon-max" name="maxRedemptions" min={1} step={1} />
+      </Field>
+
       <Button type="submit" disabled={isPending}>
         {isPending ? 'Creating…' : 'Create coupon'}
       </Button>

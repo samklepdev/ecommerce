@@ -95,7 +95,12 @@ export async function startCheckoutAction(
     // that had nothing to do with availability.
     const messages: Record<typeof placed.error.code, string> = {
       empty_cart: 'Your cart is empty.',
-      invalid_coupon: "That coupon code isn't valid.",
+      invalid_coupon: "That coupon code isn't valid, or it has expired.",
+      // Won the race for the last redemption and lost. Says what happened
+      // rather than blaming the code, because nothing the customer did was
+      // wrong and their cart is gone.
+      coupon_exhausted:
+        'That coupon was fully redeemed while you were checking out — your order was not placed. Add the items again and order without it, or get in touch.',
       store_closed:
         'Ordering is paused right now — nothing was charged, and your cart is saved.',
       // A double-click. The first submit won and is already redirecting, so

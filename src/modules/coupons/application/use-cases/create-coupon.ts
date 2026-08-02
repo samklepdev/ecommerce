@@ -11,6 +11,10 @@ export interface CreateCouponInput {
   percentageValue?: number;
   fixedAmountMinor?: number;
   currency?: string;
+  /** When the code stops working. Omitted means never. */
+  expiresAt?: Date | null;
+  /** How many orders may ever use it. Omitted means unlimited. */
+  maxRedemptions?: number | null;
 }
 
 export type CreateCouponError = { code: 'duplicate_code' };

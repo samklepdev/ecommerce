@@ -28,6 +28,13 @@ export type PlaceOrderError =
   | { code: 'empty_cart' }
   | { code: 'product_unavailable'; productId: string }
   | { code: 'invalid_coupon' }
+  /**
+   * The code was valid when checked and gone by the time it was claimed —
+   * someone else took the last redemption, or it expired in between. Distinct
+   * from `invalid_coupon` because the customer did nothing wrong and the cart
+   * has already been claimed, so the wording has to differ.
+   */
+  | { code: 'coupon_exhausted' }
   | { code: 'store_closed' }
   /** Another request placed this cart first — a double-submit. */
   | { code: 'cart_already_submitted' };
@@ -123,8 +130,19 @@ export class PlaceOrder implements UseCase<PlaceOrderInput, Result<Order, PlaceO
     let appliedCouponCode: string | null = null;
     if (input.couponCode) {
       const coupon = await this.coupons.findByCode(input.couponCode);
-      // Same error for "doesn't exist" and "deactivated" — never leak which.
-      if (!coupon || !coupon.isActive) return err({ code: 'invalid_coupon' });
+      /**
+       * Checked here for the error message, enforced later for the limit.
+       *
+       * This runs while the customer still has their cart, so a code that is
+       * expired, exhausted or deactivated is refused before anything is
+       * destroyed. It is deliberately *not* the authority on the redemption
+       * limit — two simultaneous checkouts would both read the same count and
+       * both pass. `coupons.redeem` below settles that in one statement.
+       *
+       * Same error for every cause: never leak whether a code exists, is
+       * spent, or has simply run out of time.
+       */
+      if (!coupon || !coupon.isRedeemableAt(new Date())) return err({ code: 'invalid_coupon' });
       const subtotal = lines.reduce((sum, l) => sum.add(l.subtotal), Money.zero(input.currency));
       discountAmount = coupon.discountAmountFor(subtotal);
       appliedCouponCode = coupon.code;
@@ -161,6 +179,24 @@ export class PlaceOrder implements UseCase<PlaceOrderInput, Result<Order, PlaceO
      */
     const claimed = await this.carts.delete(input.owner);
     if (!claimed) return err({ code: 'cart_already_submitted' });
+
+    /**
+     * Claim the redemption, atomically, before the order is written.
+     *
+     * After the cart claim rather than before it: a double-submit is far more
+     * common than losing a race for the last redemption, and burning a
+     * redemption on every double-click would exhaust a limited code without
+     * anyone buying anything.
+     *
+     * Reaching this and failing means the code ran out between the check above
+     * and now — a genuine race at the boundary. The cart is already gone at
+     * that point, which is the same trade the claim above documents: rare, and
+     * cheaper than the alternative of letting a limited code overrun.
+     */
+    if (appliedCouponCode) {
+      const redeemed = await this.coupons.redeem(appliedCouponCode, new Date());
+      if (!redeemed) return err({ code: 'coupon_exhausted' });
+    }
 
     /**
      * The clock starts here, not at `StartCheckout`.
