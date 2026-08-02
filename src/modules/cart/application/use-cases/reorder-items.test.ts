@@ -68,6 +68,15 @@ function makeFakeCarts(existing: Cart | null) {
     async get() {
       return existing;
     },
+    // Mirrors the repository's read-transform-write, so a use-case test
+    // cannot pass against a fake that skips the step entirely.
+    async mutate(owner, transform) {
+      const current = await this.get(owner);
+      const base = current ?? Cart.create({ id: 'fake-cart', owner, lines: [] });
+      const next = transform(base);
+      await this.save(next);
+      return next;
+    },
     async save(cart) {
       saved.push(cart);
     },

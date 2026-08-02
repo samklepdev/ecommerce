@@ -29,6 +29,16 @@ export interface SystemHealth {
     redis: ServiceCheck;
     btcWatcher: HeartbeatCheck;
   };
+  /**
+   * Third-party services the shop cannot trade without, reported but
+   * deliberately **not** counted toward `status` — see the class doc.
+   */
+  dependencies: {
+    /** The BTC price feed. Down means every checkout fails. */
+    btcRateFeed: ServiceCheck;
+    /** The Esplora provider. Down means no payment settles. */
+    btcChain: ServiceCheck;
+  };
   /** Whether the kill switch is on. Reported, never counted toward
    * `status` — see the class doc. */
   storeOpen: boolean;
@@ -56,6 +66,15 @@ export interface SystemHealth {
  * never the underlying error — a connection error's message routinely
  * contains the credentials it failed to connect with.
  *
+ * The BTC rate feed and chain provider are reported the same way, and for the
+ * same reason. They are third parties: when the rate feed is down every
+ * checkout fails, but the catalogue, the order pages and the admin console all
+ * still work — so answering 503 would have the load balancer pull an instance
+ * that is mostly fine, and take the console down with it, across every
+ * instance at once. A checkout outage would become a total one. They are in
+ * the body so a monitor can alert on them; they are not in `status` so nothing
+ * automatically acts on them.
+ *
  * The kill switch is reported here but deliberately does **not** make the
  * check fail. A closure is intentional, and a 503 would have the load
  * balancer pull the instance out — taking down the admin console the switch
@@ -71,17 +90,31 @@ export class CheckSystemHealth implements UseCase<void, SystemHealth> {
     private readonly watcherStaleAfterMs: number,
     private readonly storeAvailability: GetStoreAvailability,
     private readonly jobs: JobQueueMonitor,
+    /**
+     * The BTC price feed and chain provider.
+     *
+     * Probed because nothing else notices they are gone. A dead rate feed
+     * fails 100% of checkouts — and since the sanity band made that path fail
+     * closed, silently. The watcher's heartbeat covers the chain only while
+     * there are orders to watch, so on a quiet shop a dead Esplora is
+     * invisible until someone pays.
+     */
+    private readonly btcRateFeed: ServiceProbe,
+    private readonly btcChain: ServiceProbe,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
   async execute(): Promise<SystemHealth> {
-    const [database, redis, btcWatcher, availability, jobs] = await Promise.all([
-      this.probe(this.database),
-      this.probe(this.cache),
-      this.checkWatcher(),
-      this.storeAvailability.execute(),
-      this.jobCounts(),
-    ]);
+    const [database, redis, btcWatcher, availability, jobs, btcRateFeed, btcChain] =
+      await Promise.all([
+        this.probe(this.database),
+        this.probe(this.cache),
+        this.checkWatcher(),
+        this.storeAvailability.execute(),
+        this.jobCounts(),
+        this.probe(this.btcRateFeed),
+        this.probe(this.btcChain),
+      ]);
 
     const status =
       database.status === 'ok' && redis.status === 'ok' && btcWatcher.status === 'ok'
@@ -91,6 +124,7 @@ export class CheckSystemHealth implements UseCase<void, SystemHealth> {
     return {
       status,
       checks: { database, redis, btcWatcher },
+      dependencies: { btcRateFeed, btcChain },
       storeOpen: availability.isOpen,
       jobs,
     };

@@ -31,6 +31,8 @@ function makeUseCase(opts: {
   staleAfterMs?: number;
   storeOpen?: boolean;
   jobs?: { waiting: number; active: number; failed: number } | 'unreadable';
+  rateFeed?: boolean;
+  chain?: boolean;
 }) {
   const availability = {
     execute: async () => ({ isOpen: opts.storeOpen ?? true, closure: null }),
@@ -50,6 +52,8 @@ function makeUseCase(opts: {
     opts.staleAfterMs ?? 135_000,
     availability,
     jobs,
+    probe(opts.rateFeed ?? true),
+    probe(opts.chain ?? true),
     () => NOW,
   );
 }
@@ -150,5 +154,48 @@ describe('CheckSystemHealth', () => {
     const unreadable = await makeUseCase({ jobs: 'unreadable' }).execute();
     expect(unreadable.jobs).toBeNull();
     expect(unreadable.status).toBe('ok');
+  });
+});
+
+describe('third-party dependencies', () => {
+  /**
+   * Reported, never counted toward `status`.
+   *
+   * A dead rate feed fails every checkout — and since the sanity band made
+   * that path fail closed, it does so silently, with nothing else in the
+   * system noticing. But the catalogue, the order pages and the admin console
+   * all still work, so answering 503 would have the load balancer pull an
+   * instance that is mostly fine, and take the console down with it, on every
+   * instance at once. A checkout outage would become a total one.
+   */
+  it('reports a dead rate feed without failing the check', async () => {
+    const health = await makeUseCase({ rateFeed: false }).execute();
+
+    expect(health.dependencies.btcRateFeed).toEqual({ status: 'fail', reason: 'unreachable' });
+    expect(health.status).toBe('ok');
+  });
+
+  it('reports a dead chain provider without failing the check', async () => {
+    const health = await makeUseCase({ chain: false }).execute();
+
+    expect(health.dependencies.btcChain).toEqual({ status: 'fail', reason: 'unreachable' });
+    expect(health.status).toBe('ok');
+  });
+
+  it('reports both healthy in the normal case', async () => {
+    const health = await makeUseCase({}).execute();
+
+    expect(health.dependencies).toEqual({
+      btcRateFeed: { status: 'ok' },
+      btcChain: { status: 'ok' },
+    });
+  });
+
+  it('still fails on a backing service the instance cannot serve without', async () => {
+    // The contrast that makes the rule legible: Postgres being down means this
+    // process cannot serve a single page, so pulling it is right.
+    const health = await makeUseCase({ db: false, rateFeed: false }).execute();
+
+    expect(health.status).toBe('degraded');
   });
 });
