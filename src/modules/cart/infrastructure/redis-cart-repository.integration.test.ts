@@ -110,6 +110,46 @@ describe('RedisCartRepository#mutate (integration)', () => {
     expect(stored?.lines.map((l) => l.productId).sort()).toEqual(['b', 'c']);
   });
 
+  it('gives a signed-in customer cart an expiry too', async () => {
+    /**
+     * It used to have none — a plain `SET`, so every account that ever added
+     * an item kept a Redis key for good. Redis is on every request path here
+     * and checkout fails *closed* on it, so unbounded growth in that keyspace
+     * eventually stops the shop taking money.
+     */
+    const userOwner = { type: 'user' as const, userId: `user-${n}` };
+
+    await repo().mutate(userOwner, (cart) => cart.addLine(line('a')));
+
+    const ttl = await redis.ttl(`cart:user:${userOwner.userId}`);
+    expect(ttl).toBeGreaterThan(0);
+  });
+
+  it('is more generous with a signed-in cart than an anonymous one', async () => {
+    // A guest cart is cheap to lose: the visitor cannot ask for it back, and
+    // the cookie identifying it is itself temporary. A customer expects theirs
+    // to still be there next month.
+    const guestOwner = owner();
+    const userOwner = { type: 'user' as const, userId: `user-ttl-${n}` };
+
+    await repo().mutate(guestOwner, (cart) => cart.addLine(line('a')));
+    await repo().mutate(userOwner, (cart) => cart.addLine(line('a')));
+
+    const guestTtl = await redis.ttl(`cart:guest:${(guestOwner as { sessionId: string }).sessionId}`);
+    const userTtl = await redis.ttl(`cart:user:${userOwner.userId}`);
+    expect(userTtl).toBeGreaterThan(guestTtl);
+  });
+
+  it('refreshes the expiry on every write, so an active cart never dies underneath anyone', async () => {
+    const userOwner = { type: 'user' as const, userId: `user-refresh-${n}` };
+    await repo().mutate(userOwner, (cart) => cart.addLine(line('a')));
+    await redis.expire(`cart:user:${userOwner.userId}`, 60);
+
+    await repo().mutate(userOwner, (cart) => cart.addLine(line('b')));
+
+    expect(await redis.ttl(`cart:user:${userOwner.userId}`)).toBeGreaterThan(60);
+  });
+
   it('keeps the guest TTL, so abandoned carts still expire', async () => {
     const o = owner();
 
