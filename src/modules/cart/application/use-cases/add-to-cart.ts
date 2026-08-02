@@ -1,9 +1,7 @@
-import { randomUUID } from 'node:crypto';
-
 import type { UseCase } from '@/shared/application/use-case';
 import { logger } from '@/shared/infrastructure/logger';
 import { err, ok, type Result } from '@/shared/domain/result';
-import { Cart, type CartOwner } from '@/modules/cart/domain/cart';
+import type { Cart, CartOwner } from '@/modules/cart/domain/cart';
 import { CartLine } from '@/modules/cart/domain/cart-line';
 import type { CartRepository } from '@/modules/cart/application/ports/cart-repository';
 import type { ProductRepository } from '@/modules/catalog/application/ports/product-repository';
@@ -28,19 +26,19 @@ export class AddToCart implements UseCase<AddToCartInput, Result<Cart, AddToCart
     const product = await this.products.findById(input.productId);
     if (!product) return err({ code: 'product_not_found' });
 
-    const existing = await this.carts.get(input.owner);
-    const cart = existing ?? Cart.create({ id: randomUUID(), owner: input.owner, lines: [] });
-
-    const updated = cart.addLine(
-      CartLine.create({
-        productId: product.id,
-        productName: product.name,
-        quantity: input.quantity,
-        unitPrice: product.price,
-      }),
+    // One atomic read-transform-write. Read-then-save let two quick-add
+    // clicks each read the same cart and each write their own version, so the
+    // customer silently lost whichever landed first.
+    const updated = await this.carts.mutate(input.owner, (cart) =>
+      cart.addLine(
+        CartLine.create({
+          productId: product.id,
+          productName: product.name,
+          quantity: input.quantity,
+          unitPrice: product.price,
+        }),
+      ),
     );
-
-    await this.carts.save(updated);
 
     if (this.events) {
       // Best-effort — a tracking failure must never block adding to cart.

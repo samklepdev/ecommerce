@@ -6,6 +6,7 @@ import { redis } from '@/shared/infrastructure/redis/client';
 import { RedisRateLimiter } from '@/shared/infrastructure/redis/redis-rate-limiter';
 import { RedisHeartbeatStore } from '@/shared/infrastructure/redis/redis-heartbeat-store';
 import { DrizzleDatabaseProbe } from '@/shared/infrastructure/db/drizzle-database-probe';
+import { HttpServiceProbe } from '@/shared/infrastructure/http-service-probe';
 import { CheckSystemHealth } from '@/shared/application/use-cases/check-system-health';
 import { AssertStoreOpenForCheckout } from '@/shared/application/use-cases/assert-store-open-for-checkout';
 import { GetStoreAvailability } from '@/shared/application/use-cases/get-store-availability';
@@ -426,6 +427,14 @@ function build(): Container {
     Math.max(3 * env.BTC_WATCH_INTERVAL_MS, 120_000),
     getStoreAvailability,
     jobQueue,
+    /**
+     * Cheap, cached liveness endpoints — `/blocks/tip/height` and
+     * `/v1/prices` — not a real query. The point is "is this service
+     * answering", and a health endpoint must never become a load generator
+     * against the third party it is checking.
+     */
+    new HttpServiceProbe(`${env.BTC_RATE_URL}/v1/prices`),
+    new HttpServiceProbe(`${env.BTC_ESPLORA_URL}/blocks/tip/height`),
   );
   const assertStoreOpenForCheckout = new AssertStoreOpenForCheckout(storeAvailabilityStore);
 
