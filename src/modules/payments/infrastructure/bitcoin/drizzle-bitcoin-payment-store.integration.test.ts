@@ -250,6 +250,59 @@ describe('DrizzleBitcoinPaymentStore late payments (integration)', () => {
 
     expect(await store().countLatePayments()).toBe(0);
   });
+
+  /**
+   * Finding the order an address belongs to.
+   *
+   * One address per order is the whole correlation model, and nothing could
+   * search on it — so "a customer says they sent coins here" had no lookup path
+   * and answering took hand-written SQL against production.
+   */
+  describe('findByAddress', () => {
+    it('finds the intent that owns an address', async () => {
+      const orderId = await seedIntent(db as DB, { status: 'awaiting' });
+      const intent = await store().getByOrderId(orderId);
+  
+      const found = await store().findByAddress(intent!.address);
+  
+      expect(found?.orderId).toBe(orderId);
+    });
+  
+    it('returns null for an address this shop never issued', async () => {
+      await seedIntent(db as DB, { status: 'awaiting' });
+  
+      expect(await store().findByAddress('tb1qneverissued00000000000000000000000000')).toBeNull();
+    });
+  
+    it('ignores whitespace around a pasted value', async () => {
+      const orderId = await seedIntent(db as DB, { status: 'awaiting' });
+      const intent = await store().getByOrderId(orderId);
+  
+      expect((await store().findByAddress(`  ${intent!.address}\n`))?.orderId).toBe(orderId);
+    });
+  
+    /**
+     * Bech32 is case-insensitive by spec and some explorers render it upper-cased,
+     * while every address this app derives is lower-case. Base58 (`1...`, `3...`)
+     * is emphatically not, which is why the fallback is limited to bech32
+     * prefixes rather than lowercasing everything.
+     */
+    it('matches an upper-cased bech32 address', async () => {
+      const orderId = await seedIntent(db as DB, { status: 'awaiting' });
+      const intent = await store().getByOrderId(orderId);
+  
+      const found = await store().findByAddress(intent!.address.toUpperCase());
+  
+      expect(found?.orderId).toBe(orderId);
+    });
+  
+    it('does not lowercase a base58 address, where case is significant', async () => {
+      // `1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2` and its lowercase form are different
+      // strings, and only one is a valid address. Looking up the wrong one and
+      // finding nothing is correct; silently matching a different row is not.
+      expect(await store().findByAddress('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2')).toBeNull();
+    });
+    });
 });
 
 /**

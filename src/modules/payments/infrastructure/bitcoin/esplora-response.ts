@@ -63,6 +63,16 @@ export function parseEsploraTxs(raw: unknown): EsploraTx[] {
  * depth — NaN compares false against the required depth, so an order would
  * sit unconfirmed forever with nothing logged.
  */
+/** A single transaction, for the admin's txid lookup. Same schema as a list
+ * entry, so the two can never disagree about the shape. */
+export function parseEsploraTx(raw: unknown): EsploraTx {
+  const result = EsploraTxSchema.safeParse(raw);
+  if (!result.success) {
+    throw new Error(`esplora returned an unexpected transaction: ${result.error.message}`);
+  }
+  return result.data;
+}
+
 export function parseTipHeight(raw: string): number {
   const result = z.coerce
     .number()

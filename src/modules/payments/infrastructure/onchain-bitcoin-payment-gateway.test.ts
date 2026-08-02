@@ -72,6 +72,9 @@ function makeFakeStoreThatLosesTheRace(winningIntent: BitcoinPaymentIntent): Bit
     async save() {
       // no-op: another request's row already won the unique constraint
     },
+    async findByAddress() {
+      return null;
+    },
     async getByOrderId() {
       return winningIntent;
     },
@@ -103,6 +106,9 @@ function makeFakeStoreEmpty(): { store: BitcoinPaymentStore; saved: BitcoinPayme
   const store: BitcoinPaymentStore = {
     async save(intent) {
       saved.push(intent);
+    },
+    async findByAddress() {
+      return null;
     },
     async getByOrderId() {
       return saved[0] ?? null;
