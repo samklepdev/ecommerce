@@ -35,7 +35,26 @@ interface StoredCart {
   lines: StoredLine[];
 }
 
+/**
+ * How long a cart survives untouched, by whose it is.
+ *
+ * A guest cart is anonymous and cheap to lose — the visitor has no way to ask
+ * for it back, and the cookie that identifies it is itself temporary.
+ *
+ * A signed-in customer's cart used to have **no expiry at all**: a plain `SET`,
+ * so every account that ever added an item kept a Redis key for good. Redis is
+ * on every request path here and checkout fails *closed* on it, so unbounded
+ * growth in that keyspace eventually stops the shop taking money. Six months is
+ * far longer than anyone reasonably expects a cart to be kept — and it is
+ * refreshed on every write, so an actively-used cart never expires under
+ * someone.
+ */
 const GUEST_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
+const USER_TTL_SECONDS = 60 * 60 * 24 * 180; // 6 months
+
+function ttlFor(owner: CartOwner): number {
+  return owner.type === 'guest' ? GUEST_TTL_SECONDS : USER_TTL_SECONDS;
+}
 
 /** Sentinel for "no cart was stored". A real document is JSON and starts `{`,
  * so this can never collide with one. */
@@ -187,7 +206,7 @@ export class RedisCartRepository implements CartRepository {
     next: Cart,
     owner: CartOwner,
   ): Promise<boolean> {
-    const ttl = owner.type === 'guest' ? GUEST_TTL_SECONDS : 0;
+    const ttl = ttlFor(owner);
     const result = await this.redis.eval(
       `
       local current = redis.call('GET', KEYS[1])
@@ -197,11 +216,7 @@ export class RedisCartRepository implements CartRepository {
       elseif current ~= expected then
         return 0
       end
-      if tonumber(ARGV[3]) > 0 then
-        redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[3])
-      else
-        redis.call('SET', KEYS[1], ARGV[1])
-      end
+      redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[3])
       return 1
       `,
       1,
@@ -217,11 +232,7 @@ export class RedisCartRepository implements CartRepository {
     const stored = toStored(cart);
     const key = keyFor(cart.owner);
     const payload = JSON.stringify(stored);
-    if (cart.owner.type === 'guest') {
-      await this.redis.set(key, payload, 'EX', GUEST_TTL_SECONDS);
-    } else {
-      await this.redis.set(key, payload);
-    }
+    await this.redis.set(key, payload, 'EX', ttlFor(cart.owner));
   }
 
 
